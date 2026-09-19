@@ -1,7 +1,13 @@
 # 文言背诵 (WenYan Recitation)
 
+[![Build & Release](https://github.com/yulaoshizuikeai/wenyan-fsrs-recitation/actions/workflows/release.yml/badge.svg)](https://github.com/yulaoshizuikeai/wenyan-fsrs-recitation/actions/workflows/release.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/yulaoshizuikeai/wenyan-fsrs-recitation?color=brightgreen)](https://github.com/yulaoshizuikeai/wenyan-fsrs-recitation/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > 基于 **FSRS-5 (Free Spaced Repetition Scheduler)** 间隔重复记忆算法的高中语文古诗文原生安卓闪卡背诵记忆系统。
 > 完整收录古文岛高中课标全部 11 个教材模块共 100 篇经典诗文（包含教育部高考必背 72 篇），提供双轨记忆体验（单句翻转闪卡 + 整篇渐进遮挡背诵）。
+
+📥 **[下载最新安装包 (APK Releases)](https://github.com/yulaoshizuikeai/wenyan-fsrs-recitation/releases)**
 
 ---
 
@@ -123,6 +129,23 @@ $$R(t, S) = \left(1 + \text{factor} \cdot \frac{t}{S}\right)^{-0.5}, \quad \text
 $$I(S) = \frac{S}{\text{factor}} \cdot \left(R_{\text{target}}^{-2} - 1\right)$$
 
 难度与稳定性迭代依据艾宾浩斯复习日志实时回归调整，确保长篇文言文长久牢固掌握。
+
+---
+
+## 🚀 自动发布与版本推送 (Release Workflow)
+
+本项目已配置 **GitHub Actions CI/CD** 自动化打包与发布流水线。当需要发布新版本时：
+
+1. 本地创建版本标签并推送至 GitHub：
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+2. GitHub Actions 自动触发：
+   - 执行 80 项单元测试检验代码健壮性；
+   - 自动编译构建 Release APK 与 Debug APK 并进行 SHA-256 完整性校验；
+   - 自动在 GitHub Releases 发布新版本并挂载 APK 安装包供用户下载。
+3. 亦可在 GitHub 仓库的 **Actions -> Build & Release Android APK -> Run workflow** 页面手动一键触发构建。
 
 ---
 
