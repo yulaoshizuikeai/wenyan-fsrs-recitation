@@ -1,0 +1,20 @@
+<resources>
+    <!-- 宣纸底色系列 (Substrate / Background) -->
+    <color name="xuan_paper_light">#F7F4EB</color>
+    <color name="xuan_paper_deep">#F2ECE1</color>
+    <color name="xuan_paper_card">#FFFDF8</color>
+    <color name="xuan_border">#E2DAC7</color>
+
+    <!-- 水墨浓淡系列 (Ink / Typography) -->
+    <color name="ink_charcoal">#232120</color>
+    <color name="ink_medium">#57524E</color>
+    <color name="ink_faded">#8C827A</color>
+
+    <!-- 东方人文点缀系列 (Cultural Accents) -->
+    <color name="bamboo_green">#2C4F3D</color>
+    <color name="mountain_teal">#3E5C59</color>
+    <color name="cinnabar_red">#9E2A2B</color>
+    <color name="vermilion_accent">#C0392B</color>
+    <color name="muted_gold">#B58D3D</color>
+    <color name="lacquer_dark">#1E1B18</color>
+</resources>

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">文言背诵</string>
+    <string name="app_description">基于 FSRS 间隔重复记忆算法的高中语文古诗文原生背诵应用</string>
+</resources>

@@ -1,0 +1,34 @@
+# Gradle & Build Cache
+.gradle/
+build/
+app/build/
+**/build/
+
+# Android Studio & IDE
+.idea/
+*.iml
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Log & Heap Dumps
+*.log
+*.hprof
+
+# Keystore & Signing
+*.jks
+*.keystore
+
+# OS Generated
+.DS_Store
+Thumbs.db
+
+# Output APKs in root (app/build/ is already ignored, but keep root clean)
+*.apk
+*.aab
+
+# Local agent artifacts & temporary junctions
+.agents/
+wenyan_link

@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 朱砂印章外框 -->
+    <path
+        android:strokeColor="#9E2A2B"
+        android:strokeWidth="3"
+        android:fillColor="#159E2A2B"
+        android:pathData="M34,34h40v40h-40z" />
+    <!-- 内部金石印痕与书卷线条 -->
+    <path
+        android:fillColor="#9E2A2B"
+        android:pathData="M42,42h24v4h-24z" />
+    <path
+        android:fillColor="#9E2A2B"
+        android:pathData="M52,42v24h4v-24z" />
+    <path
+        android:fillColor="#9E2A2B"
+        android:pathData="M42,52h24v3h-24z" />
+    <path
+        android:fillColor="#9E2A2B"
+        android:pathData="M42,62h24v4h-24z" />
+</vector>

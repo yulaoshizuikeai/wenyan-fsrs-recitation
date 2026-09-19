@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.WenYan" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/xuan_paper_light</item>
+        <item name="android:navigationBarColor">@color/xuan_paper_deep</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
