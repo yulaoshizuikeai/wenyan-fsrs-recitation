@@ -402,13 +402,34 @@ class WenYanRepository(
         )
     }
 
-    // Onboarding tutorial state
     fun isOnboardingCompleted(): Boolean {
         return prefs?.getBoolean("pref_onboarding_completed", false) ?: false
     }
 
     fun setOnboardingCompleted(completed: Boolean) {
         prefs?.edit()?.putBoolean("pref_onboarding_completed", completed)?.apply()
+    }
+
+    // Reminder Time Preferences (Default: 21:00)
+    fun getReminderTime(): Pair<Int, Int> {
+        val hour = prefs?.getInt("pref_reminder_hour", 21) ?: 21
+        val minute = prefs?.getInt("pref_reminder_minute", 0) ?: 0
+        return Pair(hour, minute)
+    }
+
+    fun setReminderTime(hour: Int, minute: Int) {
+        prefs?.edit()
+            ?.putInt("pref_reminder_hour", hour)
+            ?.putInt("pref_reminder_minute", minute)
+            ?.apply()
+    }
+
+    fun isReminderEnabled(): Boolean {
+        return prefs?.getBoolean("pref_reminder_enabled", true) ?: true
+    }
+
+    fun setReminderEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("pref_reminder_enabled", enabled)?.apply()
     }
 
     companion object {

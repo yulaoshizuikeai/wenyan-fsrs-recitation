@@ -34,9 +34,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
+import com.ancient.wenyan.notification.ReminderWorker
 import com.ancient.wenyan.ui.components.BookSelectionDialog
 import com.ancient.wenyan.ui.components.OnboardingTutorialDialog
 import com.ancient.wenyan.ui.components.RecitationHeatmapCard
+import com.ancient.wenyan.ui.components.ReminderSettingsDialog
+import com.ancient.wenyan.ui.components.StreakBannerCard
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
@@ -61,6 +64,10 @@ fun DashboardScreen(
     var showTutorialDialog by remember {
         mutableStateOf(!repository.isOnboardingCompleted())
     }
+    var showReminderDialog by remember { mutableStateOf(false) }
+
+    val reminderTime = remember { repository.getReminderTime() }
+    val isReminderOn = remember { repository.isReminderEnabled() }
 
     // Book Selection Modal
     if (showBookDialog) {
@@ -89,17 +96,37 @@ fun DashboardScreen(
         )
     }
 
+    // Daily Reminder Settings Modal
+    if (showReminderDialog) {
+        ReminderSettingsDialog(
+            initialHour = reminderTime.first,
+            initialMinute = reminderTime.second,
+            isReminderEnabled = isReminderOn,
+            onDismiss = { showReminderDialog = false },
+            onConfirm = { hour, minute, enabled ->
+                repository.setReminderTime(hour, minute)
+                repository.setReminderEnabled(enabled)
+                if (enabled) {
+                    ReminderWorker.scheduleDailyReminder(context, hour, minute)
+                } else {
+                    ReminderWorker.cancelDailyReminder(context)
+                }
+                showReminderDialog = false
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(XuanPaperLight)
+            .background(BgCanvas)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Header: Classical Title & Seal & Tutorial Button
+        // Header: Minimalist Clean Title & Subtitle + Actions
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -108,22 +135,43 @@ fun DashboardScreen(
             Column {
                 Text(
                     text = "文言背诵",
-                    fontSize = 30.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    color = InkCharcoal,
-                    letterSpacing = 2.sp
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextPrimary,
+                    letterSpacing = (-0.5).sp
                 )
                 Text(
-                    text = "高中课内全篇目 · FSRS 间隔重复记忆",
+                    text = "高中全篇目 · FSRS-5 间隔记忆",
                     fontSize = 13.sp,
-                    fontFamily = FontFamily.Serif,
-                    color = InkMedium,
-                    modifier = Modifier.padding(top = 4.dp)
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Reminder Quick Toggle / Settings
+                IconButton(
+                    onClick = {
+                        soundManager.playClick()
+                        showReminderDialog = true
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(BgSurface, RoundedCornerShape(10.dp))
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NotificationsNone,
+                        contentDescription = "提醒设置",
+                        tint = StudyBlueAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 // Sound Effect Toggle
                 IconButton(
                     onClick = {
@@ -134,13 +182,13 @@ fun DashboardScreen(
                     },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(XuanPaperCard, RoundedCornerShape(8.dp))
-                        .border(1.dp, XuanBorder, RoundedCornerShape(8.dp))
+                        .background(BgSurface, RoundedCornerShape(10.dp))
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
                 ) {
                     Icon(
                         imageVector = if (isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
                         contentDescription = "音效开关",
-                        tint = if (isSoundEnabled) BambooGreen else InkFaded,
+                        tint = if (isSoundEnabled) TextPrimary else TextTertiary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -155,37 +203,14 @@ fun DashboardScreen(
                     },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(XuanPaperCard, RoundedCornerShape(8.dp))
-                        .border(1.dp, XuanBorder, RoundedCornerShape(8.dp))
+                        .background(BgSurface, RoundedCornerShape(10.dp))
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(10.dp))
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                        contentDescription = "新手研习指南",
-                        tint = InkMedium,
+                        contentDescription = "研习指南",
+                        tint = TextSecondary,
                         modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // Vermilion Seal Stamp (朱砂印章)
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .rotate(-5f)
-                        .background(Color(0x159E2A2B), RoundedCornerShape(6.dp))
-                        .border(2.dp, CinnabarRed, RoundedCornerShape(6.dp))
-                        .padding(4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "熟读\n成诵",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = CinnabarRed,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 14.sp
                     )
                 }
             }
@@ -198,10 +223,10 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { showBookDialog = true }
-                .border(1.2.dp, BambooGreen.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
+                .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
-            elevation = CardDefaults.cardElevation(2.dp)
+            colors = CardDefaults.cardColors(containerColor = BgSurface),
+            elevation = CardDefaults.cardElevation(1.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -216,15 +241,15 @@ fun DashboardScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
-                            .background(BambooGreen.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                            .size(42.dp)
+                            .background(StudyBlueLight, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.MenuBook,
                             contentDescription = null,
-                            tint = BambooGreen,
-                            modifier = Modifier.size(24.dp)
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -233,10 +258,10 @@ fun DashboardScreen(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "当前背诵教材",
+                                text = "背诵教材范围",
                                 fontSize = 12.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = InkMedium
+                                fontFamily = FontFamily.SansSerif,
+                                color = TextTertiary
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             val targetArticlesCount = if (selectedBookScope.isNullOrEmpty()) {
@@ -246,14 +271,14 @@ fun DashboardScreen(
                             }
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0x159E2A2B), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    .background(StudyBlueLight, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
                             ) {
                                 Text(
                                     text = "$targetArticlesCount 篇",
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Serif,
-                                    color = CinnabarRed,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = StudyBlueAccent,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -261,10 +286,10 @@ fun DashboardScreen(
 
                         Text(
                             text = selectedBookName,
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary,
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -273,7 +298,8 @@ fun DashboardScreen(
                 // Switch Book Button Pill
                 Box(
                     modifier = Modifier
-                        .background(BambooGreen, RoundedCornerShape(8.dp))
+                        .background(BgSurfaceMuted, RoundedCornerShape(8.dp))
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -281,32 +307,44 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Default.SwapHoriz,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = TextSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "切换图书",
+                            text = "切换",
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextSecondary
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Stats Dashboard Card
+        // 百词斩极简打卡横幅卡片 (Streak Banner Card)
+        StreakBannerCard(
+            currentStreak = heatmapStats.currentStreak,
+            isTodayReviewed = stats.todayReviewedCount > 0,
+            onStartReview = {
+                soundManager.playClick()
+                onStartTodayReview()
+            }
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Stats Dashboard Card (Vercel 极简现代看板)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, XuanBorder, RoundedCornerShape(14.dp)),
+                .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
-            elevation = CardDefaults.cardElevation(2.dp)
+            colors = CardDefaults.cardColors(containerColor = BgSurface),
+            elevation = CardDefaults.cardElevation(1.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
                 Row(
@@ -316,41 +354,41 @@ fun DashboardScreen(
                 ) {
                     Text(
                         text = "今日记忆看板",
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkCharcoal
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
                     )
                     Text(
-                        text = "FSRS-5 算法在线",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Serif,
-                        color = BambooGreen,
-                        fontWeight = FontWeight.SemiBold
+                        text = "FSRS-5 ACTIVE",
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        color = StudyBlueAccent,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StatMetric(label = "到期复习", value = "${stats.dueCards}", color = CinnabarRed)
-                    StatMetric(label = "学习中", value = "${stats.learningCards}", color = MutedGold)
-                    StatMetric(label = "已掌握", value = "${stats.reviewCards}", color = BambooGreen)
-                    StatMetric(label = "保持率", value = "${stats.retentionPercentage.toInt()}%", color = CeladonBlue)
+                    StatMetric(label = "DUE", value = "${stats.dueCards}", color = if (stats.dueCards > 0) DueRed else TextPrimary)
+                    StatMetric(label = "LEARNING", value = "${stats.learningCards}", color = StudyBlueAccent)
+                    StatMetric(label = "REVIEW", value = "${stats.reviewCards}", color = SuccessGreen)
+                    StatMetric(label = "RETENTION", value = "${stats.retentionPercentage.toInt()}%", color = TextPrimary)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Primary Call to Action Button: Today's FSRS Review
         val reviewInteractionSource = remember { MutableInteractionSource() }
         val isReviewPressed by reviewInteractionSource.collectIsPressedAsState()
         val reviewScale by animateFloatAsState(
-            targetValue = if (isReviewPressed) 0.94f else 1.0f,
+            targetValue = if (isReviewPressed) 0.96f else 1.0f,
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
                 stiffness = Spring.StiffnessMedium
@@ -366,34 +404,35 @@ fun DashboardScreen(
             interactionSource = reviewInteractionSource,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(54.dp)
                 .scale(reviewScale),
-            colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
+            colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(imageVector = Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(22.dp))
-            Spacer(modifier = Modifier.width(10.dp))
+            Icon(imageVector = Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = if (stats.dueCards > 0) "开始今日复习 (${stats.dueCards}张到期)" else "开始今日学习新卡",
-                fontSize = 17.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold
+                text = if (stats.dueCards > 0) "开始今日复习 (${stats.dueCards} 句待复习)" else "开始今日研习新卡",
+                fontSize = 16.sp,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // Recitation Heatmap Card (研墨足迹 · 背诵热力图)
+        // Recitation Heatmap Card (研墨足迹 · GitHub 蓝热力图)
         RecitationHeatmapCard(heatmapStats = heatmapStats)
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "功能导航",
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif,
-            color = InkMedium,
+            fontFamily = FontFamily.SansSerif,
+            color = TextSecondary,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 10.dp)
@@ -401,40 +440,50 @@ fun DashboardScreen(
 
         // Navigation Features
         DashboardNavCard(
-            title = "章节篇目系统学习",
-            subtitle = "必修与选修共 11 册教材 · 100篇诗文目录循序渐进",
+            title = "章节篇目系统研读",
+            subtitle = "必修与选修共 11 册教材 · 100 篇诗文目录循序渐进",
             icon = Icons.Default.Bookmarks,
-            accentColor = BambooGreen,
+            accentColor = StudyBlueAccent,
             onClick = onNavigateToChapters
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         DashboardNavCard(
             title = "跨篇目随机背诵",
             subtitle = "自由设定抽取范围与卡片数量 · 高频交叉强化",
             icon = Icons.Default.Shuffle,
-            accentColor = MutedGold,
+            accentColor = TextSecondary,
             onClick = onNavigateToRandom
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         DashboardNavCard(
             title = "高考必背 72 篇专项",
             subtitle = "一键抽查教育部高考统编课标核心默写重点句",
             icon = Icons.Default.Star,
-            accentColor = CinnabarRed,
+            accentColor = StreakFlame,
             onClick = onStartGaoKaoReview
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
+
+        DashboardNavCard(
+            title = "每日提醒设置 (Daily Reminder)",
+            subtitle = "设定每日定时推送打卡通知 · 保持连续研习连胜",
+            icon = Icons.Default.NotificationsActive,
+            accentColor = StudyBlueAccent,
+            onClick = { showReminderDialog = true }
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         DashboardNavCard(
             title = "新手研习指南",
-            subtitle = "了解 FSRS 算法评分、自选课本与整篇渐进遮挡",
+            subtitle = "了解 FSRS-5 算法评分、自选课本与整篇渐进遮挡",
             icon = Icons.AutoMirrored.Filled.HelpOutline,
-            accentColor = CeladonBlue,
+            accentColor = TextSecondary,
             onClick = { showTutorialDialog = true }
         )
     }
@@ -447,15 +496,16 @@ fun StatMetric(label: String, value: String, color: Color) {
             text = value,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Serif,
+            fontFamily = FontFamily.SansSerif,
             color = color
         )
         Text(
             text = label,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Serif,
-            color = InkFaded,
-            modifier = Modifier.padding(top = 2.dp)
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.SansSerif,
+            color = TextTertiary,
+            modifier = Modifier.padding(top = 3.dp)
         )
     }
 }
@@ -472,9 +522,9 @@ fun DashboardNavCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .border(1.dp, XuanBorder, RoundedCornerShape(12.dp)),
+            .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+        colors = CardDefaults.cardColors(containerColor = BgSurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
@@ -485,33 +535,33 @@ fun DashboardNavCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
+                    .size(42.dp)
+                    .background(BgSurfaceMuted, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
                     tint = accentColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Serif,
-                    color = InkCharcoal
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextPrimary
                 )
                 Text(
                     text = subtitle,
                     fontSize = 12.sp,
-                    fontFamily = FontFamily.Serif,
-                    color = InkMedium,
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextSecondary,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
@@ -519,7 +569,7 @@ fun DashboardNavCard(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = InkFaded
+                tint = TextTertiary
             )
         }
     }

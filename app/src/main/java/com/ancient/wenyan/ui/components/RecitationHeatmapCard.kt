@@ -176,11 +176,11 @@ fun RecitationHeatmapCard(
 
                                     val cellColor = when {
                                         isFuture -> Color.Transparent
-                                        count == 0 -> Color(0xFFEBE7DD)
-                                        count in 1..4 -> Color(0xFFBFE0CB)
-                                        count in 5..9 -> Color(0xFF7CB88B)
-                                        count in 10..19 -> Color(0xFF3F9154)
-                                        else -> Color(0xFF1F5C34)
+                                        count == 0 -> Color(0xFFF1F5F9) // Slate 100
+                                        count in 1..4 -> Color(0xFFBFDBFE) // Blue 200
+                                        count in 5..9 -> Color(0xFF60A5FA) // Blue 400
+                                        count in 10..19 -> Color(0xFF2563EB) // Blue 600
+                                        else -> Color(0xFF1E3A8A) // Blue 900
                                     }
 
                                     Box(
@@ -191,7 +191,7 @@ fun RecitationHeatmapCard(
                                                 shape = RoundedCornerShape(3.dp)
                                             )
                                             .then(
-                                                if (isToday) Modifier.border(1.dp, CinnabarRed, RoundedCornerShape(3.dp))
+                                                if (isToday) Modifier.border(1.2.dp, StreakFlame, RoundedCornerShape(3.dp))
                                                 else Modifier
                                             )
                                             .clickable(enabled = !isFuture) {
@@ -219,33 +219,33 @@ fun RecitationHeatmapCard(
                 if (selectedDateInfo != null) {
                     val (dStr, cnt) = selectedDateInfo!!
                     Text(
-                        text = "$dStr · 复习 $cnt 次",
+                        text = "$dStr · 研习 $cnt 次",
                         fontSize = 11.sp,
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (cnt > 0) BambooGreen else InkMedium
+                        color = if (cnt > 0) StudyBlueAccent else TextSecondary
                     )
                 } else {
                     Text(
                         text = "轻触格点查验历史",
                         fontSize = 11.sp,
-                        fontFamily = FontFamily.Serif,
-                        color = InkFaded
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextTertiary
                     )
                 }
 
-                // Legend: 少 ⬜ 🟩 🟩 🟩 🟩 多
+                // Legend: 少 ⬜ 🟦 🟦 🟦 🟦 多
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text(text = "少", fontSize = 10.sp, fontFamily = FontFamily.Serif, color = InkFaded)
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFFEBE7DD), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFFBFE0CB), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF7CB88B), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF3F9154), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF1F5C34), RoundedCornerShape(2.dp)))
-                    Text(text = "多", fontSize = 10.sp, fontFamily = FontFamily.Serif, color = InkFaded)
+                    Text(text = "少", fontSize = 10.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
+                    Box(modifier = Modifier.size(10.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(Color(0xFFBFDBFE), RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF60A5FA), RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF2563EB), RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF1E3A8A), RoundedCornerShape(2.dp)))
+                    Text(text = "多", fontSize = 10.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
                 }
             }
         }

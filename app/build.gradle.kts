@@ -64,6 +64,7 @@ android {
     }
 
     testOptions {
+        unitTests.isReturnDefaultValues = true
         unitTests.all {
             it.jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
         }
@@ -101,6 +102,9 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    // WorkManager for Daily Reminders
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Unit Testing
     testImplementation("junit:junit:4.13.2")
