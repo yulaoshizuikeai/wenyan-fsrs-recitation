@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
@@ -15,8 +16,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.domain.cloze.ClozeEngine
@@ -31,23 +36,57 @@ fun ClozeRecitationScreen(
 ) {
     var selectedLevel by remember { mutableIntStateOf(1) }
     var revealOriginal by remember { mutableStateOf(false) }
+    var revealedTokenIds by remember { mutableStateOf(setOf<Int>()) }
+
+    LaunchedEffect(selectedLevel, article) {
+        revealedTokenIds = emptySet()
+        revealOriginal = false
+    }
 
     val fullText = article.fullContent
     val clozeKeywords = remember(article) {
         article.annotations.map { it.split("：", "（", " ").first() }.filter { it.length in 2..6 }
     }
 
-    val displayedText = remember(selectedLevel, revealOriginal, article) {
-        if (revealOriginal) {
-            fullText
-        } else {
-            when (selectedLevel) {
-                0 -> ClozeEngine.generateLevel0(fullText)
-                1 -> ClozeEngine.generateLevel1(fullText, clozeKeywords.ifEmpty { listOf("天下", "君子", "故", "以", "夫", "何") })
-                2 -> ClozeEngine.generateLevel2(fullText)
-                3 -> ClozeEngine.generateLevel3(fullText)
-                4 -> ClozeEngine.generateLevel4(fullText)
-                else -> fullText
+    val tokens = remember(selectedLevel, article) {
+        ClozeEngine.tokenize(
+            fullText,
+            selectedLevel,
+            clozeKeywords.ifEmpty { listOf("天下", "君子", "故", "以", "夫", "何") }
+        )
+    }
+
+    val annotatedText = remember(tokens, revealedTokenIds, revealOriginal) {
+        buildAnnotatedString {
+            for (token in tokens) {
+                if (token.isMasked) {
+                    val isRevealed = revealOriginal || (token.id in revealedTokenIds)
+                    pushStringAnnotation(tag = "CLOZE_TOKEN", annotation = token.id.toString())
+                    if (isRevealed) {
+                        withStyle(
+                            SpanStyle(
+                                color = StudyBlueAccent,
+                                fontWeight = FontWeight.Bold,
+                                background = StudyBlueLight
+                            )
+                        ) {
+                            append(" ${token.originalText} ")
+                        }
+                    } else {
+                        withStyle(
+                            SpanStyle(
+                                color = TextTertiary,
+                                fontWeight = FontWeight.SemiBold,
+                                background = BgSurfaceMuted
+                            )
+                        ) {
+                            append("⟦ ${"_".repeat(token.originalText.length.coerceIn(2, 6))} ⟧")
+                        }
+                    }
+                    pop()
+                } else {
+                    append(token.originalText)
+                }
             }
         }
     }
@@ -168,12 +207,33 @@ fun ClozeRecitationScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = displayedText,
-                        fontSize = 18.sp,
+                        text = "💡 提示：轻触文中遮挡 ⟦ ___ ⟧ 可即时揭晓/隐藏该空，熟记后复诵",
+                        fontSize = 12.sp,
                         fontFamily = FontFamily.Serif,
-                        color = InkCharcoal,
-                        lineHeight = 32.sp,
-                        letterSpacing = 1.sp
+                        color = InkFaded,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    ClickableText(
+                        text = annotatedText,
+                        style = TextStyle(
+                            fontSize = 18.sp,
+                            fontFamily = FontFamily.Serif,
+                            color = InkCharcoal,
+                            lineHeight = 32.sp,
+                            letterSpacing = 1.sp
+                        ),
+                        onClick = { offset ->
+                            annotatedText.getStringAnnotations(tag = "CLOZE_TOKEN", start = offset, end = offset)
+                                .firstOrNull()?.let { annotation ->
+                                    val tokenId = annotation.item.toIntOrNull() ?: return@let
+                                    revealedTokenIds = if (tokenId in revealedTokenIds) {
+                                        revealedTokenIds - tokenId
+                                    } else {
+                                        revealedTokenIds + tokenId
+                                    }
+                                }
+                        }
                     )
 
                     if (article.annotations.isNotEmpty()) {

@@ -81,7 +81,7 @@ fun ChapterTreeScreen(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 placeholder = {
-                    Text("搜索诗文篇名、作者、朝代...", fontFamily = FontFamily.Serif, fontSize = 14.sp)
+                    Text("搜索名句、篇名、作者、朝代...", fontFamily = FontFamily.Serif, fontSize = 14.sp)
                 },
                 leadingIcon = {
                     Icon(imageVector = Icons.Default.Search, contentDescription = "搜索", tint = InkMedium)
@@ -138,7 +138,7 @@ fun ChapterTreeScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
+                contentPadding = PaddingValues(bottom = 48.dp)
             ) {
                 items(modules) { module ->
                     val moduleArticles = remember(module, searchQuery, filterGaoKaoOnly) {
@@ -146,14 +146,15 @@ fun ChapterTreeScreen(
                             val matchesSearch = searchQuery.isBlank() ||
                                     article.title.contains(searchQuery, ignoreCase = true) ||
                                     article.author.contains(searchQuery, ignoreCase = true) ||
-                                    article.dynasty.contains(searchQuery, ignoreCase = true)
+                                    article.dynasty.contains(searchQuery, ignoreCase = true) ||
+                                    article.fullContent.contains(searchQuery, ignoreCase = true)
                             val matchesGaoKao = !filterGaoKaoOnly || article.isGaoKao72
                             matchesSearch && matchesGaoKao
                         }
                     }
 
                     if (moduleArticles.isNotEmpty() || searchQuery.isBlank()) {
-                        val isExpanded = expandedModuleIds.contains(module.id)
+                        val isExpanded = if (searchQuery.isNotBlank()) true else expandedModuleIds.contains(module.id)
                         ModuleCard(
                             module = module,
                             articles = moduleArticles,

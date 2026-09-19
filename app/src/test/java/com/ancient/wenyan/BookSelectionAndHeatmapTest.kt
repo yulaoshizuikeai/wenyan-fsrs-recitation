@@ -85,13 +85,12 @@ class BookSelectionAndHeatmapTest {
     // ========================================================================
 
     @Test
-    fun test05_initialHeatmapStatsPopulated() {
+    fun test05_initialHeatmapStatsClean() {
         val stats = repository.heatmapStatsFlow.value
         assertNotNull("Heatmap stats must not be null", stats)
-        assertTrue("Must have active days from initialization seed", stats.activeDays > 0)
-        assertTrue("Total reviews must be positive", stats.totalReviews > 0)
-        assertTrue("Current streak must be >= 1", stats.currentStreak >= 1)
-        assertTrue("Longest streak must be >= current streak", stats.longestStreak >= stats.currentStreak)
+        assertEquals("Initial active days must be 0 for fresh user", 0, stats.activeDays)
+        assertEquals("Initial total reviews must be 0", 0, stats.totalReviews)
+        assertEquals("Initial streak must be 0", 0, stats.currentStreak)
     }
 
     @Test

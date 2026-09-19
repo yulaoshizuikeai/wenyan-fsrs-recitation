@@ -135,7 +135,7 @@ fun DashboardScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp)
+            contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)
         ) {
             // ================================================================
             // 1. Unified Hero Study Deck (连胜打卡 + 教材切换 + 四维记忆指标 + 主行动按钮)
@@ -154,34 +154,32 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .padding(20.dp)
                     ) {
-                        // Top row: Streak (Left) & Book Pill (Right)
+                        // Section 1: Streak Status Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Left: Streak counter
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .background(
-                                            color = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.12f) else BgSurfaceMuted,
-                                            shape = RoundedCornerShape(12.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocalFireDepartment,
-                                        contentDescription = "打卡火焰",
-                                        tint = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .background(
+                                        color = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.12f) else BgSurfaceMuted,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = "打卡火焰",
+                                    tint = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
 
-                                Column {
+                            Column {
+                                if (heatmapStats.currentStreak > 0) {
                                     Row(
                                         verticalAlignment = Alignment.Bottom,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -191,7 +189,7 @@ fun DashboardScreen(
                                             fontSize = 28.sp,
                                             fontWeight = FontWeight.Black,
                                             fontFamily = FontFamily.SansSerif,
-                                            color = if (heatmapStats.currentStreak > 0) TextPrimary else TextTertiary,
+                                            color = TextPrimary,
                                             letterSpacing = (-0.5).sp,
                                             lineHeight = 30.sp
                                         )
@@ -200,66 +198,111 @@ fun DashboardScreen(
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
                                             fontFamily = FontFamily.Serif,
-                                            color = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
+                                            color = StreakFlame,
                                             modifier = Modifier.padding(bottom = 3.dp)
                                         )
                                     }
                                     Text(
-                                        text = if (heatmapStats.currentStreak > 0) "连胜坚持中 · 日拱一卒" else "今日未打卡 · 开启新连胜",
+                                        text = "连胜坚持中 · 日拱一卒功不唐捐",
                                         fontSize = 12.sp,
                                         fontFamily = FontFamily.Serif,
                                         color = TextSecondary
                                     )
-                                }
-                            }
-
-                            // Right: Book Selector Pill
-                            val targetArticlesCount = if (selectedBookScope.isNullOrEmpty()) {
-                                100
-                            } else {
-                                CurriculumDataSource.ALL_ARTICLES.count { it.moduleId in selectedBookScope!! }
-                            }
-
-                            Surface(
-                                modifier = Modifier
-                                    .clickable {
-                                        soundManager.playClick()
-                                        showBookDialog = true
-                                    },
-                                shape = RoundedCornerShape(20.dp),
-                                color = BgSurfaceMuted,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                        contentDescription = null,
-                                        tint = StudyBlueAccent,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                } else {
                                     Text(
-                                        text = "$selectedBookName (${targetArticlesCount}篇)",
-                                        fontSize = 11.sp,
+                                        text = "今日未打卡",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Serif,
-                                        fontWeight = FontWeight.Medium,
                                         color = TextPrimary
                                     )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "切换",
-                                        tint = TextSecondary,
-                                        modifier = Modifier.size(15.dp)
+                                    Text(
+                                        text = "完成今日研习即可点亮连胜 🔥",
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Serif,
+                                        color = TextSecondary,
+                                        modifier = Modifier.padding(top = 2.dp)
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Section 2: Dedicated Full-Width Textbook Switcher Bar
+                        val targetArticlesCount = if (selectedBookScope.isNullOrEmpty()) {
+                            100
+                        } else {
+                            CurriculumDataSource.ALL_ARTICLES.count { it.moduleId in selectedBookScope!! }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    soundManager.playClick()
+                                    showBookDialog = true
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = BgSurfaceMuted,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                        contentDescription = null,
+                                        tint = StudyBlueAccent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "研习范围 · $selectedBookName",
+                                            fontSize = 13.sp,
+                                            fontFamily = FontFamily.Serif,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimary,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "包含 ${targetArticlesCount} 篇文言篇目",
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Serif,
+                                            color = TextSecondary
+                                        )
+                                    }
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "切换",
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Serif,
+                                        fontWeight = FontWeight.Medium,
+                                        color = StudyBlueAccent
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = "切换教材",
+                                        tint = StudyBlueAccent,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider(color = BorderSubtle, thickness = 1.dp)
                         Spacer(modifier = Modifier.height(16.dp))
 

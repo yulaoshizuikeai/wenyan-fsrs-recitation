@@ -94,7 +94,7 @@ fun FootprintScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(bottom = 48.dp)
         ) {
             // Heatmap Component
             item {

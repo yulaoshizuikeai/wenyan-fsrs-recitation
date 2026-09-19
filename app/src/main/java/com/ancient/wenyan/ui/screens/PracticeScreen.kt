@@ -74,7 +74,7 @@ fun PracticeScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(bottom = 48.dp)
         ) {
             // Segmented Control Filter Tabs
             item {

@@ -16,6 +16,7 @@
 @rem SPDX-License-Identifier: Apache-2.0
 @rem
 
+@chcp 65001 >nul
 @if "%DEBUG%"=="" @echo off
 @rem ##########################################################################
 @rem
@@ -36,7 +37,7 @@ set APP_HOME=%DIRNAME%
 for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
 
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
-set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
+set DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m" "-Dfile.encoding=UTF-8" "-Dsun.jnu.encoding=UTF-8"
 
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome

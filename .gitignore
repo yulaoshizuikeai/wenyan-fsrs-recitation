@@ -20,6 +20,7 @@ local.properties
 # Keystore & Signing
 *.jks
 *.keystore
+!wenyan-release.jks
 
 # OS Generated
 .DS_Store

@@ -88,19 +88,22 @@ fun FlipCardScreen(
         return
     }
 
+    val sessionQueue = remember(cards) { mutableStateListOf(*cards.toTypedArray()) }
     var currentIndex by remember { mutableIntStateOf(0) }
     var isFlipped by remember { mutableStateOf(false) }
     var completedCount by remember { mutableIntStateOf(0) }
     var isFinished by remember { mutableStateOf(false) }
 
+    val isSessionComplete = isFinished || (sessionQueue.isNotEmpty() && currentIndex >= sessionQueue.size)
+
     // Sound effect on completion
-    LaunchedEffect(isFinished, currentIndex) {
-        if (isFinished || currentIndex >= cards.size) {
+    LaunchedEffect(isSessionComplete) {
+        if (isSessionComplete && sessionQueue.isNotEmpty()) {
             soundManager.playCelebration()
         }
     }
 
-    if (isFinished || currentIndex >= cards.size) {
+    if (isSessionComplete) {
         // Duolingo-style Celebration Screen
         Box(
             modifier = Modifier
@@ -207,7 +210,8 @@ fun FlipCardScreen(
         return
     }
 
-    val (currentCard, currentCardState) = cards[currentIndex]
+    val currentPair = sessionQueue.getOrNull(currentIndex) ?: sessionQueue.last()
+    val (currentCard, currentCardState) = currentPair
     val intervalPreviews = remember(currentCardState) {
         repository.fsrsEngine.previewIntervals(currentCardState)
     }
@@ -235,7 +239,7 @@ fun FlipCardScreen(
                             color = InkCharcoal
                         )
                         Text(
-                            text = "进度：${currentIndex + 1} / ${cards.size}",
+                            text = "已研读：$completedCount · 待巩固：${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Serif,
                             color = InkFaded
@@ -429,6 +433,8 @@ fun FlipCardScreen(
                     ) {
                         soundManager.playWrong()
                         repository.submitRating(currentCard.id, Rating.AGAIN)
+                        // Re-enqueue this card so student will be tested again until mastery!
+                        sessionQueue.add(currentPair)
                         completedCount++
                         isFlipped = false
                         currentIndex++
