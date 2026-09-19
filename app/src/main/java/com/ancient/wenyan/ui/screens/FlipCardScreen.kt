@@ -1,10 +1,14 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -13,14 +17,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -30,6 +36,8 @@ import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.fsrs.Rating
 import com.ancient.wenyan.domain.model.Flashcard
+import com.ancient.wenyan.ui.components.DuolingoStyleCelebration
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +48,10 @@ fun FlipCardScreen(
     repository: WenYanRepository,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    var isSoundEnabled by remember { mutableStateOf(soundManager.isSoundEnabled) }
+
     if (cards.isEmpty()) {
         Box(
             modifier = Modifier
@@ -57,7 +69,7 @@ fun FlipCardScreen(
                     color = InkCharcoal
                 )
                 Text(
-                    text = "所有卡片均已复习完毕或无匹配卡片",
+                    text = "所选范围内的卡片均已复习完毕或无匹配内容",
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Serif,
                     color = InkFaded,
@@ -66,9 +78,10 @@ fun FlipCardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = onBack,
-                    colors = ButtonDefaults.buttonColors(containerColor = BambooGreen)
+                    colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("返回目录", fontFamily = FontFamily.Serif)
+                    Text("返回主页", fontFamily = FontFamily.Serif)
                 }
             }
         }
@@ -80,57 +93,113 @@ fun FlipCardScreen(
     var completedCount by remember { mutableIntStateOf(0) }
     var isFinished by remember { mutableStateOf(false) }
 
+    // Sound effect on completion
+    LaunchedEffect(isFinished, currentIndex) {
+        if (isFinished || currentIndex >= cards.size) {
+            soundManager.playCelebration()
+        }
+    }
+
     if (isFinished || currentIndex >= cards.size) {
-        // Completion screen
+        // Duolingo-style Celebration Screen
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(XuanPaperLight)
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
         ) {
-            Card(
+            // Background Confetti explosion
+            DuolingoStyleCelebration(modifier = Modifier.fillMaxSize())
+
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, XuanBorder, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
-                elevation = CardDefaults.cardElevation(2.dp)
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .border(1.5.dp, BambooGreen.copy(alpha = 0.6f), RoundedCornerShape(20.dp)),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+                    elevation = CardDefaults.cardElevation(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "完成",
-                        tint = BambooGreen,
-                        modifier = Modifier.size(56.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "本轮背诵完成！",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkCharcoal
-                    )
-                    Text(
-                        text = "已完成 $completedCount 张古诗文卡片复习",
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Serif,
-                        color = InkMedium,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = onBack,
-                        colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("返回主页", fontFamily = FontFamily.Serif, fontSize = 16.sp)
+                        // Celebration Seal Icon
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .background(BambooGreen.copy(alpha = 0.12f), CircleShape)
+                                .border(2.dp, BambooGreen, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "完成",
+                                tint = BambooGreen,
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Text(
+                            text = "熟读成诵 · 本轮功课达成！",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Serif,
+                            color = InkCharcoal,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "已完成 $completedCount 张古诗文卡片的高效复习",
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Serif,
+                            color = InkMedium,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Stats pill
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0x159E2A2B), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "FSRS 记忆稳定性提升 · 日积跬步",
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Serif,
+                                color = CinnabarRed,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        Button(
+                            onClick = onBack,
+                            colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "返回主页查验足迹",
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -142,6 +211,16 @@ fun FlipCardScreen(
     val intervalPreviews = remember(currentCardState) {
         repository.fsrsEngine.previewIntervals(currentCardState)
     }
+
+    // 3D Flip Animation Specs
+    val flipRotation by animateFloatAsState(
+        targetValue = if (isFlipped) 180f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "card_flip_rotation"
+    )
 
     Scaffold(
         topBar = {
@@ -172,6 +251,21 @@ fun FlipCardScreen(
                         )
                     }
                 },
+                actions = {
+                    // Sound Effect Toggle Button
+                    IconButton(onClick = {
+                        val next = !isSoundEnabled
+                        isSoundEnabled = next
+                        soundManager.isSoundEnabled = next
+                        if (next) soundManager.playClick()
+                    }) {
+                        Icon(
+                            imageVector = if (isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            contentDescription = "音效开关",
+                            tint = if (isSoundEnabled) BambooGreen else InkFaded
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = XuanPaperLight)
             )
         },
@@ -184,12 +278,19 @@ fun FlipCardScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Flashcard Box
+            // Flashcard with 3D Flip graphicsLayer
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clickable { isFlipped = !isFlipped }
+                    .clickable {
+                        isFlipped = !isFlipped
+                        soundManager.playFlip()
+                    }
+                    .graphicsLayer {
+                        rotationY = flipRotation
+                        cameraDistance = 12f * density
+                    }
                     .border(1.5.dp, XuanBorder, RoundedCornerShape(16.dp)),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
@@ -199,6 +300,12 @@ fun FlipCardScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(24.dp)
+                        .graphicsLayer {
+                            // Invert content horizontally when flipped so text isn't mirrored
+                            if (flipRotation > 90f) {
+                                rotationY = 180f
+                            }
+                        }
                 ) {
                     Column(
                         modifier = Modifier
@@ -218,7 +325,7 @@ fun FlipCardScreen(
 
                         if (!currentCard.frontHint.isNullOrBlank()) {
                             Text(
-                                text = currentCard.frontHint ?: "",
+                                text = currentCard.frontHint,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Serif,
                                 color = InkFaded,
@@ -242,7 +349,7 @@ fun FlipCardScreen(
 
                         Spacer(modifier = Modifier.height(28.dp))
 
-                        if (isFlipped) {
+                        if (flipRotation > 90f) {
                             HorizontalDivider(
                                 color = XuanBorder,
                                 thickness = 1.dp,
@@ -271,7 +378,7 @@ fun FlipCardScreen(
                                     color = InkMedium
                                 )
                                 Text(
-                                    text = currentCard.backTranslation ?: "",
+                                    text = currentCard.backTranslation,
                                     fontSize = 14.sp,
                                     fontFamily = FontFamily.Serif,
                                     color = InkCharcoal,
@@ -297,69 +404,69 @@ fun FlipCardScreen(
 
             // Action Buttons
             if (!isFlipped) {
-                Button(
-                    onClick = { isFlipped = true },
+                BouncyButton(
+                    text = "显示答案",
+                    containerColor = BambooGreen,
+                    onClick = {
+                        isFlipped = true
+                        soundManager.playFlip()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "显示答案",
-                        fontSize = 17.sp,
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                        .height(52.dp)
+                )
             } else {
-                // 4 FSRS Rating Buttons
+                // 4 FSRS Rating Buttons with Duolingo-style bouncy physics & audio
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FsrsRatingButton(
+                    BouncyFsrsRatingButton(
                         label = "重来",
                         badge = intervalPreviews[Rating.AGAIN] ?: "10分",
                         color = CinnabarRed,
                         modifier = Modifier.weight(1f)
                     ) {
+                        soundManager.playWrong()
                         repository.submitRating(currentCard.id, Rating.AGAIN)
                         completedCount++
                         isFlipped = false
                         currentIndex++
                     }
 
-                    FsrsRatingButton(
+                    BouncyFsrsRatingButton(
                         label = "困难",
                         badge = intervalPreviews[Rating.HARD] ?: "15分",
                         color = MutedGold,
                         modifier = Modifier.weight(1f)
                     ) {
+                        soundManager.playWrong()
                         repository.submitRating(currentCard.id, Rating.HARD)
                         completedCount++
                         isFlipped = false
                         currentIndex++
                     }
 
-                    FsrsRatingButton(
+                    BouncyFsrsRatingButton(
                         label = "良好",
                         badge = intervalPreviews[Rating.GOOD] ?: "1天",
                         color = BambooGreen,
                         modifier = Modifier.weight(1f)
                     ) {
+                        soundManager.playCorrect()
                         repository.submitRating(currentCard.id, Rating.GOOD)
                         completedCount++
                         isFlipped = false
                         currentIndex++
                     }
 
-                    FsrsRatingButton(
+                    BouncyFsrsRatingButton(
                         label = "简单",
                         badge = intervalPreviews[Rating.EASY] ?: "3天",
                         color = CeladonBlue,
                         modifier = Modifier.weight(1f)
                     ) {
+                        soundManager.playCorrect()
                         repository.submitRating(currentCard.id, Rating.EASY)
                         completedCount++
                         isFlipped = false
@@ -373,17 +480,73 @@ fun FlipCardScreen(
     }
 }
 
+/**
+ * Duolingo-style Bouncy Button with spring press physics
+ */
 @Composable
-fun FsrsRatingButton(
+fun BouncyButton(
+    text: String,
+    containerColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "bouncy_scale"
+    )
+
+    Button(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        modifier = modifier.scale(scale),
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 17.sp,
+            fontFamily = FontFamily.Serif,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+/**
+ * Duolingo-style Tactile FSRS Rating Button with spring bounce on touch
+ */
+@Composable
+fun BouncyFsrsRatingButton(
     label: String,
     badge: String,
     color: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "fsrs_button_bounce"
+    )
+
     Button(
         onClick = onClick,
-        modifier = modifier.height(54.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(54.dp)
+            .scale(scale),
         colors = ButtonDefaults.buttonColors(containerColor = color),
         shape = RoundedCornerShape(10.dp),
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)

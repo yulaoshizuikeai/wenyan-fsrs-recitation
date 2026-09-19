@@ -65,7 +65,7 @@ android {
 
     testOptions {
         unitTests.all {
-            it.jvmArgs("-Dfile.encoding=UTF-8")
+            it.jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
         }
     }
 }
@@ -89,6 +89,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // Duolingo-style Confetti / Particle Animation Library
+    implementation("nl.dionsegijn:konfetti-compose:2.0.4")
 
     // Room Database
     val roomVersion = "2.6.1"

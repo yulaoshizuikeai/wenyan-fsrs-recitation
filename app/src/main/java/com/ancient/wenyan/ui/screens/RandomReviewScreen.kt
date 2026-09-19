@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -19,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
+import com.ancient.wenyan.domain.model.BookPresets
 import com.ancient.wenyan.domain.model.Flashcard
 import com.ancient.wenyan.ui.theme.*
 
@@ -29,15 +32,26 @@ fun RandomReviewScreen(
     onBack: () -> Unit,
     onStartSession: (String, List<Pair<Flashcard, CardFsrsState>>) -> Unit
 ) {
+    val currentRepoScope by repository.selectedBookScope.collectAsState()
+    val currentRepoName by repository.selectedBookName.collectAsState()
+
+    val scopeOptions = remember {
+        listOf(
+            "当前选定教材 ($currentRepoName)" to currentRepoScope,
+            "全部 11 册教材 (100篇)" to null,
+            "必修上册 (19篇)" to BookPresets.BOOK_BX_1.moduleIds,
+            "必修下册 (17篇)" to BookPresets.BOOK_BX_2.moduleIds,
+            "选择性必修上册 (10篇)" to BookPresets.BOOK_XB_1.moduleIds,
+            "选择性必修中册 (8篇)" to BookPresets.BOOK_XB_2.moduleIds,
+            "选择性必修下册 (17篇)" to BookPresets.BOOK_XB_3.moduleIds,
+            "选修(古代诗歌散文欣赏 · 29篇)" to BookPresets.BOOK_XX_APPRECIATION.moduleIds,
+            "必修全套 (上/下两册 · 36篇)" to BookPresets.SCOPE_REQUIRED_ALL.moduleIds,
+            "选择性必修全套 (上/中/下 · 35篇)" to BookPresets.SCOPE_SELECTIVE_ALL.moduleIds
+        )
+    }
+
     var selectedScopeIndex by remember { mutableIntStateOf(0) }
     var selectedCount by remember { mutableIntStateOf(20) }
-
-    val scopeOptions = listOf(
-        "全部 11 册教材" to null,
-        "必修四册 (上/下及诵读)" to setOf("MODULE_BX_1", "MODULE_BX_1_RECITE", "MODULE_BX_2", "MODULE_BX_2_RECITE"),
-        "选择性必修 (上/中/下及诵读)" to setOf("MODULE_XB_1", "MODULE_XB_1_RECITE", "MODULE_XB_2", "MODULE_XB_2_RECITE", "MODULE_XB_3", "MODULE_XB_3_RECITE"),
-        "选修 (古代诗歌散文欣赏)" to setOf("MODULE_XX_APPRECIATION")
-    )
 
     Scaffold(
         topBar = {
@@ -72,7 +86,11 @@ fun RandomReviewScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -83,13 +101,19 @@ fun RandomReviewScreen(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "选择背诵篇目范围",
+                            text = "选择背诵课本范围",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Serif,
                             color = InkCharcoal
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "可选择单册课本或整套教材进行打乱抽测",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Serif,
+                            color = InkMedium,
+                            modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                        )
 
                         scopeOptions.forEachIndexed { index, (label, _) ->
                             val isSelected = (selectedScopeIndex == index)
@@ -97,7 +121,7 @@ fun RandomReviewScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { selectedScopeIndex = index }
-                                    .padding(vertical = 8.dp),
+                                    .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
@@ -111,7 +135,7 @@ fun RandomReviewScreen(
                                     fontSize = 14.sp,
                                     fontFamily = FontFamily.Serif,
                                     color = if (isSelected) InkCharcoal else InkMedium,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
                         }
@@ -167,6 +191,8 @@ fun RandomReviewScreen(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Launch Button
