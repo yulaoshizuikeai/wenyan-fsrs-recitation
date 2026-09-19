@@ -30,19 +30,18 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
 
       - name: Build Release and Debug APKs
-        run: ./gradlew assembleRelease assembleDebug --no-daemon
+        run: ./gradlew assembleRelease assembleDebug --no-daemon --stacktrace
 
       - name: Prepare Release Artifacts
         id: prepare_artifacts
