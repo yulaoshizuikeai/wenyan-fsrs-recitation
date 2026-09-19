@@ -92,27 +92,27 @@ fun StreakBannerCard(
                     ) {
                         Text(
                             text = "$currentStreak",
-                            fontSize = 32.sp,
+                            fontSize = 30.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = FontFamily.SansSerif,
                             color = if (currentStreak > 0) TextPrimary else TextTertiary,
                             letterSpacing = (-1).sp,
-                            lineHeight = 34.sp
+                            lineHeight = 32.sp
                         )
                         Text(
-                            text = "DAYS",
-                            fontSize = 12.sp,
+                            text = "天连胜",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
+                            fontFamily = FontFamily.Serif,
                             color = if (currentStreak > 0) StreakFlame else TextTertiary,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 3.dp)
                         )
                     }
 
                     Text(
-                        text = if (currentStreak > 0) "连胜坚持中 · 日积跬步" else "今日未打卡 · 开启新连胜",
+                        text = if (currentStreak > 0) "连胜坚持中 · 日拱一卒" else "今日未打卡 · 开启新连胜",
                         fontSize = 12.sp,
-                        fontFamily = FontFamily.SansSerif,
+                        fontFamily = FontFamily.Serif,
                         color = TextSecondary,
                         modifier = Modifier.padding(top = 1.dp)
                     )
@@ -135,10 +135,10 @@ fun StreakBannerCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "TODAY DONE",
-                            fontSize = 11.sp,
+                            text = "今日已完成",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
+                            fontFamily = FontFamily.Serif,
                             color = SuccessGreen
                         )
                     }
@@ -155,7 +155,7 @@ fun StreakBannerCard(
                         text = "去打卡 ➔",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
+                        fontFamily = FontFamily.Serif,
                         color = Color.White
                     )
                 }

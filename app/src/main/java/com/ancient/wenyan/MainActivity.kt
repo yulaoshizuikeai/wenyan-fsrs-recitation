@@ -4,26 +4,42 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.ancient.wenyan.data.CurriculumDataSource
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.Flashcard
 import com.ancient.wenyan.ui.screens.*
-import com.ancient.wenyan.ui.theme.AncientColorScheme
-import com.ancient.wenyan.ui.theme.WenYanTheme
+import com.ancient.wenyan.ui.theme.*
 
-sealed class Screen {
-    data object Dashboard : Screen()
-    data object Chapters : Screen()
-    data object RandomReview : Screen()
-    data class Flashcards(val title: String, val cards: List<Pair<Flashcard, CardFsrsState>>) : Screen()
-    data class Cloze(val article: Article) : Screen()
+enum class MainTab(
+    val title: String,
+    val icon: ImageVector
+) {
+    TODAY("今日研读", Icons.Default.Home),
+    LIBRARY("篇目文库", Icons.AutoMirrored.Filled.MenuBook),
+    PRACTICE("专项练习", Icons.Default.Shuffle),
+    FOOTPRINT("研墨足迹", Icons.Default.CalendarMonth)
+}
+
+sealed class OverlayScreen {
+    data class Flashcards(val title: String, val cards: List<Pair<Flashcard, CardFsrsState>>) : OverlayScreen()
+    data class Cloze(val article: Article) : OverlayScreen()
 }
 
 class MainActivity : ComponentActivity() {
@@ -38,81 +54,151 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+                    var selectedTab by remember { mutableStateOf(MainTab.TODAY) }
+                    var overlayScreen by remember { mutableStateOf<OverlayScreen?>(null) }
 
-                    // Handle hardware / system back button
-                    BackHandler(enabled = currentScreen !is Screen.Dashboard) {
-                        currentScreen = Screen.Dashboard
+                    // Navigation BackHandler
+                    BackHandler(enabled = overlayScreen != null || selectedTab != MainTab.TODAY) {
+                        if (overlayScreen != null) {
+                            overlayScreen = null
+                        } else if (selectedTab != MainTab.TODAY) {
+                            selectedTab = MainTab.TODAY
+                        }
                     }
 
-                    when (val screen = currentScreen) {
-                        is Screen.Dashboard -> {
-                            DashboardScreen(
-                                repository = repository,
-                                onNavigateToChapters = { currentScreen = Screen.Chapters },
-                                onNavigateToRandom = { currentScreen = Screen.RandomReview },
-                                onStartTodayReview = {
-                                    val dueCards = repository.getDueQueue()
-                                    currentScreen = Screen.Flashcards(
-                                        title = "今日复习 · FSRS调度队列",
-                                        cards = dueCards
-                                    )
-                                },
-                                onStartGaoKaoReview = {
-                                    val gaoKaoCards = repository.getRandomQueue(
-                                        limit = 20,
-                                        moduleIds = null
-                                    )
-                                    currentScreen = Screen.Flashcards(
-                                        title = "高考必背 72 篇专项背诵",
-                                        cards = gaoKaoCards
-                                    )
-                                }
-                            )
-                        }
-
-                        is Screen.Chapters -> {
-                            ChapterTreeScreen(
-                                repository = repository,
-                                onBack = { currentScreen = Screen.Dashboard },
-                                onStartFlashcards = { article ->
-                                    val fcs = repository.getFlashcardsForArticle(article.id)
-                                    val cardsWithState = fcs.map { Pair(it, repository.getCardState(it.id)) }
-                                    currentScreen = Screen.Flashcards(
-                                        title = "《${article.title}》· 闪卡背诵",
-                                        cards = cardsWithState
-                                    )
-                                },
-                                onStartCloze = { article ->
-                                    currentScreen = Screen.Cloze(article)
-                                }
-                            )
-                        }
-
-                        is Screen.RandomReview -> {
-                            RandomReviewScreen(
-                                repository = repository,
-                                onBack = { currentScreen = Screen.Dashboard },
-                                onStartSession = { title, cards ->
-                                    currentScreen = Screen.Flashcards(title = title, cards = cards)
-                                }
-                            )
-                        }
-
-                        is Screen.Flashcards -> {
+                    // If active in a recitation session (Flashcard or Cloze), show full screen
+                    when (val screen = overlayScreen) {
+                        is OverlayScreen.Flashcards -> {
                             FlipCardScreen(
                                 title = screen.title,
                                 cards = screen.cards,
                                 repository = repository,
-                                onBack = { currentScreen = Screen.Dashboard }
+                                onBack = { overlayScreen = null }
                             )
                         }
 
-                        is Screen.Cloze -> {
+                        is OverlayScreen.Cloze -> {
                             ClozeRecitationScreen(
                                 article = screen.article,
-                                onBack = { currentScreen = Screen.Chapters }
+                                onBack = { overlayScreen = null }
                             )
+                        }
+
+                        null -> {
+                            // Standard Material 3 Scaffold with Bottom Navigation Bar
+                            Scaffold(
+                                bottomBar = {
+                                    NavigationBar(
+                                        containerColor = BgSurface,
+                                        tonalElevation = 3.dp
+                                    ) {
+                                        MainTab.entries.forEach { tab ->
+                                            val selected = (selectedTab == tab)
+                                            NavigationBarItem(
+                                                selected = selected,
+                                                onClick = { selectedTab = tab },
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = tab.icon,
+                                                        contentDescription = tab.title
+                                                    )
+                                                },
+                                                label = {
+                                                    Text(
+                                                        text = tab.title,
+                                                        fontFamily = FontFamily.Serif,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                },
+                                                colors = NavigationBarItemDefaults.colors(
+                                                    selectedIconColor = StudyNavy,
+                                                    selectedTextColor = StudyNavy,
+                                                    indicatorColor = StudyBlueLight,
+                                                    unselectedIconColor = TextTertiary,
+                                                    unselectedTextColor = TextTertiary
+                                                )
+                                            )
+                                        }
+                                    }
+                                },
+                                containerColor = BgCanvas
+                            ) { innerPadding ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(innerPadding)
+                                ) {
+                                    when (selectedTab) {
+                                        MainTab.TODAY -> {
+                                            DashboardScreen(
+                                                repository = repository,
+                                                onStartTodayReview = {
+                                                    val dueCards = repository.getDueQueue()
+                                                    overlayScreen = OverlayScreen.Flashcards(
+                                                        title = "今日复习 · FSRS调度队列",
+                                                        cards = dueCards
+                                                    )
+                                                },
+                                                onStartGaoKaoReview = {
+                                                    val gaoKaoCards = repository.getRandomQueue(
+                                                        limit = 20,
+                                                        moduleIds = null,
+                                                        gaoKaoOnly = true
+                                                    )
+                                                    overlayScreen = OverlayScreen.Flashcards(
+                                                        title = "高考必背 72 篇专项背诵",
+                                                        cards = gaoKaoCards
+                                                    )
+                                                },
+                                                onNavigateToLibrary = {
+                                                    selectedTab = MainTab.LIBRARY
+                                                },
+                                                onNavigateToPractice = {
+                                                    selectedTab = MainTab.PRACTICE
+                                                }
+                                            )
+                                        }
+
+                                        MainTab.LIBRARY -> {
+                                            ChapterTreeScreen(
+                                                repository = repository,
+                                                onBack = { selectedTab = MainTab.TODAY },
+                                                onStartFlashcards = { article ->
+                                                    val fcs = repository.getFlashcardsForArticle(article.id)
+                                                    val cardsWithState = fcs.map { Pair(it, repository.getCardState(it.id)) }
+                                                    overlayScreen = OverlayScreen.Flashcards(
+                                                        title = "《${article.title}》· 闪卡背诵",
+                                                        cards = cardsWithState
+                                                    )
+                                                },
+                                                onStartCloze = { article ->
+                                                    overlayScreen = OverlayScreen.Cloze(article)
+                                                }
+                                            )
+                                        }
+
+                                        MainTab.PRACTICE -> {
+                                            PracticeScreen(
+                                                repository = repository,
+                                                onStartSession = { title, cards ->
+                                                    overlayScreen = OverlayScreen.Flashcards(
+                                                        title = title,
+                                                        cards = cards
+                                                    )
+                                                },
+                                                onStartCloze = { article ->
+                                                    overlayScreen = OverlayScreen.Cloze(article)
+                                                }
+                                            )
+                                        }
+
+                                        MainTab.FOOTPRINT -> {
+                                            FootprintScreen(repository = repository)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -87,38 +87,30 @@ class WenYanRepository(
     }
 
     private fun initializeHeatmap() {
-        val today = LocalDate.now()
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        // Clean up legacy mock seed data if previously written
+        prefs?.let { sp ->
+            val hasCleaned = sp.getBoolean("has_cleaned_legacy_fake_seed_v1", false)
+            if (!hasCleaned) {
+                val editor = sp.edit()
+                // Clear any pre-seeded fake entries
+                for (key in sp.all.keys) {
+                    if (key.startsWith("review_date_")) {
+                        editor.remove(key)
+                    }
+                }
+                editor.putBoolean("has_cleaned_legacy_fake_seed_v1", true)
+                editor.apply()
+            }
+        }
 
-        // Load saved daily reviews from prefs
-        val loadedAny = prefs?.let { sp ->
+        // Load genuine saved daily reviews from prefs
+        prefs?.let { sp ->
             val allEntries = sp.all
-            var found = false
             for ((key, value) in allEntries) {
                 if (key.startsWith("review_date_") && value is Int) {
                     val dateKey = key.removePrefix("review_date_")
                     dailyReviewMap[dateKey] = value
-                    found = true
                 }
-            }
-            found
-        } ?: false
-
-        // If completely empty on first launch, seed a pleasant recent streak
-        if (!loadedAny && dailyReviewMap.isEmpty()) {
-            val seedDeltas = listOf(
-                -6 to 12,
-                -5 to 18,
-                -4 to 25,
-                -3 to 15,
-                -2 to 22,
-                -1 to 30,
-                0 to 8
-            )
-            for ((offset, count) in seedDeltas) {
-                val d = today.plusDays(offset.toLong()).format(formatter)
-                dailyReviewMap[d] = count
-                saveDailyReviewToPrefs(d, count)
             }
         }
 
@@ -236,12 +228,18 @@ class WenYanRepository(
 
     fun getRandomQueue(
         limit: Int = 20,
-        moduleIds: Set<String>? = _selectedBookScope.value
+        moduleIds: Set<String>? = _selectedBookScope.value,
+        gaoKaoOnly: Boolean = false
     ): List<Pair<Flashcard, CardFsrsState>> {
-        val targetArticles = if (moduleIds.isNullOrEmpty()) {
+        val baseArticles = if (moduleIds.isNullOrEmpty()) {
             CurriculumDataSource.ALL_ARTICLES
         } else {
             CurriculumDataSource.ALL_ARTICLES.filter { it.moduleId in moduleIds }
+        }
+        val targetArticles = if (gaoKaoOnly) {
+            baseArticles.filter { it.isGaoKao72 }
+        } else {
+            baseArticles
         }
 
         val cards = targetArticles.flatMap {
