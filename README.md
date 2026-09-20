@@ -7,7 +7,7 @@
 > 基于 **FSRS-5 (Free Spaced Repetition Scheduler)** 间隔重复记忆算法的高中语文古诗文原生安卓闪卡背诵记忆系统。
 > 完整收录古文岛高中课标全部 11 个教材模块共 100 篇经典诗文（包含教育部高考必背 72 篇），提供双轨记忆体验（单句翻转闪卡 + 整篇渐进遮挡背诵）。
 
-📥 **[下载最新安装包 (APK Releases)](https://github.com/yulaoshizuikeai/wenyan-fsrs-recitation/releases)**
+📥 **[下载最新安装包 (APK Releases)](https://github.com/yulaoshizuikeai/wenyan-fsrs-recitation/releases)** ｜ 📜 **[更新历程 (Changelog)](CHANGELOG.md)**
 
 ---
 

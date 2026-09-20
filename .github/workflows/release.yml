@@ -49,6 +49,9 @@ jobs:
           DATE_STR=$(date +'%Y%m%d-%H%M')
           COMMIT_HASH=$(git rev-parse --short HEAD)
           
+          # Extract version from build.gradle.kts
+          GRADLE_VERSION=$(grep 'versionName =' app/build.gradle.kts | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/')
+
           # Determine version tag
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION_TAG="${{ github.ref_name }}"
@@ -57,7 +60,7 @@ jobs:
             VERSION_TAG="${{ github.event.inputs.tag_name }}"
             IS_RELEASE_TAG=true
           else
-            VERSION_TAG="v1.0.1-${COMMIT_HASH}"
+            VERSION_TAG="v${GRADLE_VERSION}-${COMMIT_HASH}"
             IS_RELEASE_TAG=false
           fi
           
