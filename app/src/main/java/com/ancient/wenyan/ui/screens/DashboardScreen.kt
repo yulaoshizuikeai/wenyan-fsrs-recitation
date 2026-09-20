@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.ui.components.BookSelectionDialog
+import com.ancient.wenyan.ui.components.FeedbackPreferencesDialog
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
@@ -47,44 +48,42 @@ data class ClassicalQuote(
 
 val CURATED_QUOTES = listOf(
     ClassicalQuote(
-        title = "《短歌行》",
+        title = "短歌行",
         author = "曹操",
         quote = "“山不厌高，海不厌深。周公吐哺，天下归心。”",
         translation = "高山不辞土石才见其巍峨，大海不纳细流难成其浩瀚。志存高远者海纳百川，终成大业。"
     ),
     ClassicalQuote(
-        title = "《劝学》",
+        title = "劝学",
         author = "荀子",
         quote = "“不积跬步，无以至千里；不积小流，无以成江海。”",
         translation = "不积累一步半步的行程，就无法到达千里之远；不汇聚细小的流水，就成就不了辽阔江海。背诵重在日日研读。"
     ),
     ClassicalQuote(
-        title = "《离骚》",
+        title = "离骚",
         author = "屈原",
         quote = "“路漫漫其修远兮，吾将上下而求索。”",
         translation = "前方的道路漫长而悠远，我将百折不挠、上下探求心中的理想与光明。"
     ),
     ClassicalQuote(
-        title = "《滕王阁序》",
+        title = "滕王阁序",
         author = "王勃",
         quote = "“老当益壮，宁移白首之心？穷且益坚，不坠青云之志。”",
         translation = "年纪虽老志气更坚，哪能改变白头之年的操守？身处困境更需坚韧，绝不丢弃直上青云的凌云壮志。"
     ),
     ClassicalQuote(
-        title = "《赤壁赋》",
+        title = "赤壁赋",
         author = "苏轼",
         quote = "“逝者如斯，而未尝往也；盈虚者如彼，而卒莫消长也。”",
         translation = "万物变迁流逝不停，但其本源未曾消失；月亮圆缺代代相续，其本体终无增减。以旷达从容之心对岁月。"
     )
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     repository: WenYanRepository,
     onStartTodayReview: () -> Unit,
     onStartGaoKaoReview: () -> Unit,
-    onNavigateToLibrary: () -> Unit,
     onNavigateToPractice: () -> Unit
 ) {
     val stats by repository.statsFlow.collectAsState()
@@ -98,6 +97,7 @@ fun DashboardScreen(
     var isSoundEnabled by remember { mutableStateOf(soundManager.isSoundEnabled) }
 
     var showBookDialog by remember { mutableStateOf(false) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     // Rotating daily quote based on day-of-year, tap to cycle
     val dayOfYear = remember { LocalDate.now().dayOfYear }
@@ -108,7 +108,7 @@ fun DashboardScreen(
     val infiniteTransition = rememberInfiniteTransition(label = "flame_breathing")
     val flameScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = if (heatmapStats.currentStreak > 0) 1.12f else 1.0f,
+        targetValue = if (heatmapStats.currentStreak > 0) 1.15f else 1.0f,
         animationSpec = infiniteRepeatable(
             animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -128,84 +128,199 @@ fun DashboardScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "文言背诵",
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary,
-                                letterSpacing = (-0.5).sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "高中课标",
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = StreakFlame,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Text(
-                            text = "FSRS-5 间隔记忆 · 熟读成诵",
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = TextSecondary,
-                            modifier = Modifier.padding(top = 1.dp)
-                        )
-                    }
-                },
-                actions = {
-                    // Mute/Unmute sound effect
-                    IconButton(
-                        onClick = {
-                            val next = !isSoundEnabled
-                            isSoundEnabled = next
-                            soundManager.isSoundEnabled = next
-                            hapticManager.tapLight()
-                            if (next) soundManager.playClick()
-                        },
+    if (showFeedbackDialog) {
+        FeedbackPreferencesDialog(
+            onDismiss = { showFeedbackDialog = false }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgCanvas)
+    ) {
+        // ====================================================================
+        // Top App Header: Generous status bar insets + comfortable breathing room
+        // ====================================================================
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(top = 16.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "文言背诵",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .background(BgSurface, RoundedCornerShape(18.dp))
-                            .border(1.dp, BorderSubtle, RoundedCornerShape(18.dp))
+                            .background(StudyBlueAccent.copy(alpha = 0.10f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                            contentDescription = "音效开关",
-                            tint = if (isSoundEnabled) StudyBlueAccent else TextTertiary,
-                            modifier = Modifier.size(18.dp)
+                        Text(
+                            text = "高中必背",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = StudyBlueAccent,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
-            )
-        },
-        containerColor = BgCanvas
-    ) { innerPadding ->
+                }
+                Text(
+                    text = "FSRS-5 间隔记忆 · 熟读成诵",
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Settings & sensory sandbox
+                IconButton(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        showFeedbackDialog = true
+                    },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(BgSurface, CircleShape)
+                        .border(1.dp, BorderSubtle, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = "音效与震动偏好",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Quick mute/unmute
+                IconButton(
+                    onClick = {
+                        val next = !isSoundEnabled
+                        isSoundEnabled = next
+                        soundManager.isSoundEnabled = next
+                        hapticManager.tapLight()
+                        if (next) soundManager.playClick()
+                    },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(BgSurface, CircleShape)
+                        .border(1.dp, BorderSubtle, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                        contentDescription = "音效开关",
+                        tint = if (isSoundEnabled) StudyBlueAccent else TextTertiary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        // ====================================================================
+        // Scrollable Body Content
+        // ====================================================================
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)
+            contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp)
         ) {
-            // ================================================================
-            // 1. Unified Hero Study Deck
-            // ================================================================
+            // ----------------------------------------------------------------
+            // 1. Sleek Status Bar: Streak Badge + Scope Selector Capsule
+            // ----------------------------------------------------------------
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Streak Pill
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(
+                                color = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.10f) else BgSurfaceMuted,
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = "连胜火焰",
+                            tint = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .scale(flameScale)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (heatmapStats.currentStreak > 0) "${heatmapStats.currentStreak} 天连胜" else "今日未研读",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.SansSerif,
+                            color = if (heatmapStats.currentStreak > 0) StreakFlame else TextSecondary
+                        )
+                    }
+
+                    // Scope Selector Capsule (Click directly to switch textbook)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showBookDialog = true
+                            }
+                            .background(BgSurface, RoundedCornerShape(20.dp))
+                            .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = selectedBookName,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "切换教材",
+                            tint = TextTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // 2. Focused Core Memory Mission Card (No nested cards, clean & decluttered)
+            // ----------------------------------------------------------------
             item {
                 Card(
                     modifier = Modifier
@@ -220,184 +335,37 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .padding(20.dp)
                     ) {
-                        // Section 1: Streak Status Row with flame breathing pulse
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .background(
-                                        color = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.12f) else BgSurfaceMuted,
-                                        shape = RoundedCornerShape(14.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocalFireDepartment,
-                                    contentDescription = "打卡火焰",
-                                    tint = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .scale(flameScale)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(14.dp))
-
-                            Column {
-                                if (heatmapStats.currentStreak > 0) {
-                                    Row(
-                                        verticalAlignment = Alignment.Bottom,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Text(
-                                            text = "${heatmapStats.currentStreak}",
-                                            fontSize = 30.sp,
-                                            fontWeight = FontWeight.Black,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = TextPrimary,
-                                            letterSpacing = (-1.0).sp,
-                                            lineHeight = 32.sp
-                                        )
-                                        Text(
-                                            text = "天连胜",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = StreakFlame,
-                                            modifier = Modifier.padding(bottom = 3.dp)
-                                        )
-                                    }
-                                    Text(
-                                        text = "连胜坚持中 · 日拱一卒功不唐捐",
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = TextSecondary
-                                    )
-                                } else {
-                                    Text(
-                                        text = "今日未打卡",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = TextPrimary
-                                    )
-                                    Text(
-                                        text = "完成今日研习即可点亮连胜 🔥",
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        color = TextSecondary,
-                                        modifier = Modifier.padding(top = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Section 2: Dedicated Full-Width Textbook Switcher Bar
-                        val targetArticlesCount = if (selectedBookScope.isNullOrEmpty()) {
-                            100
-                        } else {
-                            CurriculumDataSource.ALL_ARTICLES.count { it.moduleId in selectedBookScope!! }
-                        }
-
-                        val switcherSource = remember { MutableInteractionSource() }
-                        val isSwitcherPressed by switcherSource.collectIsPressedAsState()
-                        val switcherScale by animateFloatAsState(
-                            targetValue = if (isSwitcherPressed) 0.98f else 1.0f,
-                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                            label = "switcher_press"
-                        )
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .scale(switcherScale)
-                                .clickable(interactionSource = switcherSource, indication = null) {
-                                    hapticManager.tapLight()
-                                    soundManager.playClick()
-                                    showBookDialog = true
-                                },
-                            shape = RoundedCornerShape(12.dp),
-                            color = BgSurfaceMuted,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                        contentDescription = null,
-                                        tint = StudyBlueAccent,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = "研习范围 · $selectedBookName",
-                                            fontSize = 13.sp,
-                                            fontFamily = FontFamily.SansSerif,
-                                            fontWeight = FontWeight.Bold,
-                                            color = TextPrimary,
-                                            maxLines = 1,
-                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = "包含 $targetArticlesCount 篇文言篇目",
-                                            fontSize = 11.sp,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = TextSecondary
-                                        )
-                                    }
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "切换",
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.SansSerif,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = StudyBlueAccent
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = "切换教材",
-                                        tint = StudyBlueAccent,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider(color = BorderSubtle, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Middle: 4-Dimension FSRS Memory Metrics with animated numbers
+                        // 4-Dimension FSRS Memory Metrics
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            StatMetric(label = "待复习", value = stats.dueCards, color = if (stats.dueCards > 0) DueRed else TextPrimary)
-                            StatMetric(label = "学习中", value = stats.learningCards, color = StudyBlueAccent)
-                            StatMetric(label = "已稳固", value = stats.reviewCards, color = SuccessGreen)
-                            StatMetric(label = "留存率", value = stats.retentionPercentage.toInt(), isPercentage = true, color = TextPrimary)
+                            StatMetric(
+                                label = "待复习",
+                                value = stats.dueCards,
+                                color = if (stats.dueCards > 0) DueRed else TextPrimary
+                            )
+                            StatMetric(
+                                label = "学习中",
+                                value = stats.learningCards,
+                                color = StudyBlueAccent
+                            )
+                            StatMetric(
+                                label = "已稳固",
+                                value = stats.reviewCards,
+                                color = SuccessGreen
+                            )
+                            StatMetric(
+                                label = "留存率",
+                                value = stats.retentionPercentage.toInt(),
+                                isPercentage = true,
+                                color = TextPrimary
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Primary Study Button with spring bounce & tactile pulse
+                        // High-Contrast Primary Study Button with spring bounce & tactile pulse
                         val reviewInteractionSource = remember { MutableInteractionSource() }
                         val isReviewPressed by reviewInteractionSource.collectIsPressedAsState()
                         val reviewScale by animateFloatAsState(
@@ -444,9 +412,9 @@ fun DashboardScreen(
                 }
             }
 
-            // ================================================================
-            // 2. Classical Quote Card with Interactive Rotation
-            // ================================================================
+            // ----------------------------------------------------------------
+            // 3. Classical Quote Card: Minimalist Editorial Style
+            // ----------------------------------------------------------------
             item {
                 Card(
                     modifier = Modifier
@@ -467,36 +435,48 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.FormatQuote,
+                                    contentDescription = null,
+                                    tint = StudyBlueAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "每日名句",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextSecondary
+                                )
+                            }
                             Text(
-                                text = "名句鉴赏 · 点触换篇",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary
-                            )
-                            Text(
-                                text = "${currentQuote.title} · ${currentQuote.author}",
+                                text = "《${currentQuote.title}》· ${currentQuote.author}",
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.SansSerif,
                                 color = TextTertiary
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         AnimatedContent(
                             targetState = currentQuote,
-                            transitionSpec = { fadeIn(spring(stiffness = Spring.StiffnessMedium)) togetherWith fadeOut(spring(stiffness = Spring.StiffnessHigh)) },
+                            transitionSpec = {
+                                fadeIn(spring(stiffness = Spring.StiffnessMedium)) togetherWith
+                                fadeOut(spring(stiffness = Spring.StiffnessHigh))
+                            },
                             label = "quote_switch"
                         ) { quote ->
                             Column {
                                 Text(
                                     text = quote.quote,
-                                    fontSize = 17.sp,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.SansSerif,
                                     color = TextPrimary,
-                                    lineHeight = 26.sp
+                                    lineHeight = 25.sp
                                 )
 
                                 Text(
@@ -513,9 +493,9 @@ fun DashboardScreen(
                 }
             }
 
-            // ================================================================
-            // 3. Quick Action Dual Tiles
-            // ================================================================
+            // ----------------------------------------------------------------
+            // 4. Quick Practice Dual Tiles
+            // ----------------------------------------------------------------
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -538,7 +518,7 @@ fun DashboardScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(36.dp)
                                     .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -546,7 +526,7 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.Star,
                                     contentDescription = null,
                                     tint = StreakFlame,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
@@ -584,7 +564,7 @@ fun DashboardScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(36.dp)
                                     .background(StudyBlueLight, RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -592,7 +572,7 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = null,
                                     tint = StudyBlueAccent,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
@@ -623,7 +603,10 @@ fun StatMetric(label: String, value: Int, isPercentage: Boolean = false, color: 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AnimatedContent(
             targetState = value,
-            transitionSpec = { fadeIn(spring(stiffness = Spring.StiffnessMedium)) togetherWith fadeOut(spring(stiffness = Spring.StiffnessHigh)) },
+            transitionSpec = {
+                fadeIn(spring(stiffness = Spring.StiffnessMedium)) togetherWith
+                fadeOut(spring(stiffness = Spring.StiffnessHigh))
+            },
             label = "stat_num"
         ) { targetVal ->
             Text(
