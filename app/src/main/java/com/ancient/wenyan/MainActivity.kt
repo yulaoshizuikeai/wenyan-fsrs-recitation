@@ -68,8 +68,18 @@ sealed class OverlayScreen {
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        try {
+            enableEdgeToEdge()
+        } catch (_: Throwable) {
+            // Safe fallback if OEM window manager rejects edge-to-edge
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            try {
+                window.isNavigationBarContrastEnforced = false
+            } catch (_: Throwable) {}
+        }
 
         val repository = WenYanRepository.getInstance(applicationContext)
 
@@ -129,7 +139,7 @@ class MainActivity : ComponentActivity() {
                                 Scaffold(
                                     bottomBar = {
                                         NavigationBar(
-                                            containerColor = BgSurface,
+                                            containerColor = MaterialTheme.colorScheme.surface,
                                             tonalElevation = 3.dp
                                         ) {
                                             MainTab.entries.forEach { tab ->
@@ -160,17 +170,17 @@ class MainActivity : ComponentActivity() {
                                                         )
                                                     },
                                                     colors = NavigationBarItemDefaults.colors(
-                                                        selectedIconColor = StudyNavy,
-                                                        selectedTextColor = StudyNavy,
-                                                        indicatorColor = StudyBlueLight,
-                                                        unselectedIconColor = TextTertiary,
-                                                        unselectedTextColor = TextTertiary
+                                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                                     )
                                                 )
                                             }
                                         }
                                     },
-                                    containerColor = BgCanvas
+                                    containerColor = MaterialTheme.colorScheme.background
                                 ) { innerPadding ->
                                     Box(
                                         modifier = Modifier

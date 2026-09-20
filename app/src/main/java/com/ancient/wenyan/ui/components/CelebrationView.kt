@@ -20,12 +20,17 @@ import java.util.concurrent.TimeUnit
 fun DuolingoStyleCelebration(
     modifier: Modifier = Modifier
 ) {
-    val classicalColors = remember {
+    val cRed = CinnabarRed.toArgb()
+    val bGreen = BambooGreen.toArgb()
+    val mGold = MutedGold.toArgb()
+    val cBlue = CeladonBlue.toArgb()
+
+    val classicalColors = remember(cRed, bGreen, mGold, cBlue) {
         listOf(
-            CinnabarRed.toArgb(),
-            BambooGreen.toArgb(),
-            MutedGold.toArgb(),
-            CeladonBlue.toArgb(),
+            cRed,
+            bGreen,
+            mGold,
+            cBlue,
             0xFFE6C229.toInt(), // Imperial Gold
             0xFF2D6A4F.toInt()  // Deep Forest Green
         )

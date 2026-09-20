@@ -9,14 +9,14 @@ plugins {
 
 android {
     namespace = "com.ancient.wenyan"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 10
-        versionName = "1.5.0"
+        targetSdk = 34
+        versionCode = 11
+        versionName = "1.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

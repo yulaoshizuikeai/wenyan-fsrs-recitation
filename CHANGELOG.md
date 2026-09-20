@@ -4,6 +4,26 @@
 
 ---
 
+## [v1.5.1] - 2026-09-21
+
+### 🛡️ 启动崩溃与机型兼容性紧急修复 (Crash & Compatibility Fix)
+- **Activity 启动生命周期防护**：调整 `enableEdgeToEdge()` 调用时机至 `super.onCreate()` 之后，并包裹安全捕获与容错降级；防止在各类 OEM 定制系统（MIUI/OriginOS/ColorOS/OneUI）或 Android 12-14 机型上因 DecorView 尚未就绪导致的点开即闪退。
+- **SDK 稳态构建环境**：将 `compileSdk` 与 `targetSdk` 稳妥调整为 Android 34（与当前稳定版 AGP 8.4.1 工具链完全对齐），移除临时绕过编译限制标志，彻底杜绝字节码与资源表兼容性崩溃。
+- **系统状态栏与导航栏原生透明化**：重构 `themes.xml` 及新增 `values-night/themes.xml`，状态栏与导航栏统一采用透明底，禁用 API 29+ 强制暗色遮罩（`isNavigationBarContrastEnforced = false`），完美呈现 Edge-to-Edge 视觉。
+
+### 🌙 全局深色模式完备沉浸式适配 (Complete True Dark Mode Overhaul)
+- **主题 Token 动态响应架构**：将 `BgCanvas`、`BgSurface`、`BgSurfaceMuted`、`BorderSubtle`、`TextPrimary`、`TextSecondary`、`TextTertiary`、`StudyNavy` 等核心视觉 Token 全面重构为 `@Composable get()` 动态计算属性，卡片、弹窗与各个页面在浅色/深色切换时实现 100% 自动适配，彻底告别“白底黑字在深色模式下刺眼”或“黑底黑字无法阅读”的缺陷。
+- **深空蓝黑高对比配色体系**：
+  - 全局底色：`#0B0F17`（深邃黑蓝，纯净不发灰，低功耗护眼）；
+  - 卡片底色：`#151D2A`（层级抬升表面）；
+  - 次级底色：`#1E293B`（Slate 800 辅助胶囊底）；
+  - 发丝边框：`#334155`（Slate 700 细致描边）；
+  - 主副文字：`#F8FAFC` 与 `#CBD5E1`（高可读性明亮阶梯排版）。
+- **打卡热力图全面暗色适配**：重构研墨打卡热力图格子色彩映射体系与底部图例，深色模式下 0 记录格子自动适配为深沉底色（`#1E293B`），消除此前浅灰格子在暗色背景下刺眼的视觉缺陷。
+- **底部导航栏原生色彩对齐**：底部导航栏容器底色与图标指示器完全接轨 `MaterialTheme.colorScheme`，深浅模式下均具备极高的辨识度与现代质感。
+
+---
+
 ## [v1.5.0] - 2026-09-20
 
 ### ⏯️ Anki 级断点续背与中途退出无缝恢复 (Breakpoint Session Resumption)

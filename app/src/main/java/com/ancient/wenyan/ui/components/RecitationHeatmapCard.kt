@@ -42,44 +42,49 @@ fun RecitationHeatmapCard(
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd") }
     var selectedDateInfo by remember { mutableStateOf<Pair<String, Int>?>(null) }
 
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val emptyCellColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
+    val level1Color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.65f) else Color(0xFFBFDBFE)
+    val level2Color = if (isDark) Color(0xFF2563EB).copy(alpha = 0.75f) else Color(0xFF60A5FA)
+    val level3Color = if (isDark) Color(0xFF3B82F6) else Color(0xFF2563EB)
+    val level4Color = if (isDark) Color(0xFF60A5FA) else Color(0xFF1E3A8A)
+
     // Display past 14 weeks (98 days)
     val totalWeeks = 14
-    val daysUntilSunday = DayOfWeek.SUNDAY.value - today.dayOfWeek.value
-    val endDate = remember { today.plusDays(daysUntilSunday.toLong()) }
-    val startDate = remember { endDate.minusWeeks(totalWeeks.toLong()).plusDays(1) }
+    val startDate = remember { today.minusWeeks((totalWeeks - 1).toLong()).with(DayOfWeek.MONDAY) }
+    val endDate = remember { today.plusDays((7 - today.dayOfWeek.value).toLong()) } // till end of current week
 
-    // Build the grid: 7 rows (Mon to Sun) x totalWeeks columns
-    val daysMatrix = remember(heatmapStats.dailyReviewMap, today) {
+    val daysMatrix = remember(startDate, endDate) {
         val matrix = Array(7) { arrayOfNulls<LocalDate>(totalWeeks) }
         var curr = startDate
-        var weekIndex = 0
-        while (!curr.isAfter(endDate) && weekIndex < totalWeeks) {
-            val dayIndex = curr.dayOfWeek.value - 1 // 0 (Mon) to 6 (Sun)
-            matrix[dayIndex][weekIndex] = curr
-            if (curr.dayOfWeek == DayOfWeek.SUNDAY) {
-                weekIndex++
-            }
+        var col = 0
+        while (!curr.isAfter(endDate) && col < totalWeeks) {
+            val row = curr.dayOfWeek.value - 1 // 0: Mon, 6: Sun
+            matrix[row][col] = curr
+            if (row == 6) col++
             curr = curr.plusDays(1)
         }
         matrix
     }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .border(1.dp, BorderSubtle, RoundedCornerShape(18.dp)),
-        shape = RoundedCornerShape(18.dp),
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = BgSurface),
-        elevation = CardDefaults.cardElevation(2.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            // Header
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header: Title & Total Review Count Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -93,22 +98,28 @@ fun RecitationHeatmapCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "研墨足迹 · 背诵热力图",
+                        text = "研墨打卡足迹",
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                 }
 
-                Text(
-                    text = "近百日寒暑不辍",
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = TextTertiary
-                )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = BgSurfaceMuted
+                ) {
+                    Text(
+                        text = "共研读 ${heatmapStats.totalReviews} 次",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -144,43 +155,40 @@ fun RecitationHeatmapCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Heatmap Grid with horizontal scroll
+            // Interactive Heatmap Grid (Scrollable horizontally)
             val scrollState = rememberScrollState()
             LaunchedEffect(Unit) {
-                snapshotFlow { scrollState.maxValue }
-                    .filter { it < Int.MAX_VALUE }
-                    .first()
+                // Scroll to the latest weeks on initial render
                 scrollState.scrollTo(scrollState.maxValue)
             }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(scrollState)
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .horizontalScroll(scrollState),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Day of week labels (一, 三, 五, 日)
+                // Weekday labels on the left: 一, 三, 五, 日
                 Column(
-                    modifier = Modifier.padding(end = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(3.5.dp),
+                    modifier = Modifier.padding(end = 4.dp, top = 1.dp)
                 ) {
-                    val dayNames = listOf("一", "", "三", "", "五", "", "日")
-                    dayNames.forEach { name ->
-                        Box(
-                            modifier = Modifier.size(14.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = name,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextTertiary
-                            )
+                    listOf("一", "", "三", "", "五", "", "日").forEach { label ->
+                        Box(modifier = Modifier.size(15.dp), contentAlignment = Alignment.Center) {
+                            if (label.isNotEmpty()) {
+                                Text(
+                                    text = label,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextTertiary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
 
-                // 7 rows x N columns
+                // Days Matrix: 7 rows x totalWeeks columns
                 Row(horizontalArrangement = Arrangement.spacedBy(3.5.dp)) {
                     for (col in 0 until totalWeeks) {
                         Column(verticalArrangement = Arrangement.spacedBy(3.5.dp)) {
@@ -194,11 +202,11 @@ fun RecitationHeatmapCard(
 
                                     val cellColor = when {
                                         isFuture -> Color.Transparent
-                                        count == 0 -> Color(0xFFF1F5F9) // Slate 100
-                                        count in 1..4 -> Color(0xFFBFDBFE) // Blue 200
-                                        count in 5..9 -> Color(0xFF60A5FA) // Blue 400
-                                        count in 10..19 -> Color(0xFF2563EB) // Blue 600
-                                        else -> Color(0xFF1E3A8A) // Blue 900
+                                        count == 0 -> emptyCellColor
+                                        count in 1..4 -> level1Color
+                                        count in 5..9 -> level2Color
+                                        count in 10..19 -> level3Color
+                                        else -> level4Color
                                     }
 
                                     Box(
@@ -258,11 +266,11 @@ fun RecitationHeatmapCard(
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     Text(text = "少", fontSize = 10.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFFBFDBFE), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF60A5FA), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF2563EB), RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF1E3A8A), RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(emptyCellColor, RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(level1Color, RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(level2Color, RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(level3Color, RoundedCornerShape(2.dp)))
+                    Box(modifier = Modifier.size(10.dp).background(level4Color, RoundedCornerShape(2.dp)))
                     Text(text = "多", fontSize = 10.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
                 }
             }
