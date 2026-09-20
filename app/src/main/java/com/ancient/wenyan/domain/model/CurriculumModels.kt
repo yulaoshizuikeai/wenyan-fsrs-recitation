@@ -49,14 +49,18 @@ data class Flashcard(
     val id: String,
     val segmentId: String,
     val articleId: String,
-    val cardType: String, // "UPPER_PROMPT_LOWER", "LOWER_PROMPT_UPPER", "SITUATIONAL_CLOZE", "FULL_SENTENCE_RECALL"
+    val cardType: String, // "UPPER_PROMPT_LOWER", "LOWER_PROMPT_UPPER", "SITUATIONAL_CLOZE", "FULL_SENTENCE_RECALL", "MULTI_CLOZE_VARIANT"
     val frontTitle: String,
     val frontPrompt: String,
     val frontHint: String? = null,
     val backAnswer: String,
     val backTranslation: String? = null,
     val backNotes: String? = null,
-    val isPrimary: Boolean = true
+    val isPrimary: Boolean = true,
+    val clozeIndex: Int = 1,
+    val totalClozes: Int = 1,
+    val fullVerseContext: String? = null,
+    val maskedSegment: String? = null
 )
 
 data class ArticleProgress(

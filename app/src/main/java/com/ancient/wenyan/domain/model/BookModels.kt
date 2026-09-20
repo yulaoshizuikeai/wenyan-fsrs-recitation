@@ -18,7 +18,7 @@ object BookPresets {
         shortName = "必修上",
         moduleIds = setOf("MODULE_BX_1", "MODULE_BX_1_RECITE"),
         totalArticles = 19,
-        description = "高一上学期 · 包含课文15篇与古诗词诵读4篇",
+        description = "高一上学期 · 经典诗词与山水名赋",
         tag = "必修"
     )
 
@@ -28,7 +28,7 @@ object BookPresets {
         shortName = "必修下",
         moduleIds = setOf("MODULE_BX_2", "MODULE_BX_2_RECITE"),
         totalArticles = 17,
-        description = "高一下学期 · 包含课文13篇与古诗词诵读4篇",
+        description = "高一下学期 · 先秦诸子与史传名篇",
         tag = "必修"
     )
 
@@ -38,7 +38,7 @@ object BookPresets {
         shortName = "选必上",
         moduleIds = setOf("MODULE_XB_1", "MODULE_XB_1_RECITE"),
         totalArticles = 10,
-        description = "高二上学期 · 包含课文6篇与古诗词诵读4篇",
+        description = "高二上学期 · 诸子思想与经典论说",
         tag = "选必"
     )
 
@@ -48,7 +48,7 @@ object BookPresets {
         shortName = "选必中",
         moduleIds = setOf("MODULE_XB_2", "MODULE_XB_2_RECITE"),
         totalArticles = 8,
-        description = "高二中阶段 · 包含课文4篇与古诗词诵读4篇",
+        description = "高二学年 · 史家绝唱与经世文赋",
         tag = "选必"
     )
 
@@ -58,17 +58,17 @@ object BookPresets {
         shortName = "选必下",
         moduleIds = setOf("MODULE_XB_3", "MODULE_XB_3_RECITE"),
         totalArticles = 17,
-        description = "高二下学期 · 包含课文13篇与古诗词诵读4篇",
+        description = "高二下学期 · 山水游记与抒怀名篇",
         tag = "选必"
     )
 
     val BOOK_XX_APPRECIATION = BookGroup(
         id = "BOOK_XX_APPRECIATION",
-        name = "选修(古代诗歌散文欣赏)",
+        name = "选修 · 古代诗歌散文欣赏",
         shortName = "选修欣赏",
         moduleIds = setOf("MODULE_XX_APPRECIATION"),
         totalArticles = 29,
-        description = "高三培优与散文欣赏 · 涵盖先秦汉魏至明清名家名篇",
+        description = "高三拓展 · 历代名家经典诗文培优",
         tag = "选修"
     )
 
@@ -89,7 +89,7 @@ object BookPresets {
         shortName = "全部教材",
         moduleIds = emptySet(), // emptySet represents all
         totalArticles = 100,
-        description = "高中全套课标内容 · 11个模块100篇诗文全量收录",
+        description = "高中统编教材全量收录 · 涵盖全部100篇诗文",
         tag = "全库"
     )
 
@@ -99,13 +99,13 @@ object BookPresets {
         shortName = "必修全套",
         moduleIds = setOf("MODULE_BX_1", "MODULE_BX_1_RECITE", "MODULE_BX_2", "MODULE_BX_2_RECITE"),
         totalArticles = 36,
-        description = "高中必修四册课文及诵读 · 奠定文言坚实基石",
+        description = "高一必修两册课文及诵读 · 夯实文言背诵基石",
         tag = "必修"
     )
 
     val SCOPE_SELECTIVE_ALL = BookGroup(
         id = "SCOPE_SELECTIVE_ALL",
-        name = "选择性必修全套 (上/中/下)",
+        name = "选择性必修全套 (三册)",
         shortName = "选必全套",
         moduleIds = setOf(
             "MODULE_XB_1", "MODULE_XB_1_RECITE",
@@ -113,7 +113,7 @@ object BookPresets {
             "MODULE_XB_3", "MODULE_XB_3_RECITE"
         ),
         totalArticles = 35,
-        description = "选择性必修六册 · 高难度文言论说文与经典辞赋",
+        description = "高二选择性必修三册 · 涵盖论说名篇与经典辞赋",
         tag = "选必"
     )
 }

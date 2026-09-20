@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.fsrs.CardState
 import com.ancient.wenyan.domain.fsrs.FSRSEngine
+import com.ancient.wenyan.domain.fsrs.FSRSOptimizer
+import com.ancient.wenyan.domain.fsrs.OptimizationResult
 import com.ancient.wenyan.domain.fsrs.Rating
 import com.ancient.wenyan.domain.fsrs.ReviewLog
 import com.ancient.wenyan.domain.model.Article
@@ -67,6 +69,53 @@ class WenYanRepository(
             if (savedBookName != null) {
                 _selectedBookName.value = savedBookName
                 _selectedBookScope.value = if (savedModules.isNullOrEmpty()) null else savedModules
+            }
+
+            // Load custom/optimized FSRS parameters
+            val savedRetention = sp.getFloat("pref_fsrs_retention", 0.93f).toDouble()
+            val savedFactor = sp.getFloat("pref_fsrs_recitation_factor", 0.72f).toDouble()
+            val savedMaxInterval = sp.getInt("pref_fsrs_max_interval", 36500)
+            val savedWeightsStr = sp.getString("pref_fsrs_weights", null)
+
+            val weights = if (!savedWeightsStr.isNullOrBlank()) {
+                try {
+                    val arr = savedWeightsStr.split(",").map { it.trim().toDouble() }.toDoubleArray()
+                    if (arr.size == 19) arr else FSRSEngine.DEFAULT_FSRS_5_WEIGHTS
+                } catch (e: Exception) {
+                    FSRSEngine.DEFAULT_FSRS_5_WEIGHTS
+                }
+            } else {
+                FSRSEngine.DEFAULT_FSRS_5_WEIGHTS
+            }
+
+            fsrsEngine.updateParameters(weights, savedRetention, savedFactor, savedMaxInterval)
+
+            // Load stored review logs
+            val savedLogsStr = sp.getString("pref_persisted_review_logs_v1", null)
+            if (!savedLogsStr.isNullOrBlank()) {
+                try {
+                    val lines = savedLogsStr.split("\n")
+                    for (line in lines) {
+                        val p = line.split("|")
+                        if (p.size >= 8) {
+                            reviewLogs.add(
+                                ReviewLog(
+                                    cardId = p[0],
+                                    rating = Rating.valueOf(p[1]),
+                                    previousState = CardState.valueOf(p[2]),
+                                    currentState = CardState.valueOf(p[3]),
+                                    stability = p[4].toDoubleOrNull() ?: 1.0,
+                                    difficulty = p[5].toDoubleOrNull() ?: 5.0,
+                                    elapsedDays = p[6].toIntOrNull() ?: 0,
+                                    scheduledDays = p[7].toIntOrNull() ?: 1,
+                                    reviewTime = p.getOrNull(8)?.toLongOrNull() ?: System.currentTimeMillis()
+                                )
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore parse errors
+                }
             }
         }
     }
@@ -172,6 +221,12 @@ class WenYanRepository(
         val result = fsrsEngine.evaluateReview(currentState, rating, nowMillis)
         cardsStateMap[cardId] = result.updatedCard
         reviewLogs.add(result.reviewLog)
+        persistReviewLogs()
+
+        // Auto-tune every 20 reviews if auto-tune is enabled and we have at least 10 logs
+        if (isAutoTuneEnabled() && reviewLogs.size >= 10 && reviewLogs.size % 20 == 0) {
+            optimizeFSRSParameters()
+        }
 
         // Record daily review in heatmap
         val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
@@ -428,6 +483,99 @@ class WenYanRepository(
 
     fun setReminderEnabled(enabled: Boolean) {
         prefs?.edit()?.putBoolean("pref_reminder_enabled", enabled)?.apply()
+    }
+
+    private fun persistReviewLogs() {
+        prefs?.let { sp ->
+            val recentLogs = reviewLogs.takeLast(500)
+            val sb = StringBuilder()
+            for (log in recentLogs) {
+                sb.append("${log.cardId}|${log.rating.name}|${log.previousState.name}|${log.currentState.name}|${log.stability}|${log.difficulty}|${log.elapsedDays}|${log.scheduledDays}|${log.reviewTime}\n")
+            }
+            sp.edit().putString("pref_persisted_review_logs_v1", sb.toString()).apply()
+        }
+    }
+
+    // ========================================================================
+    // FSRS Parameter Optimization & Settings
+    // ========================================================================
+
+    fun optimizeFSRSParameters(): OptimizationResult {
+        val result = FSRSOptimizer.optimize(reviewLogs, fsrsEngine.weights)
+        if (result.success) {
+            fsrsEngine.updateParameters(newWeights = result.optimizedWeights)
+            saveFSRSSettingsToPrefs(
+                weights = result.optimizedWeights,
+                retention = fsrsEngine.requestRetention,
+                factor = fsrsEngine.recitationStabilityFactor,
+                maxInterval = fsrsEngine.maximumInterval,
+                lastOptimized = System.currentTimeMillis()
+            )
+            _statsFlow.value = computeStats()
+        }
+        return result
+    }
+
+    fun updateFSRSSettings(
+        weights: DoubleArray? = null,
+        retention: Double,
+        factor: Double,
+        maxInterval: Int
+    ) {
+        val targetWeights = weights ?: fsrsEngine.weights
+        fsrsEngine.updateParameters(targetWeights, retention, factor, maxInterval)
+        saveFSRSSettingsToPrefs(
+            weights = targetWeights,
+            retention = retention,
+            factor = factor,
+            maxInterval = maxInterval
+        )
+        _statsFlow.value = computeStats()
+    }
+
+    fun resetFSRSSettingsToDefault() {
+        fsrsEngine.resetToDefaults()
+        saveFSRSSettingsToPrefs(
+            weights = FSRSEngine.DEFAULT_FSRS_5_WEIGHTS,
+            retention = 0.93,
+            factor = 0.72,
+            maxInterval = 36500
+        )
+        _statsFlow.value = computeStats()
+    }
+
+    private fun saveFSRSSettingsToPrefs(
+        weights: DoubleArray,
+        retention: Double,
+        factor: Double,
+        maxInterval: Int,
+        lastOptimized: Long? = null
+    ) {
+        prefs?.edit()?.apply {
+            putString("pref_fsrs_weights", weights.joinToString(","))
+            putFloat("pref_fsrs_retention", retention.toFloat())
+            putFloat("pref_fsrs_recitation_factor", factor.toFloat())
+            putInt("pref_fsrs_max_interval", maxInterval)
+            if (lastOptimized != null) {
+                putLong("pref_fsrs_last_optimized_time", lastOptimized)
+            }
+            apply()
+        }
+    }
+
+    fun getReviewLogs(): List<ReviewLog> = reviewLogs.toList()
+
+    fun isAutoTuneEnabled(): Boolean {
+        return prefs?.getBoolean("pref_fsrs_auto_tune", true) ?: true
+    }
+
+    fun setAutoTuneEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("pref_fsrs_auto_tune", enabled)?.apply()
+    }
+
+    fun getLastOptimizedTime(): Long? {
+        val t = prefs?.getLong("pref_fsrs_last_optimized_time", 0L) ?: 0L
+        return if (t > 0L) t else null
     }
 
     companion object {

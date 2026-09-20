@@ -9,12 +9,32 @@ import kotlin.math.*
  * mathematical model with 19 parameters and 4-tier lifecycle transitions.
  */
 class FSRSEngine(
-    val weights: DoubleArray = DEFAULT_FSRS_5_WEIGHTS,
-    val requestRetention: Double = 0.90,
-    val maximumInterval: Int = 36500,
+    var weights: DoubleArray = DEFAULT_FSRS_5_WEIGHTS,
+    var requestRetention: Double = 0.93,
+    var maximumInterval: Int = 36500,
     val learningSteps: List<Long> = listOf(60_000L, 600_000L), // 1m, 10m
-    val relearningSteps: List<Long> = listOf(600_000L)          // 10m
+    val relearningSteps: List<Long> = listOf(600_000L),          // 10m
+    var recitationStabilityFactor: Double = 0.72
 ) {
+    fun updateParameters(
+        newWeights: DoubleArray = this.weights,
+        newRetention: Double = this.requestRetention,
+        newFactor: Double = this.recitationStabilityFactor,
+        newMaxInterval: Int = this.maximumInterval
+    ) {
+        this.weights = newWeights.clone()
+        this.requestRetention = newRetention.coerceIn(0.70, 0.99)
+        this.recitationStabilityFactor = newFactor.coerceIn(0.30, 1.50)
+        this.maximumInterval = newMaxInterval.coerceAtLeast(1)
+    }
+
+    fun resetToDefaults() {
+        this.weights = DEFAULT_FSRS_5_WEIGHTS.clone()
+        this.requestRetention = 0.93
+        this.recitationStabilityFactor = 0.72
+        this.maximumInterval = 36500
+    }
+
     companion object {
         val DEFAULT_FSRS_5_WEIGHTS = doubleArrayOf(
             0.40255,  // w0:  S0(Again)
@@ -55,7 +75,7 @@ class FSRSEngine(
     }
 
     fun initialStability(rating: Rating): Double {
-        return max(weights[rating.value - 1], 0.001)
+        return max(weights[rating.value - 1] * recitationStabilityFactor, 0.001)
     }
 
     fun initialDifficulty(rating: Rating): Double {

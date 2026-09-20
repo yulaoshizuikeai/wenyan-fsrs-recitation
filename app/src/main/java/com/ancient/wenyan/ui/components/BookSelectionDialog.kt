@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -47,8 +48,8 @@ fun BookSelectionDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
-                .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
+                .border(1.dp, BorderSubtle, RoundedCornerShape(22.dp)),
+            shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = BgSurface),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
@@ -68,7 +69,7 @@ fun BookSelectionDialog(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(StudyBlueLight, RoundedCornerShape(8.dp)),
+                                .background(StudyBlueLight, RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -81,9 +82,7 @@ fun BookSelectionDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "选择背诵教材",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = TextPrimary
                         )
                     }
@@ -91,22 +90,51 @@ fun BookSelectionDialog(
                     IconButton(onClick = {
                         hapticManager.tapLight()
                         onDismiss()
-                    }, modifier = Modifier.size(28.dp)) {
+                    }, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "关闭",
-                            tint = TextSecondary
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                Text(
-                    text = "当前锁定：$currentName。针对当前学习阶段聚焦课本，研读与记忆统计将精准匹配所选范围",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                )
+                // Current Selection Indicator
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 10.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    color = BgSurfaceMuted
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "当前范围",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = TextTertiary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = currentName,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = StudyBlueAccent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "背诵统计精准匹配",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary,
+                            maxLines = 1
+                        )
+                    }
+                }
 
                 // Scrollable List of Presets & Single Books
                 Column(
@@ -117,17 +145,15 @@ fun BookSelectionDialog(
                 ) {
                     // Quick Presets
                     Text(
-                        text = "常用范围预设",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
+                        text = "学习阶段推荐预设",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = TextPrimary
                     )
 
                     // 1. 全部教材
                     PresetOptionItem(
                         title = "全部 11 册教材 (100篇)",
-                        subtitle = "高中统编课标内全部篇目全库覆盖",
+                        subtitle = "统编版高中必修、选择性必修及选修全量收录",
                         isSelected = selectedModules.isEmpty(),
                         onClick = {
                             hapticManager.tapLight()
@@ -138,8 +164,8 @@ fun BookSelectionDialog(
 
                     // 2. 必修全套
                     PresetOptionItem(
-                        title = "必修全套 (上/下两册 · 36篇)",
-                        subtitle = "覆盖必修上册、必修下册及古诗词诵读",
+                        title = "必修全套 (两册 · 36篇)",
+                        subtitle = "高一学年 · 必修上、下两册课文与诵读名篇",
                         isSelected = selectedModules == BookPresets.SCOPE_REQUIRED_ALL.moduleIds,
                         onClick = {
                             hapticManager.tapLight()
@@ -150,8 +176,8 @@ fun BookSelectionDialog(
 
                     // 3. 选必全套
                     PresetOptionItem(
-                        title = "选择性必修全套 (上/中/下 · 35篇)",
-                        subtitle = "覆盖选必三册课文及古诗词诵读",
+                        title = "选择性必修全套 (三册 · 35篇)",
+                        subtitle = "高二学年 · 选必上、中、下全三册课文与诵读名篇",
                         isSelected = selectedModules == BookPresets.SCOPE_SELECTIVE_ALL.moduleIds,
                         onClick = {
                             hapticManager.tapLight()
@@ -160,13 +186,11 @@ fun BookSelectionDialog(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "单册教材精准选择 (支持多选组合)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
+                        text = "分册教材自选 (支持组合多选)",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = TextPrimary
                     )
 
@@ -204,11 +228,11 @@ fun BookSelectionDialog(
                             onConfirmSelection(null, "全部 11 册教材")
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderFocus)
                     ) {
-                        Text("全选课本", fontFamily = FontFamily.SansSerif)
+                        Text("全选教材", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium))
                     }
 
                     Button(
@@ -218,26 +242,25 @@ fun BookSelectionDialog(
                             val finalScope = if (selectedModules.isEmpty()) null else selectedModules
                             val finalName = when {
                                 finalScope == null -> "全部 11 册教材"
-                                finalScope == BookPresets.BOOK_BX_1.moduleIds -> "必修上册"
-                                finalScope == BookPresets.BOOK_BX_2.moduleIds -> "必修下册"
-                                finalScope == BookPresets.BOOK_XB_1.moduleIds -> "选择性必修上册"
-                                finalScope == BookPresets.BOOK_XB_2.moduleIds -> "选择性必修中册"
-                                finalScope == BookPresets.BOOK_XB_3.moduleIds -> "选择性必修下册"
-                                finalScope == BookPresets.BOOK_XX_APPRECIATION.moduleIds -> "选修(诗歌散文欣赏)"
+                                finalScope == BookPresets.BOOK_BX_1.moduleIds -> BookPresets.BOOK_BX_1.name
+                                finalScope == BookPresets.BOOK_BX_2.moduleIds -> BookPresets.BOOK_BX_2.name
+                                finalScope == BookPresets.BOOK_XB_1.moduleIds -> BookPresets.BOOK_XB_1.name
+                                finalScope == BookPresets.BOOK_XB_2.moduleIds -> BookPresets.BOOK_XB_2.name
+                                finalScope == BookPresets.BOOK_XB_3.moduleIds -> BookPresets.BOOK_XB_3.name
+                                finalScope == BookPresets.BOOK_XX_APPRECIATION.moduleIds -> BookPresets.BOOK_XX_APPRECIATION.name
                                 finalScope == BookPresets.SCOPE_REQUIRED_ALL.moduleIds -> "必修全套"
                                 finalScope == BookPresets.SCOPE_SELECTIVE_ALL.moduleIds -> "选必全套"
                                 else -> "自选 (${BookPresets.ALL_SINGLE_BOOKS.count { it.moduleIds.all { m -> m in finalScope } }} 册)"
                             }
                             onConfirmSelection(finalScope, finalName)
                         },
-                        modifier = Modifier.weight(1.5f),
-                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1.4f),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = StudyNavy)
                     ) {
                         Text(
                             text = "确定选择",
-                            fontFamily = FontFamily.SansSerif,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                             color = Color.White
                         )
                     }
@@ -257,13 +280,13 @@ private fun PresetOptionItem(
     OutlinedCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.outlinedCardColors(
             containerColor = if (isSelected) StudyBlueLight else MaterialTheme.colorScheme.surface
         ),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = androidx.compose.ui.graphics.SolidColor(
-                if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.outlineVariant
+                if (isSelected) StudyBlueAccent else BorderSubtle
             )
         )
     ) {
@@ -272,16 +295,20 @@ private fun PresetOptionItem(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
                     ),
-                    color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface
+                    color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             },
             supportingContent = {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             },
             trailingContent = if (isSelected) {
@@ -308,13 +335,13 @@ private fun BookCheckboxItem(
     OutlinedCard(
         onClick = onToggle,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.outlinedCardColors(
             containerColor = if (isSelected) StudyBlueLight.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
         ),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = androidx.compose.ui.graphics.SolidColor(
-                if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.outlineVariant
+                if (isSelected) StudyBlueAccent else BorderSubtle
             )
         )
     ) {
@@ -325,28 +352,37 @@ private fun BookCheckboxItem(
                     onCheckedChange = { onToggle() },
                     colors = CheckboxDefaults.colors(
                         checkedColor = StudyBlueAccent,
-                        uncheckedColor = MaterialTheme.colorScheme.outline
+                        uncheckedColor = BorderFocus
                     )
                 )
             },
             headlineContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = book.name,
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
                         ),
-                        color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface
+                        color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Badge(
-                        containerColor = StreakFlame.copy(alpha = 0.12f),
-                        contentColor = StreakFlame
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isSelected) StudyBlueAccent.copy(alpha = 0.12f) else StreakFlame.copy(alpha = 0.12f)
                     ) {
                         Text(
                             text = "${book.totalArticles}篇",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (isSelected) StudyBlueAccent else StreakFlame,
+                            softWrap = false,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
                 }
@@ -355,7 +391,9 @@ private fun BookCheckboxItem(
                 Text(
                     text = book.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)

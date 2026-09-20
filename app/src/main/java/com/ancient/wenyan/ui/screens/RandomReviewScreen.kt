@@ -50,9 +50,9 @@ fun RandomReviewScreen(
             "选择性必修上册 (10篇)" to BookPresets.BOOK_XB_1.moduleIds,
             "选择性必修中册 (8篇)" to BookPresets.BOOK_XB_2.moduleIds,
             "选择性必修下册 (17篇)" to BookPresets.BOOK_XB_3.moduleIds,
-            "选修(古代诗歌散文欣赏 · 29篇)" to BookPresets.BOOK_XX_APPRECIATION.moduleIds,
-            "必修全套 (上/下两册 · 36篇)" to BookPresets.SCOPE_REQUIRED_ALL.moduleIds,
-            "选择性必修全套 (上/中/下 · 35篇)" to BookPresets.SCOPE_SELECTIVE_ALL.moduleIds
+            "选修 · 古代诗歌散文欣赏 (29篇)" to BookPresets.BOOK_XX_APPRECIATION.moduleIds,
+            "必修全套 (两册 · 36篇)" to BookPresets.SCOPE_REQUIRED_ALL.moduleIds,
+            "选择性必修全套 (三册 · 35篇)" to BookPresets.SCOPE_SELECTIVE_ALL.moduleIds
         )
     }
 

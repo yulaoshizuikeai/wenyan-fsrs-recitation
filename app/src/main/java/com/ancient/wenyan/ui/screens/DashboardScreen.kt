@@ -23,16 +23,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.ui.components.BookSelectionDialog
+import com.ancient.wenyan.ui.components.FSRSConfigDialog
 import com.ancient.wenyan.ui.components.FeedbackPreferencesDialog
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
@@ -98,6 +101,7 @@ fun DashboardScreen(
 
     var showBookDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
+    var showFSRSConfigDialog by remember { mutableStateOf(false) }
 
     // Rotating daily quote based on day-of-year, tap to cycle
     val dayOfYear = remember { LocalDate.now().dayOfYear }
@@ -131,6 +135,13 @@ fun DashboardScreen(
     if (showFeedbackDialog) {
         FeedbackPreferencesDialog(
             onDismiss = { showFeedbackDialog = false }
+        )
+    }
+
+    if (showFSRSConfigDialog) {
+        FSRSConfigDialog(
+            repository = repository,
+            onDismiss = { showFSRSConfigDialog = false }
         )
     }
 
@@ -177,6 +188,21 @@ fun DashboardScreen(
                 }
             },
             actions = {
+                // FSRS Algorithm Settings & Auto-Tuning
+                IconButton(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        showFSRSConfigDialog = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Psychology,
+                        contentDescription = "FSRS 记忆算法调度与自适应优化",
+                        tint = StudyBlueAccent
+                    )
+                }
+
                 // Settings & sensory sandbox
                 IconButton(
                     onClick = {
@@ -276,7 +302,9 @@ fun DashboardScreen(
                             Text(
                                 text = selectedBookName,
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         },
                         trailingIcon = {
@@ -315,6 +343,68 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .padding(20.dp)
                     ) {
+                        // Header with FSRS Model indicator and tuning shortcut
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "研习进度与记忆状态",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                SuggestionChip(
+                                    onClick = {
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
+                                        showFSRSConfigDialog = true
+                                    },
+                                    label = {
+                                        Text(
+                                            text = "FSRS-5",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                    },
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = StudyBlueLight,
+                                        labelColor = StudyBlueAccent
+                                    ),
+                                    border = null,
+                                    modifier = Modifier.height(20.dp)
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
+                                        showFSRSConfigDialog = true
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = "算法设置",
+                                    tint = StudyBlueAccent,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "算法调优",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = StudyBlueAccent
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
                         // 4-Dimension FSRS Memory Metrics
                         Row(
                             modifier = Modifier.fillMaxWidth(),

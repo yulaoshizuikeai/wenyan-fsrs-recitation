@@ -730,32 +730,147 @@ object CurriculumDataSource {
         ALL_ARTICLES.filter { it.isGaoKao72 }
 
     /**
-     * Generate flashcards for an article.
-     * Generates couplets and famous sentences for flashcard practice.
+     * Generate multi-cloze flashcards for an article.
+     * Segments text into coherent sentence/couplet units and creates multiple cloze
+     * variant cards per unit (e.g. testing clause 1, clause 2, clause 3 with full context).
+     * Eliminates cross-couplet and odd-clause misalignments.
      */
     fun generateFlashcardsForArticle(article: Article): List<Flashcard> {
         val list = mutableListOf<Flashcard>()
-        val lines = article.fullContent.split("，", "。", "！", "？", "；", "\n")
-            .map { it.trim() }
-            .filter { it.length in 3..25 }
+        val rawText = article.fullContent
 
-        for (i in 0 until lines.size - 1 step 2) {
-            val upper = lines[i]
-            val lower = lines[i + 1]
-            list.add(
-                Flashcard(
-                    id = "fc_${article.id}_$i",
-                    segmentId = "seg_${article.id}_$i",
-                    articleId = article.id,
-                    cardType = "UPPER_PROMPT_LOWER",
-                    frontTitle = "《${article.title}》· ${article.author}",
-                    frontPrompt = "【出句】$upper",
-                    frontHint = "朝代：${article.dynasty} · 体裁：${article.genre}",
-                    backAnswer = "【对句】$lower",
-                    backTranslation = article.translation,
-                    isPrimary = true
+        // 1. Split into natural sentence units using ending punctuations: 。！？；\n
+        val sentenceRegex = Regex("""[^。！？；\n]+[。！？；]?""")
+        val rawUnits = sentenceRegex.findAll(rawText)
+            .map { it.value.trim() }
+            .filter { it.length >= 4 }
+            .toList()
+
+        var unitIndex = 0
+        for (rawUnit in rawUnits) {
+            // Determine end punctuation
+            val lastChar = rawUnit.lastOrNull()
+            val endPunct = if (lastChar in listOf('。', '！', '？', '；')) lastChar.toString() else "。"
+            val coreText = if (lastChar in listOf('。', '！', '？', '；')) rawUnit.dropLast(1) else rawUnit
+
+            // Split core text into clauses by commas / pauses
+            val clauses = coreText.split('，', '、', '：')
+                .map { it.trim().trim('“', '”', '‘', '’') }
+                .filter { it.length >= 2 }
+
+            if (clauses.isEmpty()) continue
+
+            if (clauses.size == 1) {
+                // Single clause: create a full recall card or keyword card
+                val clause = clauses[0]
+                list.add(
+                    Flashcard(
+                        id = "fc_${article.id}_u${unitIndex}_c0",
+                        segmentId = "seg_${article.id}_$unitIndex",
+                        articleId = article.id,
+                        cardType = "FULL_SENTENCE_RECALL",
+                        frontTitle = "《${article.title}》· ${article.author}",
+                        frontPrompt = "【填空默写】⟦ ________ ⟧$endPunct",
+                        frontHint = "朝代：${article.dynasty} · 体裁：${article.genre}",
+                        backAnswer = "【填空正解】$clause",
+                        backTranslation = article.translation,
+                        isPrimary = true,
+                        clozeIndex = 1,
+                        totalClozes = 1,
+                        fullVerseContext = "【$clause】$endPunct",
+                        maskedSegment = clause
+                    )
                 )
-            )
+                unitIndex++
+            } else {
+                // If clauses count is large (e.g. 5+ in prose), group them into sub-units of 2-3 clauses
+                val chunkedClauses = if (clauses.size <= 4) listOf(clauses) else clauses.chunked(3)
+
+                for (chunk in chunkedClauses) {
+                    if (chunk.size < 2) {
+                        val singleClause = chunk[0]
+                        list.add(
+                            Flashcard(
+                                id = "fc_${article.id}_u${unitIndex}_c0",
+                                segmentId = "seg_${article.id}_$unitIndex",
+                                articleId = article.id,
+                                cardType = "FULL_SENTENCE_RECALL",
+                                frontTitle = "《${article.title}》· ${article.author}",
+                                frontPrompt = "【填空默写】⟦ ________ ⟧$endPunct",
+                                frontHint = "朝代：${article.dynasty} · 体裁：${article.genre}",
+                                backAnswer = "【填空正解】$singleClause",
+                                backTranslation = article.translation,
+                                isPrimary = true,
+                                clozeIndex = 1,
+                                totalClozes = 1,
+                                fullVerseContext = "【$singleClause】$endPunct",
+                                maskedSegment = singleClause
+                            )
+                        )
+                        unitIndex++
+                        continue
+                    }
+
+                    val totalVariants = chunk.size
+                    for (k in chunk.indices) {
+                        val targetClause = chunk[k]
+
+                        // Build contextual prompt with cloze mask at position k
+                        val promptBuilder = StringBuilder()
+                        val contextBuilder = StringBuilder()
+
+                        for (j in chunk.indices) {
+                            if (j == k) {
+                                promptBuilder.append("⟦ ________ ⟧")
+                                contextBuilder.append("【").append(chunk[j]).append("】")
+                            } else {
+                                promptBuilder.append(chunk[j])
+                                contextBuilder.append(chunk[j])
+                            }
+
+                            if (j < chunk.size - 1) {
+                                promptBuilder.append("，")
+                                contextBuilder.append("，")
+                            } else {
+                                promptBuilder.append(endPunct)
+                                contextBuilder.append(endPunct)
+                            }
+                        }
+
+                        val cardType = when {
+                            chunk.size == 2 && k == 1 -> "UPPER_PROMPT_LOWER"
+                            chunk.size == 2 && k == 0 -> "LOWER_PROMPT_UPPER"
+                            else -> "MULTI_CLOZE_VARIANT"
+                        }
+
+                        val positionLabel = when {
+                            chunk.size == 2 && k == 1 -> "出句测对句"
+                            chunk.size == 2 && k == 0 -> "对句测出句"
+                            else -> "第 ${k + 1}/$totalVariants 空"
+                        }
+
+                        list.add(
+                            Flashcard(
+                                id = "fc_${article.id}_u${unitIndex}_c$k",
+                                segmentId = "seg_${article.id}_$unitIndex",
+                                articleId = article.id,
+                                cardType = cardType,
+                                frontTitle = "《${article.title}》· ${article.author}",
+                                frontPrompt = promptBuilder.toString(),
+                                frontHint = "朝代：${article.dynasty} · 【$positionLabel · 语境填空】",
+                                backAnswer = "【填空正解】$targetClause",
+                                backTranslation = article.translation,
+                                isPrimary = (k == 0 || (chunk.size == 2 && k == 1)),
+                                clozeIndex = k + 1,
+                                totalClozes = totalVariants,
+                                fullVerseContext = contextBuilder.toString(),
+                                maskedSegment = targetClause
+                            )
+                        )
+                    }
+                    unitIndex++
+                }
+            }
         }
 
         if (list.isEmpty()) {
@@ -769,7 +884,11 @@ object CurriculumDataSource {
                     frontPrompt = "背诵名句（${article.genre} · ${article.dynasty}）",
                     backAnswer = article.paragraphs.firstOrNull() ?: article.fullContent.take(40),
                     backTranslation = article.translation,
-                    isPrimary = true
+                    isPrimary = true,
+                    clozeIndex = 1,
+                    totalClozes = 1,
+                    fullVerseContext = article.fullContent.take(40),
+                    maskedSegment = article.fullContent.take(40)
                 )
             )
         }

@@ -392,6 +392,16 @@ fun FlipCardScreen(
                     ) {
                         // Mode Pill Header (Front: Prompt vs Back: Answer)
                         val isBack = flipRotation > 90f
+                        val modeLabel = if (isBack) {
+                            "【背面 · 填空正解与对照】"
+                        } else {
+                            if (currentCard.totalClozes > 1) {
+                                "【正面 · 语境填空 第 ${currentCard.clozeIndex}/${currentCard.totalClozes} 空】"
+                            } else {
+                                "【正面 · 语境填空默写】"
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
                                 .background(
@@ -401,7 +411,7 @@ fun FlipCardScreen(
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = if (isBack) "【背面 · 对句与释义】" else "【正面 · 考题出句】",
+                                text = modeLabel,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.SansSerif,
@@ -432,10 +442,10 @@ fun FlipCardScreen(
 
                         Spacer(modifier = Modifier.height(28.dp))
 
-                        // Front Prompt Text
+                        // Front Prompt Text (Full Context with Cloze Mask)
                         Text(
                             text = currentCard.frontPrompt,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.SemiBold,
                             fontFamily = FontFamily.SansSerif,
                             color = TextPrimary,
@@ -453,17 +463,51 @@ fun FlipCardScreen(
                                 modifier = Modifier.padding(vertical = 12.dp)
                             )
 
-                            // Back Answer
+                            // Back Answer: Prominently display target answer
                             Text(
-                                text = currentCard.backAnswer,
-                                fontSize = 24.sp,
+                                text = "【填空正解】",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                                color = StudyBlueAccent
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val displayAnswer = currentCard.maskedSegment
+                                ?: currentCard.backAnswer.removePrefix("【填空正解】").removePrefix("【对句】")
+                            Text(
+                                text = displayAnswer,
+                                fontSize = 26.sp,
                                 fontWeight = FontWeight.Black,
                                 fontFamily = FontFamily.SansSerif,
                                 color = StudyBlueAccent,
                                 textAlign = TextAlign.Center,
-                                lineHeight = 36.sp,
+                                lineHeight = 38.sp,
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             )
+
+                            // Full verse context comparison
+                            val fullContext = currentCard.fullVerseContext
+                            if (!fullContext.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "【整句对照】",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextTertiary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = fullContext,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextPrimary,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 24.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                            }
 
                             if (!currentCard.backTranslation.isNullOrBlank()) {
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -476,11 +520,11 @@ fun FlipCardScreen(
                                 )
                                 Text(
                                     text = currentCard.backTranslation,
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     fontFamily = FontFamily.SansSerif,
                                     color = TextSecondary,
                                     textAlign = TextAlign.Center,
-                                    lineHeight = 22.sp,
+                                    lineHeight = 20.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }

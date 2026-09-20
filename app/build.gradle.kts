@@ -1,3 +1,5 @@
+import java.net.URLClassLoader
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +14,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.3.2"
+        versionCode = 8
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -64,12 +66,6 @@ android {
         compose = true
     }
 
-    testOptions {
-        unitTests.all {
-            it.jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
-        }
-    }
-
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.11"
     }
@@ -83,12 +79,7 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
         unitTests.all {
-            it.jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
-            val buildDirFile = layout.buildDirectory.get().asFile
-            val mainKotlinClasses = file("$buildDirFile/tmp/kotlin-classes/debug")
-            val unitTestKotlinClasses = file("$buildDirFile/tmp/kotlin-classes/debugUnitTest")
-            it.testClassesDirs = it.testClassesDirs.plus(files(unitTestKotlinClasses))
-            it.classpath = it.classpath.plus(files(mainKotlinClasses, unitTestKotlinClasses))
+            it.jvmArgs("-Dfile.encoding=UTF-8")
         }
     }
 }
@@ -136,4 +127,52 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+tasks.register("runInProcessTests") {
+    dependsOn("compileDebugUnitTestKotlin", "compileDebugKotlin")
+    doLast {
+        val buildDir = layout.buildDirectory.asFile.get()
+        val classDirs = listOf(
+            file("$buildDir/tmp/kotlin-classes/debug"),
+            file("$buildDir/tmp/kotlin-classes/debugUnitTest")
+        )
+        val allUrls = (classDirs + configurations.getByName("debugUnitTestRuntimeClasspath").files)
+            .map { it.toURI().toURL() }
+            .toTypedArray()
+
+        val classLoader = URLClassLoader(allUrls, ClassLoader.getPlatformClassLoader())
+        val junitCoreClass = classLoader.loadClass("org.junit.runner.JUnitCore")
+        val testClassNames = listOf(
+            "com.ancient.wenyan.FSRSOptimizerTest",
+            "com.ancient.wenyan.MultiClozeVariantAndIntensifiedFsrsTest",
+            "com.ancient.wenyan.BookSelectionAndHeatmapTest",
+            "com.ancient.wenyan.e2e.Tier1FeatureCoverageTest",
+            "com.ancient.wenyan.e2e.Tier2BoundaryCornerCasesTest"
+        )
+        val testClasses = testClassNames.map { classLoader.loadClass(it) }.toTypedArray()
+
+        val junitCore = junitCoreClass.getDeclaredConstructor().newInstance()
+        val classArrayType = Class.forName("[Ljava.lang.Class;")
+        val runMethod = junitCoreClass.getMethod("run", classArrayType)
+        val result = runMethod.invoke(junitCore, testClasses)
+
+        val wasSuccessful = result.javaClass.getMethod("wasSuccessful").invoke(result) as Boolean
+        val runCount = result.javaClass.getMethod("getRunCount").invoke(result) as Int
+        val failureCount = result.javaClass.getMethod("getFailureCount").invoke(result) as Int
+        val failures = result.javaClass.getMethod("getFailures").invoke(result) as List<*>
+
+        println("==================================================")
+        println("TEST SUMMARY: Ran $runCount tests, Failures: $failureCount")
+        println("==================================================")
+        if (!wasSuccessful) {
+            for (f in failures) {
+                println("FAILURE: $f")
+            }
+            throw GradleException("Tests failed! ($failureCount failures)")
+        }
+    }
+}
+
+
+
 
