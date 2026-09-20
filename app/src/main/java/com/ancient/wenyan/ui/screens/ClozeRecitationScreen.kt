@@ -166,57 +166,36 @@ fun ClozeRecitationScreen(
                 modifier = Modifier.padding(bottom = 6.dp)
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            val levels = listOf(
+                0 to "L0 原文",
+                1 to "L1 重点",
+                2 to "L2 半句",
+                3 to "L3 首字",
+                4 to "L4 全盲"
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                val levels = listOf(
-                    0 to "L0 原文",
-                    1 to "L1 重点词",
-                    2 to "L2 半句",
-                    3 to "L3 首字",
-                    4 to "L4 全盲"
-                )
-                levels.forEach { (level, name) ->
+                levels.forEachIndexed { index, (level, name) ->
                     val isSelected = (selectedLevel == level)
-                    val interactionSource = remember { MutableInteractionSource() }
-                    val isPressed by interactionSource.collectIsPressedAsState()
-                    val scale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.94f else 1.0f,
-                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                        label = "lvl_scale"
-                    )
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp)
-                            .scale(scale)
-                            .clickable(interactionSource = interactionSource, indication = null) {
-                                if (selectedLevel != level) {
-                                    selectedLevel = level
-                                    revealOriginal = false
-                                    soundManager.playClick()
-                                    hapticManager.tapLight()
-                                }
-                            },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) StudyNavy else BgSurface,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isSelected) StudyNavy else BorderSubtle
-                        ),
-                        shadowElevation = if (isSelected) 2.dp else 0.dp
+                    SegmentedButton(
+                        selected = isSelected,
+                        onClick = {
+                            if (selectedLevel != level) {
+                                selectedLevel = level
+                                revealOriginal = false
+                                soundManager.playClick()
+                                hapticManager.tapLight()
+                            }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = levels.size)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = name,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else TextSecondary
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                             )
-                        }
+                        )
                     }
                 }
             }
@@ -224,14 +203,15 @@ fun ClozeRecitationScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Main Reading & Interactive Cloze Card
-            Card(
+            OutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                    .weight(1f),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = BgSurface),
-                elevation = CardDefaults.cardElevation(2.dp)
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
                     modifier = Modifier

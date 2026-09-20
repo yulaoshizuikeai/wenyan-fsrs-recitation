@@ -281,57 +281,69 @@ fun FlipCardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = title,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = TextPrimary,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "已研习 $completedCount · 待巩固 ${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = TextSecondary
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        hapticManager.tapLight()
-                        onBack()
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = TextPrimary
-                        )
-                    }
-                },
-                actions = {
-                    // Sound Effect Toggle Button
-                    IconButton(onClick = {
-                        val next = !isSoundEnabled
-                        isSoundEnabled = next
-                        soundManager.isSoundEnabled = next
-                        hapticManager.tapLight()
-                        if (next) soundManager.playClick()
-                    }) {
-                        Icon(
-                            imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                            contentDescription = "音效开关",
-                            tint = if (isSoundEnabled) StudyBlueAccent else TextTertiary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
-            )
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onBackground,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "已研习 $completedCount · 待巩固 ${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            hapticManager.tapLight()
+                            onBack()
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "返回",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    },
+                    actions = {
+                        // Sound Effect Toggle Button
+                        IconButton(onClick = {
+                            val next = !isSoundEnabled
+                            isSoundEnabled = next
+                            soundManager.isSoundEnabled = next
+                            hapticManager.tapLight()
+                            if (next) soundManager.playClick()
+                        }) {
+                            Icon(
+                                imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                                contentDescription = "音效开关",
+                                tint = if (isSoundEnabled) StudyBlueAccent else MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                )
+
+                // M3 Smooth Queue Progress Indicator
+                val progressFraction = if (sessionQueue.isNotEmpty()) {
+                    (currentIndex.toFloat() / sessionQueue.size).coerceIn(0f, 1f)
+                } else 0f
+                LinearProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = StudyBlueAccent,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
         },
-        containerColor = BgCanvas
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -341,7 +353,7 @@ fun FlipCardScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Flashcard with 3D Flip & Elevation
-            Card(
+            OutlinedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -353,11 +365,12 @@ fun FlipCardScreen(
                         isFlipped = !isFlipped
                         soundManager.playFlip()
                         hapticManager.cardFlip()
-                    }
-                    .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
+                    },
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = BgSurface),
-                elevation = CardDefaults.cardElevation(defaultElevation = cardElevation)
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.outlinedCardElevation(defaultElevation = cardElevation)
             ) {
                 Box(
                     modifier = Modifier

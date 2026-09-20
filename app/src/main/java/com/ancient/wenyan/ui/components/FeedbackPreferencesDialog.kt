@@ -95,102 +95,96 @@ fun FeedbackPreferencesDialog(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Toggle 1: Sound Effects
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(BgSurfaceMuted, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (isSoundOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-                            contentDescription = null,
-                            tint = if (isSoundOn) StudyBlueAccent else TextTertiary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                imageVector = if (isSoundOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                                contentDescription = null,
+                                tint = if (isSoundOn) StudyBlueAccent else MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
+                        headlineContent = {
                             Text(
                                 text = "研读音效反馈",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                        },
+                        supportingContent = {
                             Text(
                                 text = "翻卡、答题、编钟凯歌声效",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-                    }
-
-                    Switch(
-                        checked = isSoundOn,
-                        onCheckedChange = {
-                            isSoundOn = it
-                            soundManager.isSoundEnabled = it
-                            hapticManager.tapLight()
-                            if (it) soundManager.playClick()
                         },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = StudyBlueAccent
-                        )
+                        trailingContent = {
+                            Switch(
+                                checked = isSoundOn,
+                                onCheckedChange = {
+                                    isSoundOn = it
+                                    soundManager.isSoundEnabled = it
+                                    hapticManager.tapLight()
+                                    if (it) soundManager.playClick()
+                                }
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Toggle 2: Haptic Vibration
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(BgSurfaceMuted, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.TouchApp,
-                            contentDescription = null,
-                            tint = if (isHapticOn) StudyBlueAccent else TextTertiary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                    ListItem(
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.TouchApp,
+                                contentDescription = null,
+                                tint = if (isHapticOn) StudyBlueAccent else MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        },
+                        headlineContent = {
                             Text(
                                 text = "触感震动反馈",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                        },
+                        supportingContent = {
                             Text(
                                 text = "高保真微触、轻击、节律震感",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-                    }
-
-                    Switch(
-                        checked = isHapticOn,
-                        onCheckedChange = {
-                            isHapticOn = it
-                            hapticManager.isHapticEnabled = it
-                            if (it) hapticManager.successPulse()
-                            soundManager.playClick()
                         },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = StudyBlueAccent
-                        )
+                        trailingContent = {
+                            Switch(
+                                checked = isHapticOn,
+                                onCheckedChange = {
+                                    isHapticOn = it
+                                    hapticManager.isHapticEnabled = it
+                                    if (it) hapticManager.successPulse()
+                                    soundManager.playClick()
+                                }
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 

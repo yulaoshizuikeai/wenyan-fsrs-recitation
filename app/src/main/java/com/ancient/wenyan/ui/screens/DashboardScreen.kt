@@ -137,75 +137,58 @@ fun DashboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgCanvas)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // ====================================================================
-        // Top App Header: Generous status bar insets + comfortable breathing room
+        // Material 3 TopAppBar
         // ====================================================================
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(top = 16.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "文言背诵",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.SansSerif,
-                        color = TextPrimary,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(StudyBlueAccent.copy(alpha = 0.10f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                    ) {
+        TopAppBar(
+            title = {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "高中必背",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = StudyBlueAccent,
-                            fontWeight = FontWeight.Bold
+                            text = "文言背诵",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                            letterSpacing = (-0.5).sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        SuggestionChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    text = "高中必背",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                            },
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = StudyBlueAccent.copy(alpha = 0.10f),
+                                labelColor = StudyBlueAccent
+                            ),
+                            border = null,
+                            modifier = Modifier.height(24.dp)
                         )
                     }
+                    Text(
+                        text = "FSRS-5 间隔记忆 · 熟读成诵",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Text(
-                    text = "FSRS-5 间隔记忆 · 熟读成诵",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            },
+            actions = {
                 // Settings & sensory sandbox
                 IconButton(
                     onClick = {
                         hapticManager.tapLight()
                         soundManager.playClick()
                         showFeedbackDialog = true
-                    },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(BgSurface, CircleShape)
-                        .border(1.dp, BorderSubtle, CircleShape)
+                    }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Tune,
                         contentDescription = "音效与震动偏好",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -217,21 +200,17 @@ fun DashboardScreen(
                         soundManager.isSoundEnabled = next
                         hapticManager.tapLight()
                         if (next) soundManager.playClick()
-                    },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(BgSurface, CircleShape)
-                        .border(1.dp, BorderSubtle, CircleShape)
+                    }
                 ) {
                     Icon(
                         imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                         contentDescription = "音效开关",
-                        tint = if (isSoundEnabled) StudyBlueAccent else TextTertiary,
-                        modifier = Modifier.size(18.dp)
+                        tint = if (isSoundEnabled) StudyBlueAccent else MaterialTheme.colorScheme.outline
                     )
                 }
-            }
-        }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+        )
 
         // ====================================================================
         // Scrollable Body Content
@@ -244,7 +223,7 @@ fun DashboardScreen(
             contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp)
         ) {
             // ----------------------------------------------------------------
-            // 1. Sleek Status Bar: Streak Badge + Scope Selector Capsule
+            // 1. Sleek Status Bar: M3 Streak Chip + Scope Selector AssistChip
             // ----------------------------------------------------------------
             item {
                 Row(
@@ -252,83 +231,84 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Streak Pill
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .background(
-                                color = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.10f) else BgSurfaceMuted,
-                                shape = RoundedCornerShape(20.dp)
+                    // Streak Pill via M3 SuggestionChip
+                    SuggestionChip(
+                        onClick = {},
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = "连胜火焰",
+                                tint = if (heatmapStats.currentStreak > 0) StreakFlame else MaterialTheme.colorScheme.outline,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .scale(flameScale)
                             )
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = "连胜火焰",
-                            tint = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .scale(flameScale)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (heatmapStats.currentStreak > 0) "${heatmapStats.currentStreak} 天连胜" else "今日未研读",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = if (heatmapStats.currentStreak > 0) StreakFlame else TextSecondary
-                        )
-                    }
+                        },
+                        label = {
+                            Text(
+                                text = if (heatmapStats.currentStreak > 0) "${heatmapStats.currentStreak} 天连胜" else "今日未研读",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = if (heatmapStats.currentStreak > 0) StreakFlame else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        border = null
+                    )
 
-                    // Scope Selector Capsule (Click directly to switch textbook)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable {
-                                hapticManager.tapLight()
-                                soundManager.playClick()
-                                showBookDialog = true
-                            }
-                            .background(BgSurface, RoundedCornerShape(20.dp))
-                            .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = null,
-                            tint = StudyBlueAccent,
-                            modifier = Modifier.size(15.dp)
+                    // Scope Selector Capsule via M3 AssistChip
+                    AssistChip(
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            showBookDialog = true
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                tint = StudyBlueAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = selectedBookName,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "切换教材",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = AssistChipDefaults.assistChipBorder(
+                            enabled = true,
+                            borderColor = MaterialTheme.colorScheme.outlineVariant
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = selectedBookName,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "切换教材",
-                            tint = TextTertiary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    )
                 }
             }
 
             // ----------------------------------------------------------------
-            // 2. Focused Core Memory Mission Card (No nested cards, clean & decluttered)
+            // 2. Focused Core Memory Mission Card (M3 OutlinedCard)
             // ----------------------------------------------------------------
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = BgSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -413,21 +393,21 @@ fun DashboardScreen(
             }
 
             // ----------------------------------------------------------------
-            // 3. Classical Quote Card: Minimalist Editorial Style
+            // 3. Classical Quote Card: Minimalist M3 OutlinedCard
             // ----------------------------------------------------------------
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            quoteIndex = (quoteIndex + 1) % CURATED_QUOTES.size
-                        }
-                        .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                OutlinedCard(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        quoteIndex = (quoteIndex + 1) % CURATED_QUOTES.size
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BgSurface),
-                    elevation = CardDefaults.cardElevation(1.dp)
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
                         Row(
@@ -502,18 +482,18 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // GaoKao 72 Quick Card
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                hapticManager.tapLight()
-                                soundManager.playClick()
-                                onStartGaoKaoReview()
-                            }
-                            .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
+                    OutlinedCard(
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            onStartGaoKaoReview()
+                        },
+                        modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = BgSurface),
-                        elevation = CardDefaults.cardElevation(1.dp)
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Box(
@@ -532,34 +512,31 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "高考 72 篇专项",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "必背考点一键抽查",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }
                     }
 
                     // Practice Quick Card
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                hapticManager.tapLight()
-                                soundManager.playClick()
-                                onNavigateToPractice()
-                            }
-                            .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
+                    OutlinedCard(
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            onNavigateToPractice()
+                        },
+                        modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = BgSurface),
-                        elevation = CardDefaults.cardElevation(1.dp)
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Box(
@@ -578,16 +555,13 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "跨篇随机练习",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = "自由设定抽取范围",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
                         }

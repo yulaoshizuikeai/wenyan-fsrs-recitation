@@ -132,13 +132,13 @@ fun PracticeScreen(
                 0 -> {
                     // GaoKao 72 Mandatory Practice
                     item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                        OutlinedCard(
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = BgSurface),
-                            elevation = CardDefaults.cardElevation(2.dp)
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.outlinedCardElevation(1.dp)
                         ) {
                             Column(modifier = Modifier.padding(22.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -220,13 +220,13 @@ fun PracticeScreen(
                 1 -> {
                     // Cross-book Random Practice
                     item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                        OutlinedCard(
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = BgSurface),
-                            elevation = CardDefaults.cardElevation(1.dp)
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.outlinedCardElevation(1.dp)
                         ) {
                             Column(modifier = Modifier.padding(20.dp)) {
                                 Text(
@@ -291,29 +291,27 @@ fun PracticeScreen(
                                 ) {
                                     listOf(10, 20, 30, 50).forEach { count ->
                                         val isSelected = (selectedCount == count)
-                                        Surface(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(40.dp)
-                                                .clickable {
-                                                    selectedCount = count
-                                                    hapticManager.tapLight()
-                                                    soundManager.playClick()
-                                                },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (isSelected) StudyNavy else BgSurfaceMuted,
-                                            border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                selectedCount = count
+                                                hapticManager.tapLight()
+                                                soundManager.playClick()
+                                            },
+                                            label = {
                                                 Text(
                                                     text = "$count 题",
-                                                    fontSize = 13.sp,
-                                                    fontFamily = FontFamily.SansSerif,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isSelected) Color.White else TextSecondary
+                                                    style = MaterialTheme.typography.labelMedium.copy(
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
                                                 )
-                                            }
-                                        }
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        )
                                     }
                                 }
 
@@ -353,37 +351,28 @@ fun PracticeScreen(
                     item {
                         Text(
                             text = "精选经典长篇 · 重点攻克",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = TextSecondary,
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                     }
 
                     items(longArticles.size) { idx ->
                         val article = longArticles[idx]
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    hapticManager.tapLight()
-                                    soundManager.playClick()
-                                    onStartCloze(article)
-                                }
-                                .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
+                        OutlinedCard(
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                onStartCloze(article)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = BgSurface),
-                            elevation = CardDefaults.cardElevation(1.dp)
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            ListItem(
+                                leadingContent = {
                                     Box(
                                         modifier = Modifier
                                             .size(40.dp)
@@ -397,31 +386,30 @@ fun PracticeScreen(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(
-                                            text = "《${article.title}》",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = TextPrimary
-                                        )
-                                        Text(
-                                            text = "${article.dynasty} · ${article.author} · 渐进遮挡背诵",
-                                            fontSize = 12.sp,
-                                            fontFamily = FontFamily.SansSerif,
-                                            color = TextSecondary,
-                                            modifier = Modifier.padding(top = 2.dp)
-                                        )
-                                    }
-                                }
-
-                                Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = null,
-                                    tint = TextTertiary
-                                )
-                            }
+                                },
+                                headlineContent = {
+                                    Text(
+                                        text = "《${article.title}》",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text = "${article.dynasty} · ${article.author} · 渐进遮挡背诵",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingContent = {
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.outline
+                                    )
+                                },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
                         }
                     }
                 }

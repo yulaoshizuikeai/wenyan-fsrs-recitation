@@ -254,52 +254,48 @@ private fun PresetOptionItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .border(
-                width = if (isSelected) 1.5.dp else 1.dp,
-                color = if (isSelected) StudyBlueAccent else BorderSubtle,
-                shape = RoundedCornerShape(10.dp)
-            ),
+    OutlinedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) StudyBlueLight else BgSurface
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (isSelected) StudyBlueLight else MaterialTheme.colorScheme.surface
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(
+                if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.outlineVariant
+            )
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        ListItem(
+            headlineContent = {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontFamily = FontFamily.SansSerif,
-                    color = if (isSelected) StudyBlueAccent else TextPrimary
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    ),
+                    color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface
                 )
+            },
+            supportingContent = {
                 Text(
                     text = subtitle,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = TextSecondary
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "选中",
-                    tint = StudyBlueAccent,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
+            },
+            trailingContent = if (isSelected) {
+                {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "选中",
+                        tint = StudyBlueAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else null,
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
 }
 
@@ -309,70 +305,60 @@ private fun BookCheckboxItem(
     isSelected: Boolean,
     onToggle: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggle() }
-            .border(
-                width = if (isSelected) 1.5.dp else 1.dp,
-                color = if (isSelected) StudyBlueAccent else BorderSubtle,
-                shape = RoundedCornerShape(10.dp)
-            ),
+    OutlinedCard(
+        onClick = onToggle,
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) StudyBlueLight.copy(alpha = 0.5f) else BgSurface
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (isSelected) StudyBlueLight.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+        ),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(
+                if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.outlineVariant
+            )
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onToggle() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = StudyBlueAccent,
-                    uncheckedColor = TextTertiary
-                ),
-                modifier = Modifier.size(20.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+        ListItem(
+            leadingContent = {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggle() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = StudyBlueAccent,
+                        uncheckedColor = MaterialTheme.colorScheme.outline
+                    )
+                )
+            },
+            headlineContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = book.name,
-                        fontSize = 14.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        fontFamily = FontFamily.SansSerif,
-                        color = if (isSelected) StudyBlueAccent else TextPrimary
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        ),
+                        color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    Badge(
+                        containerColor = StreakFlame.copy(alpha = 0.12f),
+                        contentColor = StreakFlame
                     ) {
                         Text(
                             text = "${book.totalArticles}篇",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = StreakFlame,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                         )
                     }
                 }
+            },
+            supportingContent = {
                 Text(
                     text = book.description,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(top = 2.dp)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
     }
 }

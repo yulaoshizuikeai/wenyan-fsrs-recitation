@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -126,192 +127,174 @@ fun FootprintScreen(
 
             // Feedback Preferences (Sound & Haptics) Tile
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showFeedbackDialog = true
-                        }
-                        .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                OutlinedCard(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        showFeedbackDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BgSurface),
-                    elevation = CardDefaults.cardElevation(1.dp)
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Vibration,
-                                contentDescription = null,
-                                tint = StreakFlame,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
+                    ListItem(
+                        leadingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Vibration,
+                                    contentDescription = null,
+                                    tint = StreakFlame,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        },
+                        headlineContent = {
                             Text(
                                 text = "动效音效与触感震动",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                        },
+                        supportingContent = {
                             Text(
                                 text = "按键微震、演播级编钟、真纸翻卡等体验调节",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary,
-                                modifier = Modifier.padding(top = 2.dp)
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = TextTertiary
-                        )
-                    }
+                        },
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
                 }
             }
 
             // Reminder Setting Tile
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showReminderDialog = true
-                        }
-                        .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                OutlinedCard(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        showReminderDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BgSurface),
-                    elevation = CardDefaults.cardElevation(1.dp)
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(StudyBlueLight, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = null,
-                                tint = StudyBlueAccent,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
+                    val hourStr = reminderTime.first.toString().padStart(2, '0')
+                    val minStr = reminderTime.second.toString().padStart(2, '0')
+                    ListItem(
+                        leadingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(StudyBlueLight, RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = StudyBlueAccent,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        },
+                        headlineContent = {
                             Text(
                                 text = "每日背诵定时提醒",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                            val hourStr = reminderTime.first.toString().padStart(2, '0')
-                            val minStr = reminderTime.second.toString().padStart(2, '0')
+                        },
+                        supportingContent = {
                             Text(
                                 text = if (isReminderOn) "每日 $hourStr:$minStr 定时推送打卡通知" else "提醒已暂停",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary,
-                                modifier = Modifier.padding(top = 2.dp)
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = TextTertiary
-                        )
-                    }
+                        },
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
                 }
             }
 
             // Tutorial Tile
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showTutorialDialog = true
-                        }
-                        .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                OutlinedCard(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        showTutorialDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BgSurface),
-                    elevation = CardDefaults.cardElevation(1.dp)
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .background(BgSurfaceMuted, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
+                    ListItem(
+                        leadingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        },
+                        headlineContent = {
                             Text(
                                 text = "新手研习指南",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                        },
+                        supportingContent = {
                             Text(
                                 text = "四步了解 FSRS 算法评分与双轨背诵技巧",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextSecondary,
-                                modifier = Modifier.padding(top = 2.dp)
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = TextTertiary
-                        )
-                    }
+                        },
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
                 }
             }
         }

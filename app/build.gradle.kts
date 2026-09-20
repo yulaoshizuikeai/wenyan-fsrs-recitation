@@ -64,6 +64,12 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests.all {
+            it.jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
+        }
+    }
+
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.11"
     }
