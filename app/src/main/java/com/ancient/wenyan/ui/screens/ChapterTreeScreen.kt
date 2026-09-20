@@ -1,6 +1,10 @@
 package com.ancient.wenyan.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,6 +29,8 @@ import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.Module
+import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +41,10 @@ fun ChapterTreeScreen(
     onStartFlashcards: (Article) -> Unit,
     onStartCloze: (Article) -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     var searchQuery by remember { mutableStateOf("") }
     var filterGaoKaoOnly by remember { mutableStateOf(false) }
     var expandedModuleIds by remember { mutableStateOf(setOf("MODULE_BX_1")) }
@@ -46,26 +57,29 @@ fun ChapterTreeScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "章节篇目学习",
+                        text = "章节篇目文库",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkCharcoal
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        hapticManager.tapLight()
+                        onBack()
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = InkCharcoal
+                            tint = TextPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = XuanPaperLight)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
             )
         },
-        containerColor = XuanPaperLight
+        containerColor = BgCanvas
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -73,7 +87,7 @@ fun ChapterTreeScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
         ) {
-            // Search Bar & Filter Chip
+            // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -81,25 +95,28 @@ fun ChapterTreeScreen(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                 placeholder = {
-                    Text("搜索名句、篇名、作者、朝代...", fontFamily = FontFamily.Serif, fontSize = 14.sp)
+                    Text("搜索名句、篇名、作者、朝代...", fontFamily = FontFamily.SansSerif, fontSize = 14.sp)
                 },
                 leadingIcon = {
-                    Icon(imageVector = Icons.Default.Search, contentDescription = "搜索", tint = InkMedium)
+                    Icon(imageVector = Icons.Default.Search, contentDescription = "搜索", tint = TextSecondary)
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(imageVector = Icons.Default.Clear, contentDescription = "清除", tint = InkMedium)
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            hapticManager.tapLight()
+                        }) {
+                            Icon(imageVector = Icons.Default.Clear, contentDescription = "清除", tint = TextSecondary)
                         }
                     }
                 },
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = XuanPaperCard,
-                    unfocusedContainerColor = XuanPaperCard,
-                    focusedBorderColor = BambooGreen,
-                    unfocusedBorderColor = XuanBorder
+                    focusedContainerColor = BgSurface,
+                    unfocusedContainerColor = BgSurface,
+                    focusedBorderColor = StudyBlueAccent,
+                    unfocusedBorderColor = BorderSubtle
                 )
             )
 
@@ -111,25 +128,30 @@ fun ChapterTreeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "全高中 11 册教材 · 共 100 篇",
+                    text = "全高中 11 册教材 · 100 篇文赋",
                     fontSize = 12.sp,
-                    fontFamily = FontFamily.Serif,
-                    color = InkMedium
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextSecondary
                 )
 
                 FilterChip(
                     selected = filterGaoKaoOnly,
-                    onClick = { filterGaoKaoOnly = !filterGaoKaoOnly },
+                    onClick = {
+                        filterGaoKaoOnly = !filterGaoKaoOnly
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                    },
                     label = {
                         Text(
-                            text = "仅看高考必背72篇",
+                            text = "高考必背72篇",
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = if (filterGaoKaoOnly) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = CinnabarRed.copy(alpha = 0.15f),
-                        selectedLabelColor = CinnabarRed
+                        selectedContainerColor = StreakFlame.copy(alpha = 0.12f),
+                        selectedLabelColor = StreakFlame
                     )
                 )
             }
@@ -160,6 +182,8 @@ fun ChapterTreeScreen(
                             articles = moduleArticles,
                             isExpanded = isExpanded,
                             onToggle = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
                                 expandedModuleIds = if (isExpanded) {
                                     expandedModuleIds - module.id
                                 } else {
@@ -167,6 +191,8 @@ fun ChapterTreeScreen(
                                 }
                             },
                             onArticleClick = { article ->
+                                hapticManager.tapLight()
+                                soundManager.playClick()
                                 selectedArticleForModal = article
                             },
                             repository = repository
@@ -181,8 +207,8 @@ fun ChapterTreeScreen(
     selectedArticleForModal?.let { article ->
         ModalBottomSheet(
             onDismissRequest = { selectedArticleForModal = null },
-            containerColor = XuanPaperCard,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            containerColor = BgSurface,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -193,19 +219,21 @@ fun ChapterTreeScreen(
                     text = "《${article.title}》",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    color = InkCharcoal
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextPrimary
                 )
                 Text(
                     text = "${article.dynasty} · ${article.author} · ${article.genre}",
                     fontSize = 13.sp,
-                    fontFamily = FontFamily.Serif,
-                    color = InkMedium,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextSecondary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                 )
 
                 Button(
                     onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
                         val target = article
                         selectedArticleForModal = null
                         onStartFlashcards(target)
@@ -213,18 +241,20 @@ fun ChapterTreeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
-                    shape = RoundedCornerShape(10.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(imageVector = Icons.Default.Psychology, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("单句翻转闪卡背诵 (FSRS算法)", fontFamily = FontFamily.Serif, fontSize = 15.sp)
+                    Text("单句翻转闪卡背诵 (FSRS算法)", fontFamily = FontFamily.SansSerif, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                Button(
+                OutlinedButton(
                     onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
                         val target = article
                         selectedArticleForModal = null
                         onStartCloze(target)
@@ -232,15 +262,15 @@ fun ChapterTreeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MountainTeal),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
                 ) {
-                    Icon(imageVector = Icons.Default.AutoStories, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(imageVector = Icons.Default.AutoStories, contentDescription = null, modifier = Modifier.size(20.dp), tint = StudyBlueAccent)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("整篇渐进遮挡背诵", fontFamily = FontFamily.Serif, fontSize = 15.sp)
+                    Text("整篇渐进遮挡背诵", fontFamily = FontFamily.SansSerif, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = StudyBlueAccent)
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
@@ -258,9 +288,9 @@ fun ModuleCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, XuanBorder, RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+            .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = BgSurface),
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -277,17 +307,17 @@ fun ModuleCard(
                         modifier = Modifier
                             .size(10.dp)
                             .background(
-                                if (module.isRecitationOnly) CinnabarRed else BambooGreen,
-                                RoundedCornerShape(2.dp)
+                                if (module.isRecitationOnly) StreakFlame else StudyBlueAccent,
+                                RoundedCornerShape(3.dp)
                             )
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = module.name,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkCharcoal
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
                     )
                 }
 
@@ -295,27 +325,31 @@ fun ModuleCard(
                     Text(
                         text = "${articles.size} 篇",
                         fontSize = 12.sp,
-                        fontFamily = FontFamily.Serif,
-                        color = InkFaded,
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextTertiary,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = "展开/折叠",
-                        tint = InkMedium
+                        tint = TextSecondary
                     )
                 }
             }
 
-            AnimatedVisibility(visible = isExpanded) {
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
                 ) {
                     articles.forEach { article ->
                         val progress = remember(article) { repository.getArticleProgress(article.id) }
-                        HorizontalDivider(color = XuanBorder.copy(alpha = 0.6f), thickness = 0.5.dp)
+                        HorizontalDivider(color = BorderSubtle, thickness = 0.5.dp)
                         ArticleItemRow(
                             article = article,
                             progress = progress,
@@ -348,22 +382,21 @@ fun ArticleItemRow(
                     text = article.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Serif,
-                    color = InkCharcoal
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextPrimary
                 )
                 if (article.isGaoKao72) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Surface(
-                        color = CinnabarRed.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.padding(horizontal = 2.dp)
+                        color = StreakFlame.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
                             text = "高考72",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = CinnabarRed,
-                            fontFamily = FontFamily.Serif,
+                            color = StreakFlame,
+                            fontFamily = FontFamily.SansSerif,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
@@ -373,8 +406,8 @@ fun ArticleItemRow(
             Text(
                 text = "${article.dynasty} · ${article.author} · ${article.genre}",
                 fontSize = 12.sp,
-                fontFamily = FontFamily.Serif,
-                color = InkMedium,
+                fontFamily = FontFamily.SansSerif,
+                color = TextSecondary,
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
@@ -383,9 +416,9 @@ fun ArticleItemRow(
             Text(
                 text = "${progress.masteryPercentage.toInt()}% 掌握",
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Serif,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.Medium,
-                color = if (progress.masteryPercentage >= 80f) BambooGreen else InkFaded
+                color = if (progress.masteryPercentage >= 80f) SuccessGreen else TextTertiary
             )
             LinearProgressIndicator(
                 progress = { progress.masteryPercentage / 100f },
@@ -393,8 +426,8 @@ fun ArticleItemRow(
                     .width(60.dp)
                     .height(4.dp)
                     .padding(top = 4.dp),
-                color = BambooGreen,
-                trackColor = XuanBorder
+                color = if (progress.masteryPercentage >= 80f) SuccessGreen else StudyBlueAccent,
+                trackColor = BgSurfaceMuted
             )
         }
     }

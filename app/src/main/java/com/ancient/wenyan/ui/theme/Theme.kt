@@ -1,9 +1,14 @@
 package com.ancient.wenyan.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 // Modern Minimalist Study Palette (Vercel Clean Gray + Study Navy + Streak Flame)
 val BgCanvas = Color(0xFFF8FAFC)        // Slate 50 全局背景
@@ -23,8 +28,9 @@ val StudyBlueLight = Color(0xFFEFF6FF)  // 柔和微蓝底 (Blue 50)
 val StreakFlame = Color(0xFFF97316)     // 活力连胜橙红火焰 (Orange 500)
 val SuccessGreen = Color(0xFF10B981)    // 成功/已掌握 (Emerald 500)
 val DueRed = Color(0xFFEF4444)          // 到期提醒鲜红 (Red 500)
+val WarningGold = Color(0xFFD97706)     // 警示金黄 (Amber 600)
 
-// Backward Compatibility Aliases for legacy views
+// Backward Compatibility Aliases for legacy views mapped to clean modern tokens
 val XuanPaperLight = BgCanvas
 val XuanPaperDeep = BgSurfaceMuted
 val XuanPaperCard = BgSurface
@@ -35,8 +41,54 @@ val InkFaded = TextTertiary
 val BambooGreen = StudyNavy
 val MountainTeal = StudyNavy
 val CinnabarRed = StreakFlame
-val MutedGold = Color(0xFFD97706)
+val MutedGold = WarningGold
 val CeladonBlue = StudyBlueAccent
+
+// Modern Typography: All SansSerif by design
+val ModernTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Black,
+        fontSize = 36.sp,
+        letterSpacing = (-1.0).sp,
+        color = TextPrimary
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        letterSpacing = (-0.5).sp,
+        color = TextPrimary
+    ),
+    titleMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        letterSpacing = (-0.2).sp,
+        color = TextPrimary
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
+        color = TextPrimary
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        color = TextSecondary
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        letterSpacing = 0.5.sp,
+        color = TextTertiary
+    )
+)
 
 val ModernColorScheme = lightColorScheme(
     primary = StudyNavy,
@@ -60,6 +112,7 @@ val AncientColorScheme = ModernColorScheme
 fun WenYanTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = ModernColorScheme,
+        typography = ModernTypography,
         content = content
     )
 }

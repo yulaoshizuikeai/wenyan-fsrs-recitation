@@ -14,16 +14,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.BookPresets
 import com.ancient.wenyan.domain.model.Flashcard
+import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,12 +36,16 @@ fun PracticeScreen(
     onStartSession: (String, List<Pair<Flashcard, CardFsrsState>>) -> Unit,
     onStartCloze: (Article) -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     var selectedTab by remember { mutableIntStateOf(0) } // 0: 高考72篇专项, 1: 跨篇自选抽测, 2: 经典长文遮挡
 
     val currentRepoScope by repository.selectedBookScope.collectAsState()
     val currentRepoName by repository.selectedBookName.collectAsState()
 
-    val scopeOptions = remember {
+    val scopeOptions = remember(currentRepoName, currentRepoScope) {
         listOf(
             "当前选定教材 ($currentRepoName)" to currentRepoScope,
             "全部 11 册教材 (100篇)" to null,
@@ -51,6 +58,12 @@ fun PracticeScreen(
     var selectedScopeIndex by remember { mutableIntStateOf(0) }
     var selectedCount by remember { mutableIntStateOf(20) }
 
+    val longArticles = remember {
+        CurriculumDataSource.ALL_ARTICLES.filter {
+            it.title in listOf("赤壁赋", "劝学", "师说", "阿房宫赋", "逍遥游", "离骚", "归去来兮辞并序", "滕王阁序")
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -59,7 +72,7 @@ fun PracticeScreen(
                         text = "专项练习",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         color = TextPrimary
                     )
                 },
@@ -81,24 +94,36 @@ fun PracticeScreen(
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
+                        onClick = {
+                            selectedTab = 0
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                        },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3)
                     ) {
-                        Text("高考 72 篇", fontFamily = FontFamily.Serif, fontSize = 13.sp)
+                        Text("高考 72 篇", fontFamily = FontFamily.SansSerif, fontSize = 13.sp, fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal)
                     }
                     SegmentedButton(
                         selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
+                        onClick = {
+                            selectedTab = 1
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                        },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3)
                     ) {
-                        Text("跨篇随机", fontFamily = FontFamily.Serif, fontSize = 13.sp)
+                        Text("跨篇随机", fontFamily = FontFamily.SansSerif, fontSize = 13.sp, fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal)
                     }
                     SegmentedButton(
                         selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
+                        onClick = {
+                            selectedTab = 2
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                        },
                         shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3)
                     ) {
-                        Text("长文遮挡", fontFamily = FontFamily.Serif, fontSize = 13.sp)
+                        Text("长文遮挡", fontFamily = FontFamily.SansSerif, fontSize = 13.sp, fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
@@ -119,7 +144,7 @@ fun PracticeScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(42.dp)
+                                            .size(44.dp)
                                             .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -127,7 +152,7 @@ fun PracticeScreen(
                                             imageVector = Icons.Default.Star,
                                             contentDescription = null,
                                             tint = StreakFlame,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(26.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(14.dp))
@@ -136,13 +161,13 @@ fun PracticeScreen(
                                             text = "高考必背 72 篇专项",
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             color = TextPrimary
                                         )
                                         Text(
-                                            text = "教育部普通高中统编课标核心古诗文",
+                                            text = "教育部普通高中统编课标核心必考篇目",
                                             fontSize = 12.sp,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             color = TextSecondary,
                                             modifier = Modifier.padding(top = 2.dp)
                                         )
@@ -151,17 +176,19 @@ fun PracticeScreen(
 
                                 Spacer(modifier = Modifier.height(18.dp))
                                 Text(
-                                    text = "根据教育部高中语文课程标准，精准筛选 72 篇必背名篇中的高频考查出句与名句对句，采用 FSRS 算法进行专项强化与情境默写模拟。",
+                                    text = "根据教育部高中语文课程标准，汇聚 72 篇必背名篇中的高频考查出句与名句对句，采用 FSRS 算法进行专项强化与情境默写模拟，巩固考场得分点。",
                                     fontSize = 13.sp,
-                                    fontFamily = FontFamily.Serif,
+                                    fontFamily = FontFamily.SansSerif,
                                     color = TextSecondary,
-                                    lineHeight = 22.sp
+                                    lineHeight = 20.sp
                                 )
 
                                 Spacer(modifier = Modifier.height(20.dp))
 
                                 Button(
                                     onClick = {
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
                                         val cards = repository.getRandomQueue(
                                             limit = 20,
                                             moduleIds = null,
@@ -171,7 +198,7 @@ fun PracticeScreen(
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(48.dp),
+                                        .height(50.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
@@ -180,7 +207,7 @@ fun PracticeScreen(
                                     Text(
                                         text = "开启 72 篇专项背诵 (20题)",
                                         fontSize = 15.sp,
-                                        fontFamily = FontFamily.Serif,
+                                        fontFamily = FontFamily.SansSerif,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
@@ -206,7 +233,7 @@ fun PracticeScreen(
                                     text = "选择抽测范围",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Serif,
+                                    fontFamily = FontFamily.SansSerif,
                                     color = TextPrimary
                                 )
 
@@ -217,20 +244,28 @@ fun PracticeScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { selectedScopeIndex = index }
+                                            .clickable {
+                                                selectedScopeIndex = index
+                                                hapticManager.tapLight()
+                                                soundManager.playClick()
+                                            }
                                             .padding(vertical = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         RadioButton(
                                             selected = isSelected,
-                                            onClick = { selectedScopeIndex = index },
-                                            colors = RadioButtonDefaults.colors(selectedColor = StudyNavy)
+                                            onClick = {
+                                                selectedScopeIndex = index
+                                                hapticManager.tapLight()
+                                                soundManager.playClick()
+                                            },
+                                            colors = RadioButtonDefaults.colors(selectedColor = StudyBlueAccent)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = label,
                                             fontSize = 13.sp,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             color = if (isSelected) TextPrimary else TextSecondary,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
@@ -245,10 +280,9 @@ fun PracticeScreen(
                                     text = "抽取题量",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Serif,
+                                    fontFamily = FontFamily.SansSerif,
                                     color = TextPrimary
                                 )
-
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Row(
@@ -260,8 +294,12 @@ fun PracticeScreen(
                                         Surface(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(38.dp)
-                                                .clickable { selectedCount = count },
+                                                .height(40.dp)
+                                                .clickable {
+                                                    selectedCount = count
+                                                    hapticManager.tapLight()
+                                                    soundManager.playClick()
+                                                },
                                             shape = RoundedCornerShape(8.dp),
                                             color = if (isSelected) StudyNavy else BgSurfaceMuted,
                                             border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
@@ -270,9 +308,9 @@ fun PracticeScreen(
                                                 Text(
                                                     text = "$count 题",
                                                     fontSize = 13.sp,
-                                                    fontFamily = FontFamily.Serif,
+                                                    fontFamily = FontFamily.SansSerif,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isSelected) Color.White else TextPrimary
+                                                    color = if (isSelected) Color.White else TextSecondary
                                                 )
                                             }
                                         }
@@ -283,25 +321,26 @@ fun PracticeScreen(
 
                                 Button(
                                     onClick = {
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
                                         val scopeModules = scopeOptions[selectedScopeIndex].second
                                         val randomCards = repository.getRandomQueue(selectedCount, scopeModules)
-                                        val sessionTitle = "随机抽测 · ${scopeOptions[selectedScopeIndex].first}"
+                                        val sessionTitle = "随机背诵 · ${scopeOptions[selectedScopeIndex].first}"
                                         onStartSession(sessionTitle, randomCards)
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(48.dp),
+                                        .height(50.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Shuffle, contentDescription = null, tint = Color.White)
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(imageVector = Icons.Default.Shuffle, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "开始抽取练习",
+                                        text = "开始跨篇目随机背诵",
                                         fontSize = 15.sp,
-                                        fontFamily = FontFamily.Serif,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -310,80 +349,78 @@ fun PracticeScreen(
                 }
 
                 2 -> {
-                    // Famous Long Articles for Cloze Recitation
+                    // Classic Long Prose Cloze Recommendations
                     item {
                         Text(
-                            text = "经典长篇文赋推荐",
+                            text = "精选经典长篇 · 重点攻克",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
+                            fontFamily = FontFamily.SansSerif,
                             color = TextSecondary,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier.padding(bottom = 6.dp)
                         )
                     }
 
-                    val famousArticleIds = listOf("art_bx1_07", "art_bx2_05", "art_bx2_06", "art_bx2_08", "art_xb3_07")
-                    famousArticleIds.forEach { artId ->
-                        val article = repository.getArticle(artId)
-                        if (article != null) {
-                            item {
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onStartCloze(article) }
-                                        .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = CardDefaults.cardColors(containerColor = BgSurface),
-                                    elevation = CardDefaults.cardElevation(1.dp)
-                                ) {
-                                    Row(
+                    items(longArticles.size) { idx ->
+                        val article = longArticles[idx]
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    hapticManager.tapLight()
+                                    soundManager.playClick()
+                                    onStartCloze(article)
+                                }
+                                .border(1.dp, BorderSubtle, RoundedCornerShape(14.dp)),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = BgSurface),
+                            elevation = CardDefaults.cardElevation(1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .size(40.dp)
+                                            .background(StudyBlueLight, RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .background(StudyBlueLight, RoundedCornerShape(8.dp)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                                contentDescription = null,
-                                                tint = StudyBlueAccent,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.width(14.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "《${article.title}》",
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Serif,
-                                                color = TextPrimary
-                                            )
-                                            Text(
-                                                text = "${article.dynasty} · ${article.author} · 5级渐进遮挡",
-                                                fontSize = 12.sp,
-                                                fontFamily = FontFamily.Serif,
-                                                color = TextSecondary,
-                                                modifier = Modifier.padding(top = 2.dp)
-                                            )
-                                        }
-
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                            contentDescription = null,
+                                            tint = StudyBlueAccent,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
                                         Text(
-                                            text = "去背诵 ➔",
+                                            text = "《${article.title}》",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.SansSerif,
+                                            color = TextPrimary
+                                        )
+                                        Text(
+                                            text = "${article.dynasty} · ${article.author} · 渐进遮挡背诵",
                                             fontSize = 12.sp,
-                                            fontFamily = FontFamily.Serif,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = StudyBlueAccent
+                                            fontFamily = FontFamily.SansSerif,
+                                            color = TextSecondary,
+                                            modifier = Modifier.padding(top = 2.dp)
                                         )
                                     }
                                 }
+
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = TextTertiary
+                                )
                             }
                         }
                     }

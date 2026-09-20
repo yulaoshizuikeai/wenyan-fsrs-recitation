@@ -1,39 +1,56 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.domain.cloze.ClozeEngine
+import com.ancient.wenyan.domain.cloze.ClozeToken
 import com.ancient.wenyan.domain.model.Article
+import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ClozeRecitationScreen(
     article: Article,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     var selectedLevel by remember { mutableIntStateOf(1) }
     var revealOriginal by remember { mutableStateOf(false) }
     var revealedTokenIds by remember { mutableStateOf(setOf<Int>()) }
@@ -56,39 +73,30 @@ fun ClozeRecitationScreen(
         )
     }
 
-    val annotatedText = remember(tokens, revealedTokenIds, revealOriginal) {
-        buildAnnotatedString {
-            for (token in tokens) {
-                if (token.isMasked) {
-                    val isRevealed = revealOriginal || (token.id in revealedTokenIds)
-                    pushStringAnnotation(tag = "CLOZE_TOKEN", annotation = token.id.toString())
-                    if (isRevealed) {
-                        withStyle(
-                            SpanStyle(
-                                color = StudyBlueAccent,
-                                fontWeight = FontWeight.Bold,
-                                background = StudyBlueLight
-                            )
-                        ) {
-                            append(" ${token.originalText} ")
-                        }
-                    } else {
-                        withStyle(
-                            SpanStyle(
-                                color = TextTertiary,
-                                fontWeight = FontWeight.SemiBold,
-                                background = BgSurfaceMuted
-                            )
-                        ) {
-                            append("⟦ ${"_".repeat(token.originalText.length.coerceIn(2, 6))} ⟧")
-                        }
+    // Split text into paragraphs based on newline
+    val paragraphs = remember(tokens) {
+        val list = mutableListOf<MutableList<ClozeToken>>()
+        var currentPara = mutableListOf<ClozeToken>()
+        for (token in tokens) {
+            if (token.originalText.contains("\n")) {
+                val parts = token.originalText.split("\n")
+                for (i in parts.indices) {
+                    if (parts[i].isNotEmpty()) {
+                        currentPara.add(token.copy(originalText = parts[i]))
                     }
-                    pop()
-                } else {
-                    append(token.originalText)
+                    if (i < parts.size - 1) {
+                        list.add(currentPara)
+                        currentPara = mutableListOf()
+                    }
                 }
+            } else {
+                currentPara.add(token)
             }
         }
+        if (currentPara.isNotEmpty()) {
+            list.add(currentPara)
+        }
+        list
     }
 
     Scaffold(
@@ -100,39 +108,47 @@ fun ClozeRecitationScreen(
                             text = "《${article.title}》",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary
                         )
                         Text(
-                            text = "${article.dynasty} · ${article.author} · 渐进遮挡背诵",
+                            text = "${article.dynasty} · ${article.author} · 渐进遮挡研读",
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = InkFaded
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextSecondary
                         )
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        hapticManager.tapLight()
+                        onBack()
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = InkCharcoal
+                            tint = TextPrimary
                         )
                     }
                 },
                 actions = {
-                    IconButton(onClick = { revealOriginal = !revealOriginal }) {
+                    IconButton(onClick = {
+                        val next = !revealOriginal
+                        revealOriginal = next
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                    }) {
                         Icon(
                             imageVector = if (revealOriginal) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (revealOriginal) "隐藏原文" else "查看原文",
-                            tint = BambooGreen
+                            contentDescription = if (revealOriginal) "恢复遮挡" else "一键全览",
+                            tint = if (revealOriginal) StreakFlame else StudyBlueAccent
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = XuanPaperLight)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
             )
         },
-        containerColor = XuanPaperLight
+        containerColor = BgCanvas
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -140,13 +156,13 @@ fun ClozeRecitationScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            // Level Selector
+            // Difficulty Level Selector
             Text(
-                text = "选择遮挡难度：",
+                text = "遮挡难度阶梯",
                 fontSize = 13.sp,
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.SemiBold,
-                color = InkMedium,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
 
@@ -156,122 +172,257 @@ fun ClozeRecitationScreen(
             ) {
                 val levels = listOf(
                     0 to "L0 原文",
-                    1 to "L1 关键词",
+                    1 to "L1 重点词",
                     2 to "L2 半句",
                     3 to "L3 首字",
                     4 to "L4 全盲"
                 )
                 levels.forEach { (level, name) ->
                     val isSelected = (selectedLevel == level)
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.94f else 1.0f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                        label = "lvl_scale"
+                    )
+
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .height(36.dp)
-                            .clickable {
-                                selectedLevel = level
-                                revealOriginal = false
+                            .height(38.dp)
+                            .scale(scale)
+                            .clickable(interactionSource = interactionSource, indication = null) {
+                                if (selectedLevel != level) {
+                                    selectedLevel = level
+                                    revealOriginal = false
+                                    soundManager.playClick()
+                                    hapticManager.tapLight()
+                                }
                             },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) BambooGreen else XuanPaperDeep,
-                        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, XuanBorder)
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) StudyNavy else BgSurface,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isSelected) StudyNavy else BorderSubtle
+                        ),
+                        shadowElevation = if (isSelected) 2.dp else 0.dp
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = name,
                                 fontSize = 11.sp,
-                                fontFamily = FontFamily.Serif,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) androidx.compose.ui.graphics.Color.White else InkMedium
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else TextSecondary
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Main Text Scrollable Area
+            // Main Reading & Interactive Cloze Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .border(1.dp, XuanBorder, RoundedCornerShape(12.dp)),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
-                elevation = CardDefaults.cardElevation(1.dp)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = BgSurface),
+                elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(20.dp)
+                        .padding(18.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        text = "💡 提示：轻触文中遮挡 ⟦ ___ ⟧ 可即时揭晓/隐藏该空，熟记后复诵",
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Serif,
-                        color = InkFaded,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    ClickableText(
-                        text = annotatedText,
-                        style = TextStyle(
-                            fontSize = 18.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal,
-                            lineHeight = 32.sp,
-                            letterSpacing = 1.sp
-                        ),
-                        onClick = { offset ->
-                            annotatedText.getStringAnnotations(tag = "CLOZE_TOKEN", start = offset, end = offset)
-                                .firstOrNull()?.let { annotation ->
-                                    val tokenId = annotation.item.toIntOrNull() ?: return@let
-                                    revealedTokenIds = if (tokenId in revealedTokenIds) {
-                                        revealedTokenIds - tokenId
-                                    } else {
-                                        revealedTokenIds + tokenId
-                                    }
-                                }
-                        }
-                    )
-
-                    if (article.annotations.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        HorizontalDivider(color = XuanBorder, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(12.dp))
+                    // Tip bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(StudyBlueLight, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "【重点字词注解】",
+                            text = "轻触文中遮挡胶囊即可实时揭晓/隐藏答案，熟背无误后可逐级提升难度",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = StudyBlueAccent,
+                            lineHeight = 15.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Text FlowRow Paragraphs
+                    paragraphs.forEach { paraTokens ->
+                        FlowRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(1.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            paraTokens.forEach { token ->
+                                if (token.isMasked) {
+                                    val isRevealed = revealOriginal || (token.id in revealedTokenIds)
+                                    InteractiveClozePill(
+                                        token = token,
+                                        isRevealed = isRevealed,
+                                        onToggle = {
+                                            if (token.id in revealedTokenIds) {
+                                                revealedTokenIds = revealedTokenIds - token.id
+                                                hapticManager.tapLight()
+                                                soundManager.playClick()
+                                            } else {
+                                                revealedTokenIds = revealedTokenIds + token.id
+                                                hapticManager.clozePop()
+                                                soundManager.playClozeReveal()
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    Text(
+                                        text = token.originalText,
+                                        fontSize = 18.sp,
+                                        fontFamily = FontFamily.SansSerif,
+                                        color = TextPrimary,
+                                        lineHeight = 32.sp,
+                                        letterSpacing = 0.5.sp,
+                                        modifier = Modifier.align(Alignment.CenterVertically)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Annotations
+                    if (article.annotations.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = BorderSubtle, thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = "【重点字词考点注解】",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkMedium
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                         article.annotations.forEach { note ->
-                            Text(
-                                text = "• $note",
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = InkFaded,
-                                modifier = Modifier.padding(top = 4.dp),
-                                lineHeight = 20.sp
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text(
+                                    text = "•",
+                                    fontSize = 14.sp,
+                                    color = StudyBlueAccent,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    text = note,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextSecondary,
+                                    lineHeight = 19.sp
+                                )
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(10.dp))
+/**
+ * Interactive Accessible Cloze Masking Pill with spring pop animation
+ */
+@Composable
+fun InteractiveClozePill(
+    token: ClozeToken,
+    isRevealed: Boolean,
+    onToggle: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "pill_press"
+    )
 
-            // Toggle hint text
-            Text(
-                text = if (revealOriginal) "当前正在查看完整原文，点击右上角眼睛可重新遮挡" else "轻触右上角眼睛图标可即时对照原文核验",
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Serif,
-                color = InkFaded,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+    val bgColor by animateColorAsState(
+        targetValue = if (isRevealed) StudyBlueLight else BgSurfaceMuted,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "pill_bg"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isRevealed) StudyBlueAccent else BorderSubtle,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "pill_border"
+    )
+
+    Surface(
+        modifier = Modifier
+            .padding(horizontal = 2.dp, vertical = 2.dp)
+            .scale(pressScale)
+            .clickable(interactionSource = interactionSource, indication = null) {
+                onToggle()
+            },
+        shape = RoundedCornerShape(6.dp),
+        color = bgColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    ) {
+        AnimatedContent(
+            targetState = isRevealed,
+            transitionSpec = {
+                (fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                 scaleIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), initialScale = 0.85f))
+                    .togetherWith(fadeOut(spring(stiffness = Spring.StiffnessHigh)))
+            },
+            label = "pill_content"
+        ) { revealed ->
+            Box(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (revealed) {
+                    Text(
+                        text = token.originalText,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = StudyBlueAccent,
+                        letterSpacing = 0.5.sp
+                    )
+                } else {
+                    Text(
+                        text = "⟦ ${"_".repeat(token.originalText.length.coerceIn(2, 6))} ⟧",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextTertiary,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
         }
     }
 }

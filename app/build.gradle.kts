@@ -12,8 +12,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.2.0"
+        versionCode = 5
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -78,6 +78,11 @@ android {
         unitTests.isReturnDefaultValues = true
         unitTests.all {
             it.jvmArgs("-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8")
+            val buildDirFile = layout.buildDirectory.get().asFile
+            val mainKotlinClasses = file("$buildDirFile/tmp/kotlin-classes/debug")
+            val unitTestKotlinClasses = file("$buildDirFile/tmp/kotlin-classes/debugUnitTest")
+            it.testClassesDirs = it.testClassesDirs.plus(files(unitTestKotlinClasses))
+            it.classpath = it.classpath.plus(files(mainKotlinClasses, unitTestKotlinClasses))
         }
     }
 }
@@ -125,3 +130,4 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+

@@ -11,11 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,6 +30,10 @@ fun ReminderSettingsDialog(
     onDismiss: () -> Unit,
     onConfirm: (hour: Int, minute: Int, enabled: Boolean) -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     var reminderEnabled by remember { mutableStateOf(isReminderEnabled) }
     val timePickerState = rememberTimePickerState(
         initialHour = initialHour,
@@ -58,7 +65,7 @@ fun ReminderSettingsDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .background(StudyBlueLight, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -79,7 +86,7 @@ fun ReminderSettingsDialog(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Daily Reminder",
+                                text = "Daily Study Reminder",
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.SansSerif,
                                 color = TextTertiary
@@ -90,7 +97,11 @@ fun ReminderSettingsDialog(
                     // Enable Switch
                     Switch(
                         checked = reminderEnabled,
-                        onCheckedChange = { reminderEnabled = it },
+                        onCheckedChange = {
+                            reminderEnabled = it
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                        },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = StudyBlueAccent,
@@ -104,7 +115,7 @@ fun ReminderSettingsDialog(
 
                 if (reminderEnabled) {
                     Text(
-                        text = "选择每日提醒时间",
+                        text = "选择每日推送提醒时间",
                         fontSize = 13.sp,
                         fontFamily = FontFamily.SansSerif,
                         color = TextSecondary,
@@ -113,7 +124,6 @@ fun ReminderSettingsDialog(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Material 3 TimePicker
                     TimePicker(
                         state = timePickerState,
                         colors = TimePickerDefaults.colors(
@@ -136,8 +146,8 @@ fun ReminderSettingsDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "已暂停每日提醒\n随时可在此开启",
-                            fontSize = 14.sp,
+                            text = "已暂停每日提醒推送\n随时可在此开启保持连胜节奏",
+                            fontSize = 13.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = TextTertiary,
                             lineHeight = 20.sp
@@ -153,7 +163,10 @@ fun ReminderSettingsDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            hapticManager.tapLight()
+                            onDismiss()
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .height(46.dp),
@@ -170,6 +183,8 @@ fun ReminderSettingsDialog(
 
                     Button(
                         onClick = {
+                            hapticManager.successPulse()
+                            soundManager.playCorrect()
                             onConfirm(timePickerState.hour, timePickerState.minute, reminderEnabled)
                         },
                         modifier = Modifier

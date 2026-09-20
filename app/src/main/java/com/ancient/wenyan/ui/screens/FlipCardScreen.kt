@@ -1,9 +1,12 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,9 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Flip
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,8 +42,10 @@ import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.fsrs.Rating
 import com.ancient.wenyan.domain.model.Flashcard
 import com.ancient.wenyan.ui.components.DuolingoStyleCelebration
+import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,38 +57,73 @@ fun FlipCardScreen(
 ) {
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
     var isSoundEnabled by remember { mutableStateOf(soundManager.isSoundEnabled) }
 
     if (cards.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(XuanPaperLight)
+                .background(BgCanvas)
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "暂无待复习闪卡",
-                    fontSize = 20.sp,
-                    fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.Bold,
-                    color = InkCharcoal
-                )
-                Text(
-                    text = "所选范围内的卡片均已复习完毕或无匹配内容",
-                    fontSize = 14.sp,
-                    fontFamily = FontFamily.Serif,
-                    color = InkFaded,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = onBack,
-                    colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
-                    shape = RoundedCornerShape(10.dp)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = BgSurface),
+                elevation = CardDefaults.cardElevation(2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("返回主页", fontFamily = FontFamily.Serif)
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(StudyBlueLight, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "暂无待复习闪卡",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "所选范围内的卡片均已温习完毕，可前往篇目文库开启新篇章",
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            onBack()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text("返回研习主页", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -96,21 +138,21 @@ fun FlipCardScreen(
 
     val isSessionComplete = isFinished || (sessionQueue.isNotEmpty() && currentIndex >= sessionQueue.size)
 
-    // Sound effect on completion
+    // Sound effect & haptic fanfare on completion
     LaunchedEffect(isSessionComplete) {
         if (isSessionComplete && sessionQueue.isNotEmpty()) {
             soundManager.playCelebration()
+            hapticManager.celebrationFanfare()
         }
     }
 
     if (isSessionComplete) {
-        // Duolingo-style Celebration Screen
+        // Celebratory Completion Screen with Confetti & Haptics
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(XuanPaperLight)
+                .background(BgCanvas)
         ) {
-            // Background Confetti explosion
             DuolingoStyleCelebration(modifier = Modifier.fillMaxSize())
 
             Column(
@@ -123,10 +165,10 @@ fun FlipCardScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.5.dp, BambooGreen.copy(alpha = 0.6f), RoundedCornerShape(20.dp)),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
-                    elevation = CardDefaults.cardElevation(6.dp)
+                        .border(1.5.dp, BorderSubtle, RoundedCornerShape(24.dp)),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = BgSurface),
+                    elevation = CardDefaults.cardElevation(8.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -134,54 +176,54 @@ fun FlipCardScreen(
                             .padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Celebration Seal Icon
+                        // Celebration Badge
                         Box(
                             modifier = Modifier
-                                .size(72.dp)
-                                .background(BambooGreen.copy(alpha = 0.12f), CircleShape)
-                                .border(2.dp, BambooGreen, CircleShape),
+                                .size(76.dp)
+                                .background(SuccessGreen.copy(alpha = 0.12f), CircleShape)
+                                .border(2.dp, SuccessGreen, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "完成",
-                                tint = BambooGreen,
-                                modifier = Modifier.size(44.dp)
+                                tint = SuccessGreen,
+                                modifier = Modifier.size(46.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         Text(
-                            text = "熟读成诵 · 本轮功课达成！",
+                            text = "熟读成诵 · 本轮研习达成！",
                             fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary,
                             textAlign = TextAlign.Center
                         )
 
                         Text(
-                            text = "已完成 $completedCount 张古诗文卡片的高效复习",
+                            text = "已完成 $completedCount 句诗文的精准 FSRS 间隔巩固",
                             fontSize = 14.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = InkMedium,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextSecondary,
                             modifier = Modifier.padding(top = 8.dp)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Stats pill
+                        // Stats Pill
                         Box(
                             modifier = Modifier
-                                .background(Color(0x159E2A2B), RoundedCornerShape(8.dp))
+                                .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = "FSRS 记忆稳定性提升 · 日积跬步",
+                                text = "🔥 FSRS 记忆稳定性持续攀升 · 日拱一卒",
                                 fontSize = 12.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = CinnabarRed,
+                                fontFamily = FontFamily.SansSerif,
+                                color = StreakFlame,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -189,16 +231,20 @@ fun FlipCardScreen(
                         Spacer(modifier = Modifier.height(28.dp))
 
                         Button(
-                            onClick = onBack,
-                            colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                onBack()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp),
+                                .height(52.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
                                 text = "返回主页查验足迹",
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -216,7 +262,7 @@ fun FlipCardScreen(
         repository.fsrsEngine.previewIntervals(currentCardState)
     }
 
-    // 3D Flip Animation Specs
+    // 3D Flip Animation Specs with dynamic physical elevation
     val flipRotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
         animationSpec = spring(
@@ -224,6 +270,13 @@ fun FlipCardScreen(
             stiffness = Spring.StiffnessMedium
         ),
         label = "card_flip_rotation"
+    )
+
+    // Dynamic elevation: lifts up during mid-flip
+    val cardElevation by animateDpAsState(
+        targetValue = if (abs(flipRotation - 90f) < 45f) 10.dp else 2.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "card_flip_elevation"
     )
 
     Scaffold(
@@ -235,23 +288,27 @@ fun FlipCardScreen(
                             text = title,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary,
+                            maxLines = 1
                         )
                         Text(
-                            text = "已研读：$completedCount · 待巩固：${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
+                            text = "已研习 $completedCount · 待巩固 ${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = InkFaded
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextSecondary
                         )
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        hapticManager.tapLight()
+                        onBack()
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = InkCharcoal
+                            tint = TextPrimary
                         )
                     }
                 },
@@ -261,19 +318,20 @@ fun FlipCardScreen(
                         val next = !isSoundEnabled
                         isSoundEnabled = next
                         soundManager.isSoundEnabled = next
+                        hapticManager.tapLight()
                         if (next) soundManager.playClick()
                     }) {
                         Icon(
-                            imageVector = if (isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                             contentDescription = "音效开关",
-                            tint = if (isSoundEnabled) BambooGreen else InkFaded
+                            tint = if (isSoundEnabled) StudyBlueAccent else TextTertiary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = XuanPaperLight)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
             )
         },
-        containerColor = XuanPaperLight
+        containerColor = BgCanvas
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -282,23 +340,24 @@ fun FlipCardScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Flashcard with 3D Flip graphicsLayer
+            // Flashcard with 3D Flip & Elevation
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .graphicsLayer {
+                        rotationY = flipRotation
+                        cameraDistance = 16f * density
+                    }
                     .clickable {
                         isFlipped = !isFlipped
                         soundManager.playFlip()
+                        hapticManager.cardFlip()
                     }
-                    .graphicsLayer {
-                        rotationY = flipRotation
-                        cameraDistance = 12f * density
-                    }
-                    .border(1.5.dp, XuanBorder, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = BgSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = cardElevation)
             ) {
                 Box(
                     modifier = Modifier
@@ -318,55 +377,76 @@ fun FlipCardScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // Title header
+                        // Mode Pill Header (Front: Prompt vs Back: Answer)
+                        val isBack = flipRotation > 90f
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = if (isBack) SuccessGreen.copy(alpha = 0.10f) else StudyBlueLight,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isBack) "【背面 · 对句与释义】" else "【正面 · 考题出句】",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                                color = if (isBack) SuccessGreen else StudyBlueAccent
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Article title
                         Text(
                             text = currentCard.frontTitle,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkMedium
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextSecondary
                         )
 
                         if (!currentCard.frontHint.isNullOrBlank()) {
                             Text(
                                 text = currentCard.frontHint,
                                 fontSize = 12.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = InkFaded,
+                                fontFamily = FontFamily.SansSerif,
+                                color = TextTertiary,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(28.dp))
 
-                        // Front Content
+                        // Front Prompt Text
                         Text(
                             text = currentCard.frontPrompt,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary,
                             textAlign = TextAlign.Center,
                             lineHeight = 36.sp,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(28.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                        if (flipRotation > 90f) {
+                        if (isBack) {
                             HorizontalDivider(
-                                color = XuanBorder,
+                                color = BorderSubtle,
                                 thickness = 1.dp,
                                 modifier = Modifier.padding(vertical = 12.dp)
                             )
 
-                            // Answer
+                            // Back Answer
                             Text(
                                 text = currentCard.backAnswer,
                                 fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif,
-                                color = CinnabarRed,
+                                fontWeight = FontWeight.Black,
+                                fontFamily = FontFamily.SansSerif,
+                                color = StudyBlueAccent,
                                 textAlign = TextAlign.Center,
                                 lineHeight = 36.sp,
                                 modifier = Modifier.padding(horizontal = 8.dp)
@@ -376,29 +456,40 @@ fun FlipCardScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
                                     text = "【译文释义】",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Serif,
-                                    color = InkMedium
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextTertiary
                                 )
                                 Text(
                                     text = currentCard.backTranslation,
                                     fontSize = 14.sp,
-                                    fontFamily = FontFamily.Serif,
-                                    color = InkCharcoal,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextSecondary,
                                     textAlign = TextAlign.Center,
                                     lineHeight = 22.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
                         } else {
-                            Text(
-                                text = "（轻触卡片或点击下方按钮翻转查看）",
-                                fontSize = 13.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = InkFaded,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(top = 16.dp)
-                            )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.TouchApp,
+                                    contentDescription = null,
+                                    tint = TextTertiary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "轻触卡片或点击下方按钮翻转查看答案",
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextTertiary
+                                )
+                            }
                         }
                     }
                 }
@@ -410,17 +501,18 @@ fun FlipCardScreen(
             if (!isFlipped) {
                 BouncyButton(
                     text = "显示答案",
-                    containerColor = BambooGreen,
+                    containerColor = StudyNavy,
                     onClick = {
                         isFlipped = true
                         soundManager.playFlip()
+                        hapticManager.cardFlip()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
                 )
             } else {
-                // 4 FSRS Rating Buttons with Duolingo-style bouncy physics & audio
+                // 4 FSRS Rating Buttons with rich spring physics, unique sounds & haptic signatures
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -428,12 +520,13 @@ fun FlipCardScreen(
                     BouncyFsrsRatingButton(
                         label = "重来",
                         badge = intervalPreviews[Rating.AGAIN] ?: "10分",
-                        color = CinnabarRed,
+                        color = DueRed,
                         modifier = Modifier.weight(1f)
                     ) {
                         soundManager.playWrong()
+                        hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.AGAIN)
-                        // Re-enqueue this card so student will be tested again until mastery!
+                        // Re-enqueue this card to guarantee mastery
                         sessionQueue.add(currentPair)
                         completedCount++
                         isFlipped = false
@@ -443,10 +536,11 @@ fun FlipCardScreen(
                     BouncyFsrsRatingButton(
                         label = "困难",
                         badge = intervalPreviews[Rating.HARD] ?: "15分",
-                        color = MutedGold,
+                        color = WarningGold,
                         modifier = Modifier.weight(1f)
                     ) {
-                        soundManager.playWrong()
+                        soundManager.playHard()
+                        hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.HARD)
                         completedCount++
                         isFlipped = false
@@ -456,10 +550,11 @@ fun FlipCardScreen(
                     BouncyFsrsRatingButton(
                         label = "良好",
                         badge = intervalPreviews[Rating.GOOD] ?: "1天",
-                        color = BambooGreen,
+                        color = SuccessGreen,
                         modifier = Modifier.weight(1f)
                     ) {
                         soundManager.playCorrect()
+                        hapticManager.successPulse()
                         repository.submitRating(currentCard.id, Rating.GOOD)
                         completedCount++
                         isFlipped = false
@@ -469,10 +564,11 @@ fun FlipCardScreen(
                     BouncyFsrsRatingButton(
                         label = "简单",
                         badge = intervalPreviews[Rating.EASY] ?: "3天",
-                        color = CeladonBlue,
+                        color = StudyBlueAccent,
                         modifier = Modifier.weight(1f)
                     ) {
-                        soundManager.playCorrect()
+                        soundManager.playEasy()
+                        hapticManager.successPulse()
                         repository.submitRating(currentCard.id, Rating.EASY)
                         completedCount++
                         isFlipped = false
@@ -487,7 +583,7 @@ fun FlipCardScreen(
 }
 
 /**
- * Duolingo-style Bouncy Button with spring press physics
+ * Modern Bouncy Button with spring physics
  */
 @Composable
 fun BouncyButton(
@@ -500,7 +596,7 @@ fun BouncyButton(
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1.0f,
+        targetValue = if (isPressed) 0.95f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -513,19 +609,25 @@ fun BouncyButton(
         interactionSource = interactionSource,
         modifier = modifier.scale(scale),
         colors = ButtonDefaults.buttonColors(containerColor = containerColor),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(14.dp)
     ) {
+        Icon(
+            imageVector = Icons.Default.Flip,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
-            fontSize = 17.sp,
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.Medium
+            fontSize = 16.sp,
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = FontWeight.Bold
         )
     }
 }
 
 /**
- * Duolingo-style Tactile FSRS Rating Button with spring bounce on touch
+ * Tactile FSRS Rating Button with spring bounce and high contrast badges
  */
 @Composable
 fun BouncyFsrsRatingButton(
@@ -554,21 +656,26 @@ fun BouncyFsrsRatingButton(
             .height(54.dp)
             .scale(scale),
         colors = ButtonDefaults.buttonColors(containerColor = color),
-        shape = RoundedCornerShape(10.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = label,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif
+                fontFamily = FontFamily.SansSerif,
+                color = Color.White
             )
             Text(
                 text = badge,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Serif,
-                color = Color.White.copy(alpha = 0.88f)
+                fontSize = 10.sp,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.90f)
             )
         }
     }

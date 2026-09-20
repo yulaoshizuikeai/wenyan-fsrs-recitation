@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,12 +18,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 data class TutorialStep(
@@ -39,18 +43,22 @@ fun OnboardingTutorialDialog(
     onDismiss: () -> Unit,
     onComplete: () -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     var currentStep by remember { mutableIntStateOf(0) }
 
     val steps = listOf(
         TutorialStep(
             stepNumber = 1,
-            title = "FSRS 科学间隔重复记忆",
-            subtitle = "告别死记硬背 · 依记忆遗忘曲线精准调度",
+            title = "FSRS 科学间隔记忆算法",
+            subtitle = "告别死记硬背 · 依遗忘曲线精准调度",
             icon = Icons.Default.Psychology,
-            accentColor = BambooGreen,
+            accentColor = StudyBlueAccent,
             bulletPoints = listOf(
-                "四档复习评分：Again(重来)、Hard(困难)、Good(良好)、Easy(简单)；",
-                "算法实时测算记忆稳定性与难度，预测下次复习黄金时间；",
+                "四档科学评分：Again(重来)、Hard(困难)、Good(良好)、Easy(简单)；",
+                "算法实时推算记忆稳定性与难度，预测下次复习黄金节点；",
                 "每次背诵几分钟，高效巩固文言长效持久记忆。"
             )
         ),
@@ -58,8 +66,8 @@ fun OnboardingTutorialDialog(
             stepNumber = 2,
             title = "随心选择背诵哪本书",
             subtitle = "覆盖高中 11 册教材 · 聚焦当前学期目标",
-            icon = Icons.Default.MenuBook,
-            accentColor = CeladonBlue,
+            icon = Icons.AutoMirrored.Filled.MenuBook,
+            accentColor = StudyBlueAccent,
             bulletPoints = listOf(
                 "首页顶部一键切换当前背诵图书（如只背《必修上册》或《选修欣赏》）；",
                 "提供“全部教材”、“必修全套”、“高考72篇”等快捷预设；",
@@ -71,7 +79,7 @@ fun OnboardingTutorialDialog(
             title = "单句翻卡与整篇渐进遮挡",
             subtitle = "双轨互动背诵 · 逐层攻克长篇文赋",
             icon = Icons.Default.FlipCameraAndroid,
-            accentColor = CinnabarRed,
+            accentColor = StreakFlame,
             bulletPoints = listOf(
                 "单句翻转闪卡：出句测对句，正面提示、背面查验注解与释义；",
                 "整篇渐进遮挡：从 L0 原文、L1 关键词、L2 半句，到 L3 首字骨架与 L4 全盲默写；",
@@ -83,7 +91,7 @@ fun OnboardingTutorialDialog(
             title = "研墨打卡 · 背诵热力图",
             subtitle = "日积跬步以至千里 · 见证每日坚持足迹",
             icon = Icons.Default.CalendarMonth,
-            accentColor = MutedGold,
+            accentColor = SuccessGreen,
             bulletPoints = listOf(
                 "近百日足迹方格热力图，直观记录每天背诵强度；",
                 "统计连续坚持天数与最长打卡记录，养成背诵习惯；",
@@ -96,9 +104,9 @@ fun OnboardingTutorialDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, XuanBorder, RoundedCornerShape(18.dp)),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+                .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = BgSurface),
             elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
@@ -107,7 +115,7 @@ fun OnboardingTutorialDialog(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header Seal & Skip
+                // Header & Skip
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -117,12 +125,15 @@ fun OnboardingTutorialDialog(
                         text = "新手研习指南 (${currentStep + 1}/${steps.size})",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkMedium
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextSecondary
                     )
 
-                    TextButton(onClick = onComplete) {
-                        Text("跳过导引", fontSize = 12.sp, fontFamily = FontFamily.Serif, color = InkFaded)
+                    TextButton(onClick = {
+                        hapticManager.tapLight()
+                        onComplete()
+                    }) {
+                        Text("跳过导引", fontSize = 12.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
                     }
                 }
 
@@ -161,16 +172,16 @@ fun OnboardingTutorialDialog(
                             text = current.title,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary,
                             textAlign = TextAlign.Center
                         )
 
                         Text(
                             text = current.subtitle,
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = InkMedium,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                         )
@@ -179,9 +190,9 @@ fun OnboardingTutorialDialog(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, XuanBorder, RoundedCornerShape(10.dp)),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = XuanPaperLight)
+                                .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp)),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = BgSurfaceMuted)
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
@@ -202,8 +213,8 @@ fun OnboardingTutorialDialog(
                                         Text(
                                             text = point,
                                             fontSize = 13.sp,
-                                            fontFamily = FontFamily.Serif,
-                                            color = InkCharcoal,
+                                            fontFamily = FontFamily.SansSerif,
+                                            color = TextPrimary,
                                             lineHeight = 18.sp
                                         )
                                     }
@@ -225,7 +236,7 @@ fun OnboardingTutorialDialog(
                             modifier = Modifier
                                 .size(if (i == currentStep) 8.dp else 6.dp)
                                 .background(
-                                    if (i == currentStep) BambooGreen else XuanBorder,
+                                    if (i == currentStep) StudyBlueAccent else BorderSubtle,
                                     CircleShape
                                 )
                         )
@@ -241,17 +252,24 @@ fun OnboardingTutorialDialog(
                 ) {
                     if (currentStep > 0) {
                         OutlinedButton(
-                            onClick = { currentStep-- },
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                currentStep--
+                            },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = InkMedium)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
                         ) {
-                            Text("上一步", fontFamily = FontFamily.Serif)
+                            Text("上一步", fontFamily = FontFamily.SansSerif)
                         }
                     }
 
                     Button(
                         onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
                             if (currentStep < steps.size - 1) {
                                 currentStep++
                             } else {
@@ -260,11 +278,11 @@ fun OnboardingTutorialDialog(
                         },
                         modifier = Modifier.weight(if (currentStep > 0) 1.2f else 1f),
                         shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BambooGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = StudyNavy)
                     ) {
                         Text(
-                            text = if (currentStep < steps.size - 1) "下一步" else "完成导引，开始背诵",
-                            fontFamily = FontFamily.Serif,
+                            text = if (currentStep < steps.size - 1) "下一步" else "完成导引，开始研读",
+                            fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )

@@ -9,12 +9,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,6 +23,8 @@ import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.model.BookPresets
 import com.ancient.wenyan.domain.model.Flashcard
+import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,10 +34,14 @@ fun RandomReviewScreen(
     onBack: () -> Unit,
     onStartSession: (String, List<Pair<Flashcard, CardFsrsState>>) -> Unit
 ) {
+    val context = LocalContext.current
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     val currentRepoScope by repository.selectedBookScope.collectAsState()
     val currentRepoName by repository.selectedBookName.collectAsState()
 
-    val scopeOptions = remember {
+    val scopeOptions = remember(currentRepoName, currentRepoScope) {
         listOf(
             "当前选定教材 ($currentRepoName)" to currentRepoScope,
             "全部 11 册教材 (100篇)" to null,
@@ -61,23 +67,26 @@ fun RandomReviewScreen(
                         text = "跨篇目随机背诵",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkCharcoal
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        hapticManager.tapLight()
+                        onBack()
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = InkCharcoal
+                            tint = TextPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = XuanPaperLight)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
             )
         },
-        containerColor = XuanPaperLight
+        containerColor = BgCanvas
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -94,9 +103,9 @@ fun RandomReviewScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, XuanBorder, RoundedCornerShape(12.dp)),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = BgSurface),
                     elevation = CardDefaults.cardElevation(1.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -104,14 +113,14 @@ fun RandomReviewScreen(
                             text = "选择背诵课本范围",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary
                         )
                         Text(
                             text = "可选择单册课本或整套教材进行打乱抽测",
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = InkMedium,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextSecondary,
                             modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
                         )
 
@@ -120,21 +129,29 @@ fun RandomReviewScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { selectedScopeIndex = index }
+                                    .clickable {
+                                        selectedScopeIndex = index
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
+                                    }
                                     .padding(vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
                                     selected = isSelected,
-                                    onClick = { selectedScopeIndex = index },
-                                    colors = RadioButtonDefaults.colors(selectedColor = BambooGreen)
+                                    onClick = {
+                                        selectedScopeIndex = index
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
+                                    },
+                                    colors = RadioButtonDefaults.colors(selectedColor = StudyBlueAccent)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = label,
                                     fontSize = 14.sp,
-                                    fontFamily = FontFamily.Serif,
-                                    color = if (isSelected) InkCharcoal else InkMedium,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = if (isSelected) TextPrimary else TextSecondary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
@@ -147,9 +164,9 @@ fun RandomReviewScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, XuanBorder, RoundedCornerShape(12.dp)),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = BgSurface),
                     elevation = CardDefaults.cardElevation(1.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -157,8 +174,8 @@ fun RandomReviewScreen(
                             text = "单次抽取卡片数量",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Serif,
-                            color = InkCharcoal
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextPrimary
                         )
                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -172,18 +189,22 @@ fun RandomReviewScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(42.dp)
-                                        .clickable { selectedCount = count },
+                                        .clickable {
+                                            selectedCount = count
+                                            hapticManager.tapLight()
+                                            soundManager.playClick()
+                                        },
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (isSelected) BambooGreen else XuanPaperDeep,
-                                    border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, XuanBorder)
+                                    color = if (isSelected) StudyNavy else BgSurfaceMuted,
+                                    border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
                                             text = "$count 题",
                                             fontSize = 13.sp,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) androidx.compose.ui.graphics.Color.White else InkMedium
+                                            color = if (isSelected) androidx.compose.ui.graphics.Color.White else TextSecondary
                                         )
                                     }
                                 }
@@ -198,6 +219,8 @@ fun RandomReviewScreen(
             // Launch Button
             Button(
                 onClick = {
+                    hapticManager.tapLight()
+                    soundManager.playClick()
                     val scopeModules = scopeOptions[selectedScopeIndex].second
                     val randomCards = repository.getRandomQueue(selectedCount, scopeModules)
                     val sessionTitle = "随机背诵 · ${scopeOptions[selectedScopeIndex].first}"
@@ -205,16 +228,16 @@ fun RandomReviewScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BambooGreen),
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(imageVector = Icons.Default.Shuffle, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "开始跨篇目随机背诵",
-                    fontSize = 17.sp,
-                    fontFamily = FontFamily.Serif,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold
                 )
             }

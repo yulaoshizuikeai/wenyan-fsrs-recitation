@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -17,11 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.domain.model.HeatmapStats
+import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.theme.*
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -32,13 +33,15 @@ fun RecitationHeatmapCard(
     heatmapStats: HeatmapStats,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val hapticManager = remember { HapticManager.getInstance(context) }
+
     val today = remember { LocalDate.now() }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd") }
     var selectedDateInfo by remember { mutableStateOf<Pair<String, Int>?>(null) }
 
     // Display past 14 weeks (98 days)
     val totalWeeks = 14
-    // Find the end date (Sunday of current week)
     val daysUntilSunday = DayOfWeek.SUNDAY.value - today.dayOfWeek.value
     val endDate = remember { today.plusDays(daysUntilSunday.toLong()) }
     val startDate = remember { endDate.minusWeeks(totalWeeks.toLong()).plusDays(1) }
@@ -62,40 +65,47 @@ fun RecitationHeatmapCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, XuanBorder, RoundedCornerShape(14.dp)),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = XuanPaperCard),
+            .border(1.dp, BorderSubtle, RoundedCornerShape(18.dp)),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = BgSurface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            // Header: Title & Seal
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = BambooGreen,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(StudyBlueLight, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "研墨足迹 · 背诵热力图",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        color = InkCharcoal
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
                     )
                 }
 
                 Text(
                     text = "近百日寒暑不辍",
                     fontSize = 11.sp,
-                    fontFamily = FontFamily.Serif,
-                    color = InkMedium
+                    fontFamily = FontFamily.SansSerif,
+                    color = TextTertiary
                 )
             }
 
@@ -110,30 +120,30 @@ fun RecitationHeatmapCard(
                     icon = Icons.Default.LocalFireDepartment,
                     label = "连续背诵",
                     value = "${heatmapStats.currentStreak} 天",
-                    accentColor = CinnabarRed
+                    accentColor = StreakFlame
                 )
                 HeatmapMetricItem(
                     icon = Icons.Default.MilitaryTech,
                     label = "最长坚持",
                     value = "${heatmapStats.longestStreak} 天",
-                    accentColor = MutedGold
+                    accentColor = WarningGold
                 )
                 HeatmapMetricItem(
                     label = "累计打卡",
                     value = "${heatmapStats.activeDays} 天",
-                    accentColor = BambooGreen
+                    accentColor = SuccessGreen
                 )
                 HeatmapMetricItem(
                     label = "总背诵量",
                     value = "${heatmapStats.totalReviews} 次",
-                    accentColor = CeladonBlue
+                    accentColor = StudyBlueAccent
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Heatmap Grid with horizontal scroll
-            val scrollState = rememberScrollState(Int.MAX_VALUE) // Scroll to the right (latest days)
+            val scrollState = rememberScrollState(Int.MAX_VALUE)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -155,17 +165,17 @@ fun RecitationHeatmapCard(
                             Text(
                                 text = name,
                                 fontSize = 9.sp,
-                                fontFamily = FontFamily.Serif,
-                                color = InkFaded
+                                fontFamily = FontFamily.SansSerif,
+                                color = TextTertiary
                             )
                         }
                     }
                 }
 
                 // 7 rows x N columns
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(3.5.dp)) {
                     for (col in 0 until totalWeeks) {
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(3.5.dp)) {
                             for (row in 0 until 7) {
                                 val date = daysMatrix[row][col]
                                 if (date != null && !date.isAfter(endDate)) {
@@ -185,21 +195,22 @@ fun RecitationHeatmapCard(
 
                                     Box(
                                         modifier = Modifier
-                                            .size(14.dp)
+                                            .size(15.dp)
                                             .background(
                                                 color = cellColor,
-                                                shape = RoundedCornerShape(3.dp)
+                                                shape = RoundedCornerShape(3.5.dp)
                                             )
                                             .then(
-                                                if (isToday) Modifier.border(1.2.dp, StreakFlame, RoundedCornerShape(3.dp))
+                                                if (isToday) Modifier.border(1.4.dp, StreakFlame, RoundedCornerShape(3.5.dp))
                                                 else Modifier
                                             )
                                             .clickable(enabled = !isFuture) {
+                                                hapticManager.tapLight()
                                                 selectedDateInfo = Pair(dateStr, count)
                                             }
                                     )
                                 } else {
-                                    Spacer(modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.size(15.dp))
                                 }
                             }
                         }
@@ -207,7 +218,7 @@ fun RecitationHeatmapCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Footer: Selected Date Detail or Tip + Legend
             Row(
@@ -215,19 +226,18 @@ fun RecitationHeatmapCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Interactive details display
                 if (selectedDateInfo != null) {
                     val (dStr, cnt) = selectedDateInfo!!
                     Text(
                         text = "$dStr · 研习 $cnt 次",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = if (cnt > 0) StudyBlueAccent else TextSecondary
                     )
                 } else {
                     Text(
-                        text = "轻触格点查验历史",
+                        text = "轻触格点查验历史研读",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.SansSerif,
                         color = TextTertiary
@@ -274,15 +284,15 @@ private fun HeatmapMetricItem(
                 text = value,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
+                fontFamily = FontFamily.SansSerif,
                 color = accentColor
             )
         }
         Text(
             text = label,
             fontSize = 11.sp,
-            fontFamily = FontFamily.Serif,
-            color = InkFaded,
+            fontFamily = FontFamily.SansSerif,
+            color = TextTertiary,
             modifier = Modifier.padding(top = 2.dp)
         )
     }

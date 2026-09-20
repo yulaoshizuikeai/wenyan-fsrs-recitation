@@ -1,8 +1,10 @@
 package com.ancient.wenyan.ui.screens
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,9 +12,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,8 +33,50 @@ import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.ui.components.BookSelectionDialog
+import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import java.time.LocalDate
+
+data class ClassicalQuote(
+    val title: String,
+    val author: String,
+    val quote: String,
+    val translation: String
+)
+
+val CURATED_QUOTES = listOf(
+    ClassicalQuote(
+        title = "《短歌行》",
+        author = "曹操",
+        quote = "“山不厌高，海不厌深。周公吐哺，天下归心。”",
+        translation = "高山不辞土石才见其巍峨，大海不纳细流难成其浩瀚。志存高远者海纳百川，终成大业。"
+    ),
+    ClassicalQuote(
+        title = "《劝学》",
+        author = "荀子",
+        quote = "“不积跬步，无以至千里；不积小流，无以成江海。”",
+        translation = "不积累一步半步的行程，就无法到达千里之远；不汇聚细小的流水，就成就不了辽阔江海。背诵重在日日研读。"
+    ),
+    ClassicalQuote(
+        title = "《离骚》",
+        author = "屈原",
+        quote = "“路漫漫其修远兮，吾将上下而求索。”",
+        translation = "前方的道路漫长而悠远，我将百折不挠、上下探求心中的理想与光明。"
+    ),
+    ClassicalQuote(
+        title = "《滕王阁序》",
+        author = "王勃",
+        quote = "“老当益壮，宁移白首之心？穷且益坚，不坠青云之志。”",
+        translation = "年纪虽老志气更坚，哪能改变白头之年的操守？身处困境更需坚韧，绝不丢弃直上青云的凌云壮志。"
+    ),
+    ClassicalQuote(
+        title = "《赤壁赋》",
+        author = "苏轼",
+        quote = "“逝者如斯，而未尝往也；盈虚者如彼，而卒莫消长也。”",
+        translation = "万物变迁流逝不停，但其本源未曾消失；月亮圆缺代代相续，其本体终无增减。以旷达从容之心对岁月。"
+    )
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,9 +94,27 @@ fun DashboardScreen(
 
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val hapticManager = remember { HapticManager.getInstance(context) }
     var isSoundEnabled by remember { mutableStateOf(soundManager.isSoundEnabled) }
 
     var showBookDialog by remember { mutableStateOf(false) }
+
+    // Rotating daily quote based on day-of-year, tap to cycle
+    val dayOfYear = remember { LocalDate.now().dayOfYear }
+    var quoteIndex by remember { mutableIntStateOf(dayOfYear % CURATED_QUOTES.size) }
+    val currentQuote = CURATED_QUOTES[quoteIndex]
+
+    // Flame Breathing Animation for active streak
+    val infiniteTransition = rememberInfiniteTransition(label = "flame_breathing")
+    val flameScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (heatmapStats.currentStreak > 0) 1.12f else 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "flame_pulse"
+    )
 
     if (showBookDialog) {
         BookSelectionDialog(
@@ -71,33 +136,33 @@ fun DashboardScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "文言背诵",
-                                fontSize = 24.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextPrimary,
-                                letterSpacing = 0.5.sp
+                                letterSpacing = (-0.5).sp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
-                                    .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                    .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "高中课标",
                                     fontSize = 11.sp,
-                                    fontFamily = FontFamily.Serif,
+                                    fontFamily = FontFamily.SansSerif,
                                     color = StreakFlame,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                         Text(
-                            text = "FSRS-5 间隔重复记忆 · 熟读成诵",
+                            text = "FSRS-5 间隔记忆 · 熟读成诵",
                             fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
+                            fontFamily = FontFamily.SansSerif,
                             color = TextSecondary,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = 1.dp)
                         )
                     }
                 },
@@ -108,6 +173,7 @@ fun DashboardScreen(
                             val next = !isSoundEnabled
                             isSoundEnabled = next
                             soundManager.isSoundEnabled = next
+                            hapticManager.tapLight()
                             if (next) soundManager.playClick()
                         },
                         modifier = Modifier
@@ -116,7 +182,7 @@ fun DashboardScreen(
                             .border(1.dp, BorderSubtle, RoundedCornerShape(18.dp))
                     ) {
                         Icon(
-                            imageVector = if (isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                             contentDescription = "音效开关",
                             tint = if (isSoundEnabled) StudyBlueAccent else TextTertiary,
                             modifier = Modifier.size(18.dp)
@@ -138,14 +204,14 @@ fun DashboardScreen(
             contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)
         ) {
             // ================================================================
-            // 1. Unified Hero Study Deck (连胜打卡 + 教材切换 + 四维记忆指标 + 主行动按钮)
+            // 1. Unified Hero Study Deck
             // ================================================================
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, BorderSubtle, RoundedCornerShape(18.dp)),
-                    shape = RoundedCornerShape(18.dp),
+                        .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = BgSurface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
@@ -154,17 +220,17 @@ fun DashboardScreen(
                             .fillMaxWidth()
                             .padding(20.dp)
                     ) {
-                        // Section 1: Streak Status Row
+                        // Section 1: Streak Status Row with flame breathing pulse
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(46.dp)
+                                    .size(50.dp)
                                     .background(
                                         color = if (heatmapStats.currentStreak > 0) StreakFlame.copy(alpha = 0.12f) else BgSurfaceMuted,
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(14.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -172,7 +238,9 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.LocalFireDepartment,
                                     contentDescription = "打卡火焰",
                                     tint = if (heatmapStats.currentStreak > 0) StreakFlame else TextTertiary,
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .scale(flameScale)
                                 )
                             }
 
@@ -186,18 +254,18 @@ fun DashboardScreen(
                                     ) {
                                         Text(
                                             text = "${heatmapStats.currentStreak}",
-                                            fontSize = 28.sp,
+                                            fontSize = 30.sp,
                                             fontWeight = FontWeight.Black,
                                             fontFamily = FontFamily.SansSerif,
                                             color = TextPrimary,
-                                            letterSpacing = (-0.5).sp,
-                                            lineHeight = 30.sp
+                                            letterSpacing = (-1.0).sp,
+                                            lineHeight = 32.sp
                                         )
                                         Text(
                                             text = "天连胜",
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             color = StreakFlame,
                                             modifier = Modifier.padding(bottom = 3.dp)
                                         )
@@ -205,7 +273,7 @@ fun DashboardScreen(
                                     Text(
                                         text = "连胜坚持中 · 日拱一卒功不唐捐",
                                         fontSize = 12.sp,
-                                        fontFamily = FontFamily.Serif,
+                                        fontFamily = FontFamily.SansSerif,
                                         color = TextSecondary
                                     )
                                 } else {
@@ -213,13 +281,13 @@ fun DashboardScreen(
                                         text = "今日未打卡",
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Serif,
+                                        fontFamily = FontFamily.SansSerif,
                                         color = TextPrimary
                                     )
                                     Text(
                                         text = "完成今日研习即可点亮连胜 🔥",
                                         fontSize = 12.sp,
-                                        fontFamily = FontFamily.Serif,
+                                        fontFamily = FontFamily.SansSerif,
                                         color = TextSecondary,
                                         modifier = Modifier.padding(top = 2.dp)
                                     )
@@ -236,10 +304,20 @@ fun DashboardScreen(
                             CurriculumDataSource.ALL_ARTICLES.count { it.moduleId in selectedBookScope!! }
                         }
 
+                        val switcherSource = remember { MutableInteractionSource() }
+                        val isSwitcherPressed by switcherSource.collectIsPressedAsState()
+                        val switcherScale by animateFloatAsState(
+                            targetValue = if (isSwitcherPressed) 0.98f else 1.0f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "switcher_press"
+                        )
+
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
+                                .scale(switcherScale)
+                                .clickable(interactionSource = switcherSource, indication = null) {
+                                    hapticManager.tapLight()
                                     soundManager.playClick()
                                     showBookDialog = true
                                 },
@@ -269,16 +347,16 @@ fun DashboardScreen(
                                         Text(
                                             text = "研习范围 · $selectedBookName",
                                             fontSize = 13.sp,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             fontWeight = FontWeight.Bold,
                                             color = TextPrimary,
                                             maxLines = 1,
                                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                         )
                                         Text(
-                                            text = "包含 ${targetArticlesCount} 篇文言篇目",
+                                            text = "包含 $targetArticlesCount 篇文言篇目",
                                             fontSize = 11.sp,
-                                            fontFamily = FontFamily.Serif,
+                                            fontFamily = FontFamily.SansSerif,
                                             color = TextSecondary
                                         )
                                     }
@@ -287,8 +365,8 @@ fun DashboardScreen(
                                     Text(
                                         text = "切换",
                                         fontSize = 12.sp,
-                                        fontFamily = FontFamily.Serif,
-                                        fontWeight = FontWeight.Medium,
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontWeight = FontWeight.SemiBold,
                                         color = StudyBlueAccent
                                     )
                                     Spacer(modifier = Modifier.width(2.dp))
@@ -306,24 +384,24 @@ fun DashboardScreen(
                         HorizontalDivider(color = BorderSubtle, thickness = 1.dp)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Middle: 4-Dimension FSRS Memory Metrics
+                        // Middle: 4-Dimension FSRS Memory Metrics with animated numbers
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            StatMetric(label = "待复习", value = "${stats.dueCards}", color = if (stats.dueCards > 0) DueRed else TextPrimary)
-                            StatMetric(label = "学习中", value = "${stats.learningCards}", color = StudyBlueAccent)
-                            StatMetric(label = "已稳固", value = "${stats.reviewCards}", color = SuccessGreen)
-                            StatMetric(label = "留存率", value = "${stats.retentionPercentage.toInt()}%", color = TextPrimary)
+                            StatMetric(label = "待复习", value = stats.dueCards, color = if (stats.dueCards > 0) DueRed else TextPrimary)
+                            StatMetric(label = "学习中", value = stats.learningCards, color = StudyBlueAccent)
+                            StatMetric(label = "已稳固", value = stats.reviewCards, color = SuccessGreen)
+                            StatMetric(label = "留存率", value = stats.retentionPercentage.toInt(), isPercentage = true, color = TextPrimary)
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Primary Study Button with spring feedback
+                        // Primary Study Button with spring bounce & tactile pulse
                         val reviewInteractionSource = remember { MutableInteractionSource() }
                         val isReviewPressed by reviewInteractionSource.collectIsPressedAsState()
                         val reviewScale by animateFloatAsState(
-                            targetValue = if (isReviewPressed) 0.97f else 1.0f,
+                            targetValue = if (isReviewPressed) 0.96f else 1.0f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
                                 stiffness = Spring.StiffnessMedium
@@ -333,45 +411,51 @@ fun DashboardScreen(
 
                         Button(
                             onClick = {
+                                hapticManager.tapLight()
                                 soundManager.playClick()
                                 onStartTodayReview()
                             },
                             interactionSource = reviewInteractionSource,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
+                                .height(52.dp)
                                 .scale(reviewScale),
                             colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(14.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Psychology,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = if (stats.dueCards > 0) "开始今日复习 (${stats.dueCards} 句到期)" else "开启今日研习新词句",
                                 fontSize = 15.sp,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "➔", fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "➔", fontSize = 14.sp, color = Color.White.copy(alpha = 0.85f))
                         }
                     }
                 }
             }
 
             // ================================================================
-            // 2. Classical Quote Card (每日文韵金句)
+            // 2. Classical Quote Card with Interactive Rotation
             // ================================================================
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            quoteIndex = (quoteIndex + 1) % CURATED_QUOTES.size
+                        }
                         .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = BgSurface),
@@ -384,45 +468,53 @@ fun DashboardScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "名句鉴赏 · 日有所诵",
-                                fontSize = 13.sp,
+                                text = "名句鉴赏 · 点触换篇",
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextSecondary
                             )
                             Text(
-                                text = "《短歌行》· 曹操",
+                                text = "${currentQuote.title} · ${currentQuote.author}",
                                 fontSize = 12.sp,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextTertiary
                             )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        Text(
-                            text = "“山不厌高，海不厌深。周公吐哺，天下归心。”",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = FontFamily.Serif,
-                            color = TextPrimary,
-                            lineHeight = 26.sp
-                        )
+                        AnimatedContent(
+                            targetState = currentQuote,
+                            transitionSpec = { fadeIn(spring(stiffness = Spring.StiffnessMedium)) togetherWith fadeOut(spring(stiffness = Spring.StiffnessHigh)) },
+                            label = "quote_switch"
+                        ) { quote ->
+                            Column {
+                                Text(
+                                    text = quote.quote,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextPrimary,
+                                    lineHeight = 26.sp
+                                )
 
-                        Text(
-                            text = "高山不辞土石才见其巍峨，大海不纳细流难成其浩瀚。周公求贤一饭三吐哺，天下豪杰由是真心归附。",
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Serif,
-                            color = TextSecondary,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
+                                Text(
+                                    text = quote.translation,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextSecondary,
+                                    lineHeight = 18.sp,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             // ================================================================
-            // 3. Quick Action Dual Tiles (快捷分流卡片)
+            // 3. Quick Action Dual Tiles
             // ================================================================
             item {
                 Row(
@@ -434,6 +526,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clickable {
+                                hapticManager.tapLight()
                                 soundManager.playClick()
                                 onStartGaoKaoReview()
                             }
@@ -445,7 +538,7 @@ fun DashboardScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(38.dp)
                                     .background(StreakFlame.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -453,7 +546,7 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.Star,
                                     contentDescription = null,
                                     tint = StreakFlame,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
@@ -461,13 +554,13 @@ fun DashboardScreen(
                                 text = "高考 72 篇专项",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "必背考点一键抽查",
                                 fontSize = 11.sp,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextSecondary,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
@@ -479,6 +572,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clickable {
+                                hapticManager.tapLight()
                                 soundManager.playClick()
                                 onNavigateToPractice()
                             }
@@ -490,7 +584,7 @@ fun DashboardScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(38.dp)
                                     .background(StudyBlueLight, RoundedCornerShape(8.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -498,7 +592,7 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.Shuffle,
                                     contentDescription = null,
                                     tint = StudyBlueAccent,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
@@ -506,13 +600,13 @@ fun DashboardScreen(
                                 text = "跨篇随机练习",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "自由设定抽取范围",
                                 fontSize = 11.sp,
-                                fontFamily = FontFamily.Serif,
+                                fontFamily = FontFamily.SansSerif,
                                 color = TextSecondary,
                                 modifier = Modifier.padding(top = 2.dp)
                             )
@@ -525,20 +619,26 @@ fun DashboardScreen(
 }
 
 @Composable
-fun StatMetric(label: String, value: String, color: Color) {
+fun StatMetric(label: String, value: Int, isPercentage: Boolean = false, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
-            color = color
-        )
+        AnimatedContent(
+            targetState = value,
+            transitionSpec = { fadeIn(spring(stiffness = Spring.StiffnessMedium)) togetherWith fadeOut(spring(stiffness = Spring.StiffnessHigh)) },
+            label = "stat_num"
+        ) { targetVal ->
+            Text(
+                text = if (isPercentage) "$targetVal%" else "$targetVal",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.SansSerif,
+                color = color
+            )
+        }
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
-            fontFamily = FontFamily.Serif,
+            fontFamily = FontFamily.SansSerif,
             color = TextTertiary,
             modifier = Modifier.padding(top = 3.dp)
         )
