@@ -33,6 +33,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.FSRSEngine
 import com.ancient.wenyan.domain.fsrs.OptimizationResult
+import com.ancient.wenyan.domain.model.RecitationOrderMode
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
@@ -86,6 +87,7 @@ fun FSRSConfigDialog(
     var maxInterval by remember { mutableIntStateOf(repository.fsrsEngine.maximumInterval) }
     var currentWeights by remember { mutableStateOf(repository.fsrsEngine.weights.clone()) }
     var autoTuneEnabled by remember { mutableStateOf(repository.isAutoTuneEnabled()) }
+    var currentOrderMode by remember { mutableStateOf(repository.recitationOrderMode.value) }
 
     var optimizationResult by remember { mutableStateOf<OptimizationResult?>(null) }
     var isExpandedWeights by remember { mutableStateOf(false) }
@@ -144,55 +146,25 @@ fun FSRSConfigDialog(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "FSRS 记忆调度设置",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = TextPrimary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                SuggestionChip(
-                                    onClick = {},
-                                    label = {
-                                        Text(
-                                            text = "FSRS-5",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                        )
-                                    },
-                                    colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = StudyBlueLight,
-                                        labelColor = StudyBlueAccent
-                                    ),
-                                    border = null,
-                                    modifier = Modifier.height(20.dp)
-                                )
-                            }
                             Text(
-                                text = "自由间隔重复 · 诗文背诵定制自适应引擎",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
+                                text = "FSRS 记忆调度与参数调优",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "FSRS-5 Engine & Adaptive Recitation",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = TextTertiary
                             )
                         }
                     }
 
-                    IconButton(
-                        onClick = {
-                            hapticManager.tapLight()
-                            onDismiss()
-                        }
-                    ) {
+                    IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = "关闭", tint = TextTertiary)
                     }
                 }
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    thickness = 0.8.dp,
-                    color = BorderSubtle
-                )
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // ============================================================
                 // Scrollable Content
@@ -203,6 +175,112 @@ fun FSRSConfigDialog(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // --------------------------------------------------------
+                    // 0. Recitation Sequence Preference (顺承篇章原序)
+                    // --------------------------------------------------------
+                    item {
+                        OutlinedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, StudyBlueAccent.copy(alpha = 0.35f)),
+                            colors = CardDefaults.outlinedCardColors(containerColor = StudyBlueLight.copy(alpha = 0.25f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.FormatLineSpacing,
+                                            contentDescription = null,
+                                            tint = StudyBlueAccent,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "背诵次序偏好",
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = TextPrimary
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (currentOrderMode == RecitationOrderMode.SEQUENTIAL) SuccessGreen.copy(alpha = 0.12f) else BorderSubtle
+                                    ) {
+                                        Text(
+                                            text = if (currentOrderMode == RecitationOrderMode.SEQUENTIAL) "推荐 · 保护语脉" else "自定义",
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = if (currentOrderMode == RecitationOrderMode.SEQUENTIAL) SuccessGreen else TextSecondary
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "对于背诵古诗文言文，避免因记忆算法打乱诗文起承转合。调度器在保留 FSRS 精确到期计算的同时，确保同一篇目内卡片严格顺承原文先后次序。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary,
+                                    lineHeight = 18.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                RecitationOrderMode.entries.forEach { mode ->
+                                    val isSelected = (currentOrderMode == mode)
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isSelected) BgSurface else Color.Transparent,
+                                        border = BorderStroke(
+                                            width = if (isSelected) 1.5.dp else 0.5.dp,
+                                            color = if (isSelected) StudyBlueAccent else BorderSubtle
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 3.dp)
+                                            .clickable {
+                                                hapticManager.tapLight()
+                                                currentOrderMode = mode
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    hapticManager.tapLight()
+                                                    currentOrderMode = mode
+                                                },
+                                                colors = RadioButtonDefaults.colors(selectedColor = StudyBlueAccent)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column {
+                                                Text(
+                                                    text = mode.displayName,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                    ),
+                                                    color = TextPrimary
+                                                )
+                                                Text(
+                                                    text = mode.description,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = TextTertiary,
+                                                    lineHeight = 15.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // --------------------------------------------------------
                     // 1. Core Scheduling Sliders
                     // --------------------------------------------------------
@@ -228,7 +306,7 @@ fun FSRSConfigDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "目标期望留存率",
+                                        text = "目标记忆保留率",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = TextPrimary
                                     )
@@ -256,7 +334,7 @@ fun FSRSConfigDialog(
                                     )
                                 )
                                 Text(
-                                    text = "留存率越高，复习间隔越短、巩固频率越高。古文背诵建议设定在 90% ~ 95%。",
+                                    text = "保留率越高，复习越频繁、记忆越牢固。古文背诵建议设为 90% ~ 95%。",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextTertiary
                                 )
@@ -274,7 +352,7 @@ fun FSRSConfigDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "背诵稳定度特化系数",
+                                        text = "诗文稳定度调节系数",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = TextPrimary
                                     )
@@ -301,7 +379,7 @@ fun FSRSConfigDialog(
                                     )
                                 )
                                 Text(
-                                    text = "句段记忆较单词衰减更快。系数越小，首次掌握后的复习保护期越紧凑（默认推荐 0.72x）。",
+                                    text = "文言句子比单个单词更易遗忘。系数越小，初次掌握后的复习越紧凑（推荐 0.72x）。",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextTertiary
                                 )
@@ -382,7 +460,7 @@ fun FSRSConfigDialog(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "自适应参数调优引擎",
+                                            text = "智能参数调优",
                                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                             color = StudyNavy
                                         )
@@ -392,7 +470,7 @@ fun FSRSConfigDialog(
                                         color = SuccessGreen.copy(alpha = 0.12f)
                                     ) {
                                         Text(
-                                            text = "离线安全计算",
+                                            text = "本地计算",
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = SuccessGreen
@@ -402,7 +480,7 @@ fun FSRSConfigDialog(
 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "根据你的真实背诵遗忘率与打卡节律，运用贝叶斯统计与二元交叉熵 (Log Loss) 最小化，自动校准 19 项 FSRS-5 核心参数。",
+                                    text = "根据你的背诵与复习记录，自动优化最契合你的记忆参数与复习周期。",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
@@ -419,7 +497,7 @@ fun FSRSConfigDialog(
                                     },
                                     supportingContent = {
                                         Text(
-                                            text = "已积累 ${reviewLogs.size} 次复习轨迹${if (lastOptFormatted != null) " · 上次优化 $lastOptFormatted" else ""}",
+                                            text = "已积累 ${reviewLogs.size} 条复习记录${if (lastOptFormatted != null) " · 上次优化 $lastOptFormatted" else ""}",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = TextTertiary
                                         )
@@ -456,7 +534,8 @@ fun FSRSConfigDialog(
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(44.dp),
+                                        .heightIn(min = 44.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = StudyBlueAccent)
                                 ) {
@@ -467,9 +546,11 @@ fun FSRSConfigDialog(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "根据真实研读记录一键优化参数",
+                                        text = "一键优化记忆参数",
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
+                                        fontSize = 14.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
 
@@ -500,7 +581,7 @@ fun FSRSConfigDialog(
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
-                                                    text = if (result.success) "优化成功！留存拟合度提升 ${result.improvementPercentage}%" else "提示",
+                                                    text = if (result.success) "优化成功！记忆拟合度提升 ${result.improvementPercentage}%" else "提示",
                                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                                     color = if (result.success) SuccessGreen else WarningGold
                                                 )
@@ -562,7 +643,7 @@ fun FSRSConfigDialog(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = "查看 19 项 FSRS-5 权重矩阵",
+                                            text = "查看 19 项 FSRS 核心参数",
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                             color = TextPrimary
                                         )
@@ -577,7 +658,7 @@ fun FSRSConfigDialog(
                                 if (isExpandedWeights) {
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
-                                        text = "权重矩阵由 FSRS 研发团队经过百万级复习记录拟合得到，建议保留或通过自适应调优引擎自动调整：",
+                                        text = "这些参数由 FSRS 算法团队基于海量记忆数据测算得出，日常使用建议保持默认或使用上方自动优化：",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = TextTertiary
                                     )
@@ -639,6 +720,8 @@ fun FSRSConfigDialog(
                         onClick = {
                             hapticManager.tapLight()
                             repository.resetFSRSSettingsToDefault()
+                            repository.setRecitationOrderMode(RecitationOrderMode.SEQUENTIAL)
+                            currentOrderMode = RecitationOrderMode.SEQUENTIAL
                             retention = 0.93f
                             factor = 0.72f
                             maxInterval = 36500
@@ -664,6 +747,7 @@ fun FSRSConfigDialog(
                         onClick = {
                             hapticManager.successPulse()
                             soundManager.playCorrect()
+                            repository.setRecitationOrderMode(currentOrderMode)
                             repository.updateFSRSSettings(
                                 weights = currentWeights,
                                 retention = retention.toDouble(),

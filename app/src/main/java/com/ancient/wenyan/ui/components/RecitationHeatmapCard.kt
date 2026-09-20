@@ -229,7 +229,7 @@ fun RecitationHeatmapCard(
                 if (selectedDateInfo != null) {
                     val (dStr, cnt) = selectedDateInfo!!
                     Text(
-                        text = "$dStr · 研习 $cnt 次",
+                        text = "$dStr · 背诵 $cnt 次",
                         fontSize = 12.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Bold,
@@ -237,7 +237,7 @@ fun RecitationHeatmapCard(
                     )
                 } else {
                     Text(
-                        text = "轻触格点查验历史研读",
+                        text = "轻触方格查看背诵记录",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.SansSerif,
                         color = TextTertiary

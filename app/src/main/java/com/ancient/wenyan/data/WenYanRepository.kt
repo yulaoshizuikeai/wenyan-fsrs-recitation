@@ -14,6 +14,7 @@ import com.ancient.wenyan.domain.model.ArticleProgress
 import com.ancient.wenyan.domain.model.Flashcard
 import com.ancient.wenyan.domain.model.HeatmapStats
 import com.ancient.wenyan.domain.model.Module
+import com.ancient.wenyan.domain.model.RecitationOrderMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +50,15 @@ class WenYanRepository(
     private val _selectedBookName = MutableStateFlow("全部 11 册教材")
     val selectedBookName: StateFlow<String> = _selectedBookName.asStateFlow()
 
+    // Recitation Ordering State (Sequential by default to protect poem context)
+    private val _recitationOrderMode = MutableStateFlow(RecitationOrderMode.SEQUENTIAL)
+    val recitationOrderMode: StateFlow<RecitationOrderMode> = _recitationOrderMode.asStateFlow()
+
+    fun setRecitationOrderMode(mode: RecitationOrderMode) {
+        _recitationOrderMode.value = mode
+        prefs?.edit()?.putString("pref_recitation_order_mode", mode.name)?.apply()
+    }
+
     // Deck & Heatmap State
     private val _statsFlow = MutableStateFlow(computeStats())
     val statsFlow: StateFlow<DeckStats> = _statsFlow.asStateFlow()
@@ -69,6 +79,13 @@ class WenYanRepository(
             if (savedBookName != null) {
                 _selectedBookName.value = savedBookName
                 _selectedBookScope.value = if (savedModules.isNullOrEmpty()) null else savedModules
+            }
+
+            val savedOrderMode = sp.getString("pref_recitation_order_mode", RecitationOrderMode.SEQUENTIAL.name)
+            _recitationOrderMode.value = try {
+                RecitationOrderMode.valueOf(savedOrderMode ?: RecitationOrderMode.SEQUENTIAL.name)
+            } catch (e: Exception) {
+                RecitationOrderMode.SEQUENTIAL
             }
 
             // Load custom/optimized FSRS parameters
@@ -246,7 +263,8 @@ class WenYanRepository(
     fun getDueQueue(
         nowMillis: Long = System.currentTimeMillis(),
         dailyNewLimit: Int = 20,
-        scope: Set<String>? = _selectedBookScope.value
+        scope: Set<String>? = _selectedBookScope.value,
+        orderMode: RecitationOrderMode = _recitationOrderMode.value
     ): List<Pair<Flashcard, CardFsrsState>> {
         val targetArticles = if (scope.isNullOrEmpty()) {
             CurriculumDataSource.ALL_ARTICLES
@@ -254,9 +272,10 @@ class WenYanRepository(
             CurriculumDataSource.ALL_ARTICLES.filter { it.moduleId in scope }
         }
 
-        val allFlashcards = targetArticles.flatMap {
+        val allFlashcardsList = targetArticles.flatMap {
             CurriculumDataSource.generateFlashcardsForArticle(it)
-        }.associateBy { it.id }
+        }
+        val allFlashcards = allFlashcardsList.associateBy { it.id }
 
         val relearningQueue = cardsStateMap.values
             .filter { it.state == CardState.RELEARNING && it.dueTime <= nowMillis && it.cardId in allFlashcards }
@@ -274,17 +293,59 @@ class WenYanRepository(
             .filter { it.state == CardState.NEW && it.cardId in allFlashcards }
             .take(dailyNewLimit)
 
-        val queueCards = (relearningQueue + learningQueue + reviewQueue + newQueue)
-        return queueCards.mapNotNull { cardState ->
+        val candidateCards = (relearningQueue + learningQueue + reviewQueue + newQueue).mapNotNull { cardState ->
             val fc = allFlashcards[cardState.cardId]
             if (fc != null) Pair(fc, cardState) else null
+        }
+
+        return when (orderMode) {
+            RecitationOrderMode.SRS_PRIORITY -> {
+                candidateCards
+            }
+            RecitationOrderMode.RANDOM_SHUFFLE -> {
+                candidateCards.shuffled()
+            }
+            RecitationOrderMode.SEQUENTIAL -> {
+                // "篇章聚类 + 篇内原序": 严格按原文篇章正序排布，维护诗文语脉与韵律
+                val articleOrderMap = targetArticles.mapIndexed { idx, it -> it.id to idx }.toMap()
+                val groupedByArticle = candidateCards.groupBy { it.first.articleId }
+
+                // 篇目间按紧迫度与课本顺序排布
+                val sortedArticles = groupedByArticle.keys.sortedWith(
+                    compareBy<String> { articleId ->
+                        val cards = groupedByArticle[articleId] ?: emptyList()
+                        when {
+                            cards.any { it.second.state == CardState.RELEARNING } -> 0
+                            cards.any { it.second.state == CardState.LEARNING } -> 1
+                            cards.any { it.second.state == CardState.REVIEW && it.second.dueTime <= nowMillis } -> 2
+                            cards.any { it.second.state == CardState.REVIEW } -> 3
+                            else -> 4
+                        }
+                    }.thenBy { articleId ->
+                        val cards = groupedByArticle[articleId] ?: emptyList()
+                        cards.minOfOrNull { it.second.dueTime } ?: Long.MAX_VALUE
+                    }.thenBy { articleId ->
+                        articleOrderMap[articleId] ?: 0
+                    }
+                )
+
+                // 篇目内部严格按 unitIndex 与 clozeIndex 从首句到尾句正序推进
+                sortedArticles.flatMap { articleId ->
+                    val cardsInArticle = groupedByArticle[articleId] ?: emptyList()
+                    cardsInArticle.sortedWith(
+                        compareBy<Pair<Flashcard, CardFsrsState>> { it.first.unitIndex }
+                            .thenBy { it.first.clozeIndex }
+                    )
+                }
+            }
         }
     }
 
     fun getRandomQueue(
         limit: Int = 20,
         moduleIds: Set<String>? = _selectedBookScope.value,
-        gaoKaoOnly: Boolean = false
+        gaoKaoOnly: Boolean = false,
+        preservePoemOrder: Boolean = true
     ): List<Pair<Flashcard, CardFsrsState>> {
         val baseArticles = if (moduleIds.isNullOrEmpty()) {
             CurriculumDataSource.ALL_ARTICLES
@@ -297,11 +358,27 @@ class WenYanRepository(
             baseArticles
         }
 
-        val cards = targetArticles.flatMap {
+        val allCards = targetArticles.flatMap {
             CurriculumDataSource.generateFlashcardsForArticle(it)
-        }.shuffled().take(limit)
+        }
 
-        return cards.map { fc ->
+        if (allCards.isEmpty()) return emptyList()
+
+        val sampledCards = allCards.shuffled().take(limit)
+
+        if (!preservePoemOrder) {
+            return sampledCards.map { Pair(it, getCardState(it.id)) }
+        }
+
+        // 顺承原序：抽取的卡片按篇目归拢，且篇内严格按原文先后次序排列
+        val articleOrderMap = targetArticles.mapIndexed { idx, it -> it.id to idx }.toMap()
+        val sortedCards = sampledCards.sortedWith(
+            compareBy<Flashcard> { articleOrderMap[it.articleId] ?: 0 }
+                .thenBy { it.unitIndex }
+                .thenBy { it.clozeIndex }
+        )
+
+        return sortedCards.map { fc ->
             Pair(fc, getCardState(fc.id))
         }
     }

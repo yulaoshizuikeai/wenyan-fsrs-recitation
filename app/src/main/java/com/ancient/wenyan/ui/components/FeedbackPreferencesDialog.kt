@@ -79,7 +79,7 @@ fun FeedbackPreferencesDialog(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Audio & Haptic Feedback",
+                                text = "音效提示与触感震动偏好",
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.SansSerif,
                                 color = TextTertiary
@@ -113,14 +113,14 @@ fun FeedbackPreferencesDialog(
                         },
                         headlineContent = {
                             Text(
-                                text = "研读音效反馈",
+                                text = "背诵音效反馈",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         },
                         supportingContent = {
                             Text(
-                                text = "翻卡、答题、编钟凯歌声效",
+                                text = "翻卡、答题与完成提示音",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -168,7 +168,7 @@ fun FeedbackPreferencesDialog(
                         },
                         supportingContent = {
                             Text(
-                                text = "高保真微触、轻击、节律震感",
+                                text = "按键、答题与翻卡触感震动",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -191,7 +191,7 @@ fun FeedbackPreferencesDialog(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
-                    text = "体验感测试通道 (轻触试听试震)",
+                    text = "音效与震动试听 (轻触测试)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.SansSerif,
@@ -207,7 +207,7 @@ fun FeedbackPreferencesDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         FeedbackTestChip(
-                            label = "翻卡纸掠",
+                            label = "翻卡音效",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 soundManager.playFlip()
@@ -215,7 +215,7 @@ fun FeedbackPreferencesDialog(
                             }
                         )
                         FeedbackTestChip(
-                            label = "良好编钟",
+                            label = "答对提示",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 soundManager.playCorrect()
@@ -223,7 +223,7 @@ fun FeedbackPreferencesDialog(
                             }
                         )
                         FeedbackTestChip(
-                            label = "简单三和弦",
+                            label = "简单提示",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 soundManager.playEasy()
@@ -237,7 +237,7 @@ fun FeedbackPreferencesDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         FeedbackTestChip(
-                            label = "重来木琴",
+                            label = "重来提示",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 soundManager.playWrong()
@@ -245,7 +245,7 @@ fun FeedbackPreferencesDialog(
                             }
                         )
                         FeedbackTestChip(
-                            label = "挖空气泡",
+                            label = "填空提示",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 soundManager.playClozeReveal()
@@ -253,7 +253,7 @@ fun FeedbackPreferencesDialog(
                             }
                         )
                         FeedbackTestChip(
-                            label = "通关凯歌",
+                            label = "背诵达成",
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 soundManager.playCelebration()

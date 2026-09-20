@@ -29,7 +29,7 @@ class FSRSOptimizerTest {
         val result = FSRSOptimizer.optimize(fewLogs)
         assertFalse("Should fail optimization when samples < 10", result.success)
         assertEquals(1, result.sampleCount)
-        assertTrue(result.summaryText.contains("建议积累至少 10 条"))
+        assertTrue(result.summaryText.contains("至少 10"))
         assertArrayEquals(
             "Weights should remain unchanged",
             FSRSEngine.DEFAULT_FSRS_5_WEIGHTS,

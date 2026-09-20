@@ -122,7 +122,7 @@ fun FlipCardScreen(
                             .fillMaxWidth()
                             .height(48.dp)
                     ) {
-                        Text("返回研习主页", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                        Text("返回主页", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -195,7 +195,7 @@ fun FlipCardScreen(
                         Spacer(modifier = Modifier.height(20.dp))
 
                         Text(
-                            text = "熟读成诵 · 本轮研习达成！",
+                            text = "熟读成诵 · 本轮背诵达成！",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Black,
                             fontFamily = FontFamily.SansSerif,
@@ -292,7 +292,7 @@ fun FlipCardScreen(
                                 maxLines = 1
                             )
                             Text(
-                                text = "已研习 $completedCount · 待巩固 ${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
+                                text = "已背诵 $completedCount · 待巩固 ${(sessionQueue.size - currentIndex).coerceAtLeast(0)} 句",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -390,34 +390,59 @@ fun FlipCardScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // Mode Pill Header (Front: Prompt vs Back: Answer)
+                        // Mode Pill Header (Front: Prompt vs Back: Answer + Sequential Position)
                         val isBack = flipRotation > 90f
                         val modeLabel = if (isBack) {
                             "【背面 · 填空正解与对照】"
                         } else {
                             if (currentCard.totalClozes > 1) {
-                                "【正面 · 语境填空 第 ${currentCard.clozeIndex}/${currentCard.totalClozes} 空】"
+                                "【语境填空 第 ${currentCard.clozeIndex}/${currentCard.totalClozes} 空】"
                             } else {
-                                "【正面 · 语境填空默写】"
+                                "【语境填空默写】"
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    color = if (isBack) SuccessGreen.copy(alpha = 0.10f) else StudyBlueLight,
-                                    shape = RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = modeLabel,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = if (isBack) SuccessGreen else StudyBlueAccent
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = if (isBack) SuccessGreen.copy(alpha = 0.10f) else StudyBlueLight,
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = modeLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = if (isBack) SuccessGreen else StudyBlueAccent
+                                )
+                            }
+
+                            if (currentCard.totalUnits > 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                            shape = RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "第 ${currentCard.unitIndex + 1}/${currentCard.totalUnits} 联 · 顺承原序",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        fontFamily = FontFamily.SansSerif,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
+
 
                         Spacer(modifier = Modifier.height(14.dp))
 
@@ -528,6 +553,26 @@ fun FlipCardScreen(
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
                             }
+
+                            if (!currentCard.precedingClauseHint.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = "【上承文脉】",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = StudyBlueAccent
+                                )
+                                Text(
+                                    text = currentCard.precedingClauseHint,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.SansSerif,
+                                    color = TextSecondary,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
                         } else {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -583,8 +628,15 @@ fun FlipCardScreen(
                         soundManager.playWrong()
                         hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.AGAIN)
-                        // Re-enqueue this card to guarantee mastery
-                        sessionQueue.add(currentPair)
+                        // 顺承原序：将重来卡片就近插入当前篇目的末尾重温，绝不跨篇甩到全队列最末打乱语脉
+                        var lastIndexInArticle = currentIndex
+                        for (i in (currentIndex + 1) until sessionQueue.size) {
+                            if (sessionQueue[i].first.articleId == currentCard.articleId) {
+                                lastIndexInArticle = i
+                            }
+                        }
+                        val insertPos = (lastIndexInArticle + 1).coerceAtMost(sessionQueue.size)
+                        sessionQueue.add(insertPos, currentPair)
                         completedCount++
                         isFlipped = false
                         currentIndex++

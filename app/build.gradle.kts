@@ -14,8 +14,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.4.0"
+        versionCode = 9
+        versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -146,6 +146,7 @@ tasks.register("runInProcessTests") {
             "com.ancient.wenyan.FSRSOptimizerTest",
             "com.ancient.wenyan.MultiClozeVariantAndIntensifiedFsrsTest",
             "com.ancient.wenyan.BookSelectionAndHeatmapTest",
+            "com.ancient.wenyan.SequentialRecitationOrderTest",
             "com.ancient.wenyan.e2e.Tier1FeatureCoverageTest",
             "com.ancient.wenyan.e2e.Tier2BoundaryCornerCasesTest"
         )
@@ -167,6 +168,9 @@ tasks.register("runInProcessTests") {
         if (!wasSuccessful) {
             for (f in failures) {
                 println("FAILURE: $f")
+                val getException = f?.javaClass?.getMethod("getException")
+                val ex = getException?.invoke(f) as? Throwable
+                ex?.printStackTrace()
             }
             throw GradleException("Tests failed! ($failureCount failures)")
         }

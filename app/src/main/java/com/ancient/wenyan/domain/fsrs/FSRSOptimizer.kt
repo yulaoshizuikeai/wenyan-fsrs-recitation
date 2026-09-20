@@ -62,7 +62,7 @@ object FSRSOptimizer {
                 previousLoss = 0.0,
                 optimizedLoss = 0.0,
                 improvementPercentage = 0.0f,
-                summaryText = "当前仅积累 ${reviewLogs.size} 条复习轨迹（建议积累至少 10 条真实打卡复习后再自适应优化）。已保持当前高质量基准参数。",
+                summaryText = "当前仅有 ${reviewLogs.size} 条复习记录（建议完成至少 10 次复习后再优化参数），已保持默认推荐设置。",
                 detailedChanges = emptyList()
             )
         }
@@ -179,9 +179,9 @@ object FSRSOptimizer {
         }
 
         val summary = if (detailedChanges.isEmpty()) {
-            "基于您 ${eligibleLogs.size} 次复习记录分析，当前 FSRS 算法权重已高度拟合您的记忆特征，保持最佳调度状态。"
+            "基于你已有的 ${eligibleLogs.size} 次复习记录，当前参数与你的记忆节奏非常契合，已保持当前设置。"
         } else {
-            "基于您 ${eligibleLogs.size} 次真实记忆轨迹，个性化校准完成！模型拟合准确度提升约 ${round1(lossImprovement)}%。"
+            "已根据你的 ${eligibleLogs.size} 次复习记录完成参数微调，复习安排将更加贴合你的记忆规律。"
         }
 
         return OptimizationResult(

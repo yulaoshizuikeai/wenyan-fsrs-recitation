@@ -116,7 +116,7 @@ fun FootprintScreen(
             // System Utilities & Guidance Header
             item {
                 Text(
-                    text = "研习设置与偏好",
+                    text = "背诵设置与偏好",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.SansSerif,
@@ -165,7 +165,7 @@ fun FootprintScreen(
                         },
                         supportingContent = {
                             Text(
-                                text = "按键微震、演播级编钟、真纸翻卡等体验调节",
+                                text = "按键触感、翻卡与答题音效调节",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -274,14 +274,14 @@ fun FootprintScreen(
                         },
                         headlineContent = {
                             Text(
-                                text = "新手研习指南",
+                                text = "新手使用指南",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         },
                         supportingContent = {
                             Text(
-                                text = "四步了解 FSRS 算法评分与双轨背诵技巧",
+                                text = "四步了解记忆算法与翻卡、填空背诵技巧",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

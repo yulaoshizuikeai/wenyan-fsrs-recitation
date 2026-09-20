@@ -25,7 +25,7 @@ class ReminderWorker(
         val heatmapStats = repository.computeHeatmapStats()
         val stats = repository.computeStats()
 
-        val title = "文言背诵 · 每日研习"
+        val title = "文言背诵 · 每日提醒"
         val message = when {
             heatmapStats.currentStreak > 0 -> "连胜已保持 ${heatmapStats.currentStreak} 天 🔥 今日还有 ${stats.dueCards} 句待复习，快来打卡吧！"
             stats.dueCards > 0 -> "温故而知新，今日有 ${stats.dueCards} 句古诗文等待复习！"

@@ -747,6 +747,7 @@ object CurriculumDataSource {
             .toList()
 
         var unitIndex = 0
+        var prevVerseContext: String? = null
         for (rawUnit in rawUnits) {
             // Determine end punctuation
             val lastChar = rawUnit.lastOrNull()
@@ -778,9 +779,13 @@ object CurriculumDataSource {
                         clozeIndex = 1,
                         totalClozes = 1,
                         fullVerseContext = "【$clause】$endPunct",
-                        maskedSegment = clause
+                        maskedSegment = clause,
+                        unitIndex = unitIndex,
+                        totalUnits = 1,
+                        precedingClauseHint = prevVerseContext
                     )
                 )
+                prevVerseContext = rawUnit
                 unitIndex++
             } else {
                 // If clauses count is large (e.g. 5+ in prose), group them into sub-units of 2-3 clauses
@@ -804,9 +809,13 @@ object CurriculumDataSource {
                                 clozeIndex = 1,
                                 totalClozes = 1,
                                 fullVerseContext = "【$singleClause】$endPunct",
-                                maskedSegment = singleClause
+                                maskedSegment = singleClause,
+                                unitIndex = unitIndex,
+                                totalUnits = 1,
+                                precedingClauseHint = prevVerseContext
                             )
                         )
+                        prevVerseContext = singleClause + endPunct
                         unitIndex++
                         continue
                     }
@@ -864,10 +873,14 @@ object CurriculumDataSource {
                                 clozeIndex = k + 1,
                                 totalClozes = totalVariants,
                                 fullVerseContext = contextBuilder.toString(),
-                                maskedSegment = targetClause
+                                maskedSegment = targetClause,
+                                unitIndex = unitIndex,
+                                totalUnits = 1,
+                                precedingClauseHint = prevVerseContext
                             )
                         )
                     }
+                    prevVerseContext = chunk.joinToString("，") + endPunct
                     unitIndex++
                 }
             }
@@ -888,11 +901,15 @@ object CurriculumDataSource {
                     clozeIndex = 1,
                     totalClozes = 1,
                     fullVerseContext = article.fullContent.take(40),
-                    maskedSegment = article.fullContent.take(40)
+                    maskedSegment = article.fullContent.take(40),
+                    unitIndex = 0,
+                    totalUnits = 1,
+                    precedingClauseHint = null
                 )
             )
         }
 
-        return list
+        val finalTotalUnits = (list.maxOfOrNull { it.unitIndex } ?: 0) + 1
+        return list.map { it.copy(totalUnits = finalTotalUnits) }
     }
 }

@@ -60,8 +60,17 @@ data class Flashcard(
     val clozeIndex: Int = 1,
     val totalClozes: Int = 1,
     val fullVerseContext: String? = null,
-    val maskedSegment: String? = null
+    val maskedSegment: String? = null,
+    val unitIndex: Int = 0,
+    val totalUnits: Int = 1,
+    val precedingClauseHint: String? = null
 )
+
+enum class RecitationOrderMode(val displayName: String, val description: String) {
+    SEQUENTIAL("顺承篇章原序", "遵循诗文起承转合，按篇目聚类并在篇内严格从首句到尾句正序背诵（推荐）"),
+    SRS_PRIORITY("紧迫度交错优先", "传统 SRS 顺序，按重温/学习/遗忘率紧迫度穿插排序"),
+    RANDOM_SHUFFLE("完全随机乱序", "全库完全随机打乱抽背，适合考前极端自测")
+}
 
 data class ArticleProgress(
     val articleId: String,
@@ -72,3 +81,4 @@ data class ArticleProgress(
     val masteryPercentage: Float,
     val lastStudiedTime: Long? = null
 )
+

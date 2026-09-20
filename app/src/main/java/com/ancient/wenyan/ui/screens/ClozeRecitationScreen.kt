@@ -112,7 +112,7 @@ fun ClozeRecitationScreen(
                             color = TextPrimary
                         )
                         Text(
-                            text = "${article.dynasty} · ${article.author} · 渐进遮挡研读",
+                            text = "${article.dynasty} · ${article.author} · 渐进遮挡背诵",
                             fontSize = 12.sp,
                             fontFamily = FontFamily.SansSerif,
                             color = TextSecondary

@@ -198,7 +198,7 @@ fun DashboardScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Psychology,
-                        contentDescription = "FSRS 记忆算法调度与自适应优化",
+                        contentDescription = "FSRS 记忆算法与参数设置",
                         tint = StudyBlueAccent
                     )
                 }
@@ -249,7 +249,7 @@ fun DashboardScreen(
             contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp)
         ) {
             // ----------------------------------------------------------------
-            // 1. Sleek Status Bar: M3 Streak Chip + Scope Selector AssistChip
+            // 1. Mission Header: Today's Recitation Objective & Quick Jump
             // ----------------------------------------------------------------
             item {
                 Row(
@@ -272,7 +272,7 @@ fun DashboardScreen(
                         },
                         label = {
                             Text(
-                                text = if (heatmapStats.currentStreak > 0) "${heatmapStats.currentStreak} 天连胜" else "今日未研读",
+                                text = if (heatmapStats.currentStreak > 0) "${heatmapStats.currentStreak} 天连胜" else "今日未打卡",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = if (heatmapStats.currentStreak > 0) StreakFlame else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -351,30 +351,27 @@ fun DashboardScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "研习进度与记忆状态",
+                                    text = "背诵进度与记忆状态",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                SuggestionChip(
-                                    onClick = {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = StudyBlueLight,
+                                    modifier = Modifier.clickable {
                                         hapticManager.tapLight()
                                         soundManager.playClick()
                                         showFSRSConfigDialog = true
-                                    },
-                                    label = {
-                                        Text(
-                                            text = "FSRS-5",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                        )
-                                    },
-                                    colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = StudyBlueLight,
-                                        labelColor = StudyBlueAccent
-                                    ),
-                                    border = null,
-                                    modifier = Modifier.height(20.dp)
-                                )
+                                    }
+                                ) {
+                                    Text(
+                                        text = "FSRS-5",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = StudyBlueAccent
+                                    )
+                                }
                             }
 
                             Row(
@@ -469,7 +466,7 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (stats.dueCards > 0) "开始今日复习 (${stats.dueCards} 句到期)" else "开启今日研习新词句",
+                                text = if (stats.dueCards > 0) "开始今日复习 (${stats.dueCards} 句到期)" else "开始背诵新内容",
                                 fontSize = 15.sp,
                                 fontFamily = FontFamily.SansSerif,
                                 fontWeight = FontWeight.Bold,

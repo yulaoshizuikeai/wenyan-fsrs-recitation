@@ -58,7 +58,7 @@ fun OnboardingTutorialDialog(
             accentColor = StudyBlueAccent,
             bulletPoints = listOf(
                 "四档科学评分：Again(重来)、Hard(困难)、Good(良好)、Easy(简单)；",
-                "算法实时推算记忆稳定性与难度，预测下次复习黄金节点；",
+                "根据你的遗忘规律安排复习，预测下次复习的最佳时机；",
                 "每次背诵几分钟，高效巩固文言长效持久记忆。"
             )
         ),
@@ -77,25 +77,25 @@ fun OnboardingTutorialDialog(
         TutorialStep(
             stepNumber = 3,
             title = "单句翻卡与整篇渐进遮挡",
-            subtitle = "双轨互动背诵 · 逐层攻克长篇文赋",
+            subtitle = "翻卡与填空 · 逐层攻克长篇诗文",
             icon = Icons.Default.FlipCameraAndroid,
             accentColor = StreakFlame,
             bulletPoints = listOf(
                 "单句翻转闪卡：出句测对句，正面提示、背面查验注解与释义；",
-                "整篇渐进遮挡：从 L0 原文、L1 关键词、L2 半句，到 L3 首字骨架与 L4 全盲默写；",
+                "整篇渐进遮挡：从原文、关键词提示、半句挖空，到首字提示与全篇默写；",
                 "逐段点选对照，攻克《劝学》《赤壁赋》《离骚》等高考长篇文言。"
             )
         ),
         TutorialStep(
             stepNumber = 4,
-            title = "研墨打卡 · 背诵热力图",
+            title = "背诵打卡 · 学习热力图",
             subtitle = "日积跬步以至千里 · 见证每日坚持足迹",
             icon = Icons.Default.CalendarMonth,
             accentColor = SuccessGreen,
             bulletPoints = listOf(
                 "近百日足迹方格热力图，直观记录每天背诵强度；",
                 "统计连续坚持天数与最长打卡记录，养成背诵习惯；",
-                "全离线本地存储，纯净无广告，随时随地专注研读。"
+                "全离线本地存储，纯净无广告，随时随地专注背诵。"
             )
         )
     )
@@ -122,7 +122,7 @@ fun OnboardingTutorialDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "新手研习指南 (${currentStep + 1}/${steps.size})",
+                        text = "新手使用指南 (${currentStep + 1}/${steps.size})",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.SansSerif,
@@ -281,7 +281,7 @@ fun OnboardingTutorialDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = StudyNavy)
                     ) {
                         Text(
-                            text = if (currentStep < steps.size - 1) "下一步" else "完成导引，开始研读",
+                            text = if (currentStep < steps.size - 1) "下一步" else "完成指引，开始背诵",
                             fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Bold,
                             color = Color.White

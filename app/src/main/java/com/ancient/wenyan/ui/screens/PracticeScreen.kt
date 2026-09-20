@@ -1,5 +1,6 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,6 +58,7 @@ fun PracticeScreen(
 
     var selectedScopeIndex by remember { mutableIntStateOf(0) }
     var selectedCount by remember { mutableIntStateOf(20) }
+    var preservePoemOrder by remember { mutableStateOf(true) }
 
     val longArticles = remember {
         CurriculumDataSource.ALL_ARTICLES.filter {
@@ -183,7 +185,64 @@ fun PracticeScreen(
                                     lineHeight = 20.sp
                                 )
 
-                                Spacer(modifier = Modifier.height(20.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Order Toggle Pill
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (preservePoemOrder) StudyBlueLight else BgCanvas,
+                                    border = BorderStroke(1.dp, if (preservePoemOrder) StudyBlueAccent.copy(alpha = 0.5f) else BorderSubtle),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            hapticManager.tapLight()
+                                            preservePoemOrder = !preservePoemOrder
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.FormatLineSpacing,
+                                                contentDescription = null,
+                                                tint = if (preservePoemOrder) StudyBlueAccent else TextTertiary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(
+                                                    text = "顺承篇章原序 (推荐)",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = FontFamily.SansSerif,
+                                                    color = TextPrimary
+                                                )
+                                                Text(
+                                                    text = if (preservePoemOrder) "题目按篇目归拢且篇内按原文次序" else "完全随机打乱次序",
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.SansSerif,
+                                                    color = TextTertiary
+                                                )
+                                            }
+                                        }
+                                        Switch(
+                                            checked = preservePoemOrder,
+                                            onCheckedChange = {
+                                                hapticManager.tapLight()
+                                                preservePoemOrder = it
+                                            },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = Color.White,
+                                                checkedTrackColor = StudyBlueAccent
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 Button(
                                     onClick = {
@@ -192,7 +251,8 @@ fun PracticeScreen(
                                         val cards = repository.getRandomQueue(
                                             limit = 20,
                                             moduleIds = null,
-                                            gaoKaoOnly = true
+                                            gaoKaoOnly = true,
+                                            preservePoemOrder = preservePoemOrder
                                         )
                                         onStartSession("高考必背 72 篇专项背诵", cards)
                                     },
@@ -315,14 +375,76 @@ fun PracticeScreen(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(20.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Order Toggle Pill
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (preservePoemOrder) StudyBlueLight else BgCanvas,
+                                    border = BorderStroke(1.dp, if (preservePoemOrder) StudyBlueAccent.copy(alpha = 0.5f) else BorderSubtle),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            hapticManager.tapLight()
+                                            preservePoemOrder = !preservePoemOrder
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.FormatLineSpacing,
+                                                contentDescription = null,
+                                                tint = if (preservePoemOrder) StudyBlueAccent else TextTertiary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(
+                                                    text = "顺承篇章原序 (推荐)",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = FontFamily.SansSerif,
+                                                    color = TextPrimary
+                                                )
+                                                Text(
+                                                    text = if (preservePoemOrder) "题目按篇目聚类且篇内按原文次序" else "完全随机打乱次序",
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.SansSerif,
+                                                    color = TextTertiary
+                                                )
+                                            }
+                                        }
+                                        Switch(
+                                            checked = preservePoemOrder,
+                                            onCheckedChange = {
+                                                hapticManager.tapLight()
+                                                preservePoemOrder = it
+                                            },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = Color.White,
+                                                checkedTrackColor = StudyBlueAccent
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 Button(
                                     onClick = {
                                         hapticManager.tapLight()
                                         soundManager.playClick()
                                         val scopeModules = scopeOptions[selectedScopeIndex].second
-                                        val randomCards = repository.getRandomQueue(selectedCount, scopeModules)
+                                        val randomCards = repository.getRandomQueue(
+                                            limit = selectedCount,
+                                            moduleIds = scopeModules,
+                                            gaoKaoOnly = false,
+                                            preservePoemOrder = preservePoemOrder
+                                        )
                                         val sessionTitle = "随机背诵 · ${scopeOptions[selectedScopeIndex].first}"
                                         onStartSession(sessionTitle, randomCards)
                                     },

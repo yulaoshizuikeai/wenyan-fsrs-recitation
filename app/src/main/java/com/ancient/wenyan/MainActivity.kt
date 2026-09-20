@@ -46,7 +46,7 @@ enum class MainTab(
     val title: String,
     val icon: ImageVector
 ) {
-    TODAY("今日研读", Icons.Default.Home),
+    TODAY("今日背诵", Icons.Default.Home),
     LIBRARY("篇目文库", Icons.AutoMirrored.Filled.MenuBook),
     PRACTICE("专项练习", Icons.Default.Shuffle),
     FOOTPRINT("研墨足迹", Icons.Default.CalendarMonth)
