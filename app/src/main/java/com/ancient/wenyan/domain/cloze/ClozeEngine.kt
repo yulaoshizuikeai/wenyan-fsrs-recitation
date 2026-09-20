@@ -149,16 +149,36 @@ object ClozeEngine {
     }
 
     fun generateLevel2(text: String): String {
-        val clauses = text.split("，", "。", "；", "！", "？", "：", "、").filter { it.isNotBlank() }
-        var result = text
-        for (clause in clauses) {
-            if (clause.length >= 4) {
-                val half = clause.length / 2
-                val toMask = clause.substring(half)
-                result = result.replace(toMask, "⟦ ${"_".repeat(toMask.length)} ⟧")
+        val punctuation = setOf('，', '。', '；', '！', '？', '：', '、', '\n', '\r', ' ')
+        val sb = StringBuilder()
+        var start = 0
+        for (i in text.indices) {
+            if (text[i] in punctuation) {
+                val clause = text.substring(start, i)
+                if (clause.length >= 4) {
+                    val splitIdx = clause.length / 2
+                    val half = clause.length - splitIdx
+                    sb.append(clause.substring(0, splitIdx))
+                    sb.append("⟦ ${"_".repeat(half)} ⟧")
+                } else {
+                    sb.append(clause)
+                }
+                sb.append(text[i])
+                start = i + 1
             }
         }
-        return result
+        if (start < text.length) {
+            val remaining = text.substring(start)
+            if (remaining.length >= 4) {
+                val splitIdx = remaining.length / 2
+                val half = remaining.length - splitIdx
+                sb.append(remaining.substring(0, splitIdx))
+                sb.append("⟦ ${"_".repeat(half)} ⟧")
+            } else {
+                sb.append(remaining)
+            }
+        }
+        return sb.toString()
     }
 
     fun generateLevel3(text: String): String {

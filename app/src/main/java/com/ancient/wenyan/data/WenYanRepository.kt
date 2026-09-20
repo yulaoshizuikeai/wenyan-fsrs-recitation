@@ -12,12 +12,18 @@ import com.ancient.wenyan.domain.fsrs.ReviewLog
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.ArticleProgress
 import com.ancient.wenyan.domain.model.Flashcard
+import com.ancient.wenyan.domain.model.ActiveSession
 import com.ancient.wenyan.domain.model.HeatmapStats
 import com.ancient.wenyan.domain.model.Module
 import com.ancient.wenyan.domain.model.RecitationOrderMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -35,6 +41,8 @@ class WenYanRepository(
     private val context: Context? = null,
     val fsrsEngine: FSRSEngine = FSRSEngine()
 ) {
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private val cardsStateMap = mutableMapOf<String, CardFsrsState>()
     private val reviewLogs = mutableListOf<ReviewLog>()
     private val dailyReviewMap = mutableMapOf<String, Int>()
@@ -42,6 +50,10 @@ class WenYanRepository(
     private val prefs: SharedPreferences? by lazy {
         context?.getSharedPreferences("wenyan_study_prefs", Context.MODE_PRIVATE)
     }
+
+    // Active In-Progress Recitation Session (Anki-style breakpoint continuation)
+    private val _activeSessionFlow = MutableStateFlow<ActiveSession?>(null)
+    val activeSessionFlow: StateFlow<ActiveSession?> = _activeSessionFlow.asStateFlow()
 
     // Book Selection State
     private val _selectedBookScope = MutableStateFlow<Set<String>?>(null)
@@ -69,7 +81,9 @@ class WenYanRepository(
     init {
         loadPreferences()
         initializeCards()
+        loadPersistedCardStates()
         initializeHeatmap()
+        loadPersistedActiveSession()
     }
 
     private fun loadPreferences() {
@@ -236,19 +250,30 @@ class WenYanRepository(
     ): CardFsrsState {
         val currentState = getCardState(cardId)
         val result = fsrsEngine.evaluateReview(currentState, rating, nowMillis)
-        cardsStateMap[cardId] = result.updatedCard
-        reviewLogs.add(result.reviewLog)
+        synchronized(cardsStateMap) {
+            cardsStateMap[cardId] = result.updatedCard
+        }
+        synchronized(reviewLogs) {
+            reviewLogs.add(result.reviewLog)
+        }
         persistReviewLogs()
+        persistCardStates()
 
-        // Auto-tune every 20 reviews if auto-tune is enabled and we have at least 10 logs
-        if (isAutoTuneEnabled() && reviewLogs.size >= 10 && reviewLogs.size % 20 == 0) {
-            optimizeFSRSParameters()
+        // Auto-tune every 20 reviews asynchronously in background if enabled and sufficient logs
+        val logCount = synchronized(reviewLogs) { reviewLogs.size }
+        if (isAutoTuneEnabled() && logCount >= 10 && logCount % 20 == 0) {
+            repositoryScope.launch {
+                optimizeFSRSParameters()
+            }
         }
 
         // Record daily review in heatmap
         val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val currentDayCount = (dailyReviewMap[todayStr] ?: 0) + 1
-        dailyReviewMap[todayStr] = currentDayCount
+        val currentDayCount = synchronized(dailyReviewMap) {
+            val count = (dailyReviewMap[todayStr] ?: 0) + 1
+            dailyReviewMap[todayStr] = count
+            count
+        }
         saveDailyReviewToPrefs(todayStr, currentDayCount)
 
         _heatmapStatsFlow.value = computeHeatmapStats()
@@ -573,12 +598,147 @@ class WenYanRepository(
         }
     }
 
+    private fun persistCardStates() {
+        prefs?.let { sp ->
+            val nonNewCards = synchronized(cardsStateMap) {
+                cardsStateMap.values.filter {
+                    it.state != CardState.NEW || it.reps > 0 || it.lapses > 0 || it.lastReviewTime != null
+                }
+            }
+            val sb = StringBuilder()
+            for (c in nonNewCards) {
+                sb.append("${c.cardId}|${c.state.name}|${c.step ?: ""}|${c.stability}|${c.difficulty}|${c.elapsedDays}|${c.scheduledDays}|${c.reps}|${c.lapses}|${c.lastReviewTime ?: ""}|${c.dueTime}\n")
+            }
+            sp.edit().putString(PREF_CARD_STATES_KEY, sb.toString()).apply()
+        }
+    }
+
+    private fun loadPersistedCardStates() {
+        prefs?.let { sp ->
+            val savedStr = sp.getString(PREF_CARD_STATES_KEY, null) ?: return
+            if (savedStr.isBlank()) return
+            val lines = savedStr.split("\n")
+            var restoredCount = 0
+            for (line in lines) {
+                if (line.isBlank()) continue
+                val parts = line.split("|")
+                if (parts.size >= 11) {
+                    try {
+                        val cardId = parts[0]
+                        val state = CardState.valueOf(parts[1])
+                        val step = parts[2].toIntOrNull()
+                        val stability = parts[3].toDoubleOrNull() ?: 0.0
+                        val difficulty = parts[4].toDoubleOrNull() ?: 0.0
+                        val elapsedDays = parts[5].toIntOrNull() ?: 0
+                        val scheduledDays = parts[6].toIntOrNull() ?: 0
+                        val reps = parts[7].toIntOrNull() ?: 0
+                        val lapses = parts[8].toIntOrNull() ?: 0
+                        val lastReviewTime = parts[9].toLongOrNull()
+                        val dueTime = parts[10].toLongOrNull() ?: 0L
+
+                        cardsStateMap[cardId] = CardFsrsState(
+                            cardId = cardId,
+                            state = state,
+                            step = step,
+                            stability = stability,
+                            difficulty = difficulty,
+                            elapsedDays = elapsedDays,
+                            scheduledDays = scheduledDays,
+                            reps = reps,
+                            lapses = lapses,
+                            lastReviewTime = lastReviewTime,
+                            dueTime = dueTime
+                        )
+                        restoredCount++
+                    } catch (e: Exception) {
+                        // Ignore parse error on single corrupted card line
+                    }
+                }
+            }
+            if (restoredCount > 0) {
+                _statsFlow.value = computeStats()
+            }
+        }
+    }
+
+    fun clearPersistedCardStates() {
+        prefs?.edit()?.remove(PREF_CARD_STATES_KEY)?.apply()
+        initializeCards()
+    }
+
+    // ========================================================================
+    // Active In-Progress Recitation Session (Anki-style breakpoint continuation)
+    // ========================================================================
+
+    fun saveActiveSession(session: ActiveSession) {
+        if (session.isComplete) {
+            clearActiveSession()
+            return
+        }
+        _activeSessionFlow.value = session
+        prefs?.let { sp ->
+            val cardIdsJoined = session.cardIds.joinToString(",")
+            val encoded = "${session.id}|${session.title}|${session.sessionType}|${session.currentIndex}|${session.completedCount}|${session.totalCards}|${session.lastActiveMillis}|$cardIdsJoined"
+            sp.edit().putString(PREF_ACTIVE_SESSION_KEY, encoded).apply()
+        }
+    }
+
+    fun clearActiveSession() {
+        _activeSessionFlow.value = null
+        prefs?.edit()?.remove(PREF_ACTIVE_SESSION_KEY)?.apply()
+    }
+
+    fun getActiveSession(): ActiveSession? = _activeSessionFlow.value
+
+    fun restoreCardsForSession(session: ActiveSession): List<Pair<Flashcard, CardFsrsState>> {
+        return session.cardIds.mapNotNull { cardId ->
+            val fc = CurriculumDataSource.getFlashcard(cardId)
+            if (fc != null) Pair(fc, getCardState(cardId)) else null
+        }
+    }
+
+    private fun loadPersistedActiveSession() {
+        prefs?.let { sp ->
+            val encoded = sp.getString(PREF_ACTIVE_SESSION_KEY, null) ?: return
+            if (encoded.isBlank()) return
+            try {
+                val parts = encoded.split("|")
+                if (parts.size >= 8) {
+                    val id = parts[0]
+                    val title = parts[1]
+                    val sessionType = parts[2]
+                    val currentIndex = parts[3].toIntOrNull() ?: 0
+                    val completedCount = parts[4].toIntOrNull() ?: 0
+                    val totalCards = parts[5].toIntOrNull() ?: 0
+                    val lastActive = parts[6].toLongOrNull() ?: System.currentTimeMillis()
+                    val cardIds = if (parts[7].isBlank()) emptyList() else parts[7].split(",").filter { it.isNotBlank() }
+                    val session = ActiveSession(
+                        id = id,
+                        title = title,
+                        sessionType = sessionType,
+                        cardIds = cardIds,
+                        currentIndex = currentIndex,
+                        completedCount = completedCount,
+                        totalCards = totalCards,
+                        lastActiveMillis = lastActive
+                    )
+                    if (!session.isComplete) {
+                        _activeSessionFlow.value = session
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore parse error on corrupted session
+            }
+        }
+    }
+
     // ========================================================================
     // FSRS Parameter Optimization & Settings
     // ========================================================================
 
-    fun optimizeFSRSParameters(): OptimizationResult {
-        val result = FSRSOptimizer.optimize(reviewLogs, fsrsEngine.weights)
+    suspend fun optimizeFSRSParameters(): OptimizationResult = withContext(Dispatchers.Default) {
+        val logs = synchronized(reviewLogs) { reviewLogs.toList() }
+        val result = FSRSOptimizer.optimize(logs, fsrsEngine.weights)
         if (result.success) {
             fsrsEngine.updateParameters(newWeights = result.optimizedWeights)
             saveFSRSSettingsToPrefs(
@@ -590,7 +750,7 @@ class WenYanRepository(
             )
             _statsFlow.value = computeStats()
         }
-        return result
+        result
     }
 
     fun updateFSRSSettings(
@@ -656,6 +816,9 @@ class WenYanRepository(
     }
 
     companion object {
+        private const val PREF_CARD_STATES_KEY = "pref_persisted_card_states_v2"
+        private const val PREF_ACTIVE_SESSION_KEY = "pref_active_recitation_session_v1"
+
         @Volatile
         private var instance: WenYanRepository? = null
 

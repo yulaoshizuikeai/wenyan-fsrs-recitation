@@ -278,8 +278,11 @@ class FSRSEngine(
                         dueMillis = nowMillis + scheduledDays * 86_400_000L
                     }
                     Rating.EASY -> {
-                        val goodIvl = nextInterval(newStability)
-                        scheduledDays = min(max(nextInterval(newStability), goodIvl + 1), maximumInterval)
+                        val r = if (card.lastReviewTime == null) 1.0 else retrievability(elapsedDays, card.stability)
+                        val goodStability = if (isSameDay) shortTermStability(card.stability, Rating.GOOD) else nextRecallStability(card.difficulty, card.stability, r, Rating.GOOD)
+                        val goodIvl = nextInterval(goodStability)
+                        val easyIvl = nextInterval(newStability)
+                        scheduledDays = min(max(easyIvl, goodIvl + 1), maximumInterval)
                         dueMillis = nowMillis + scheduledDays * 86_400_000L
                     }
                 }

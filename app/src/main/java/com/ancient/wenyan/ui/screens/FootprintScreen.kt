@@ -45,8 +45,15 @@ fun FootprintScreen(
     var showReminderDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
-    val reminderTime = remember { repository.getReminderTime() }
-    val isReminderOn = remember { repository.isReminderEnabled() }
+    var reminderTime by remember { mutableStateOf(repository.getReminderTime()) }
+    var isReminderOn by remember { mutableStateOf(repository.isReminderEnabled()) }
+
+    LaunchedEffect(showReminderDialog) {
+        if (showReminderDialog) {
+            reminderTime = repository.getReminderTime()
+            isReminderOn = repository.isReminderEnabled()
+        }
+    }
 
     if (showTutorialDialog) {
         OnboardingTutorialDialog(
@@ -67,6 +74,8 @@ fun FootprintScreen(
             onConfirm = { hour, minute, enabled ->
                 repository.setReminderTime(hour, minute)
                 repository.setReminderEnabled(enabled)
+                reminderTime = Pair(hour, minute)
+                isReminderOn = enabled
                 if (enabled) {
                     ReminderWorker.scheduleDailyReminder(context, hour, minute)
                 } else {

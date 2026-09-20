@@ -912,4 +912,14 @@ object CurriculumDataSource {
         val finalTotalUnits = (list.maxOfOrNull { it.unitIndex } ?: 0) + 1
         return list.map { it.copy(totalUnits = finalTotalUnits) }
     }
+
+    val ALL_FLASHCARDS: List<Flashcard> by lazy {
+        ALL_ARTICLES.flatMap { generateFlashcardsForArticle(it) }
+    }
+
+    val FLASHCARD_MAP: Map<String, Flashcard> by lazy {
+        ALL_FLASHCARDS.associateBy { it.id }
+    }
+
+    fun getFlashcard(id: String): Flashcard? = FLASHCARD_MAP[id]
 }

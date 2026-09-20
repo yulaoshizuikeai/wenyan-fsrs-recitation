@@ -363,7 +363,12 @@ fun InteractiveClozePill(
         modifier = Modifier
             .padding(horizontal = 2.dp, vertical = 2.dp)
             .scale(pressScale)
-            .clickable(interactionSource = interactionSource, indication = null) {
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClickLabel = if (isRevealed) "隐藏答案" else "显示填空答案"
+            ) {
                 onToggle()
             },
         shape = RoundedCornerShape(6.dp),

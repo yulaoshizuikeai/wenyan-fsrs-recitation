@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.fsrs.Rating
+import com.ancient.wenyan.domain.model.ActiveSession
 import com.ancient.wenyan.domain.model.Flashcard
 import com.ancient.wenyan.ui.components.DuolingoStyleCelebration
 import com.ancient.wenyan.ui.sound.HapticManager
@@ -53,7 +54,11 @@ fun FlipCardScreen(
     title: String,
     cards: List<Pair<Flashcard, CardFsrsState>>,
     repository: WenYanRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    initialIndex: Int = 0,
+    initialCompletedCount: Int = 0,
+    sessionId: String = "session_default",
+    sessionType: String = "GENERAL"
 ) {
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
@@ -64,7 +69,8 @@ fun FlipCardScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BgCanvas)
+                .background(MaterialTheme.colorScheme.background)
+                .safeDrawingPadding()
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -131,16 +137,37 @@ fun FlipCardScreen(
     }
 
     val sessionQueue = remember(cards) { mutableStateListOf(*cards.toTypedArray()) }
-    var currentIndex by remember { mutableIntStateOf(0) }
+    var currentIndex by remember(initialIndex) { mutableIntStateOf(initialIndex.coerceIn(0, (cards.size - 1).coerceAtLeast(0))) }
     var isFlipped by remember { mutableStateOf(false) }
-    var completedCount by remember { mutableIntStateOf(0) }
+    var completedCount by remember(initialCompletedCount) { mutableIntStateOf(initialCompletedCount) }
     var isFinished by remember { mutableStateOf(false) }
+
+    fun persistCurrentSession(idx: Int, count: Int) {
+        if (sessionQueue.isNotEmpty() && idx < sessionQueue.size) {
+            repository.saveActiveSession(
+                ActiveSession(
+                    id = sessionId,
+                    title = title,
+                    sessionType = sessionType,
+                    cardIds = sessionQueue.map { it.first.id },
+                    currentIndex = idx,
+                    completedCount = count,
+                    totalCards = sessionQueue.size
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        persistCurrentSession(currentIndex, completedCount)
+    }
 
     val isSessionComplete = isFinished || (sessionQueue.isNotEmpty() && currentIndex >= sessionQueue.size)
 
     // Sound effect & haptic fanfare on completion
     LaunchedEffect(isSessionComplete) {
         if (isSessionComplete && sessionQueue.isNotEmpty()) {
+            repository.clearActiveSession()
             soundManager.playCelebration()
             hapticManager.celebrationFanfare()
         }
@@ -151,7 +178,8 @@ fun FlipCardScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BgCanvas)
+                .background(MaterialTheme.colorScheme.background)
+                .safeDrawingPadding()
         ) {
             DuolingoStyleCelebration(modifier = Modifier.fillMaxSize())
 
@@ -301,6 +329,7 @@ fun FlipCardScreen(
                     navigationIcon = {
                         IconButton(onClick = {
                             hapticManager.tapLight()
+                            persistCurrentSession(currentIndex, completedCount)
                             onBack()
                         }) {
                             Icon(
@@ -628,6 +657,7 @@ fun FlipCardScreen(
                         soundManager.playWrong()
                         hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.AGAIN)
+                        val updatedState = repository.getCardState(currentCard.id)
                         // 顺承原序：将重来卡片就近插入当前篇目的末尾重温，绝不跨篇甩到全队列最末打乱语脉
                         var lastIndexInArticle = currentIndex
                         for (i in (currentIndex + 1) until sessionQueue.size) {
@@ -636,10 +666,12 @@ fun FlipCardScreen(
                             }
                         }
                         val insertPos = (lastIndexInArticle + 1).coerceAtMost(sessionQueue.size)
-                        sessionQueue.add(insertPos, currentPair)
-                        completedCount++
+                        sessionQueue.add(insertPos, Pair(currentCard, updatedState))
+                        // 重来不算作完成，不递增 completedCount
                         isFlipped = false
-                        currentIndex++
+                        val nextIdx = currentIndex + 1
+                        currentIndex = nextIdx
+                        persistCurrentSession(nextIdx, completedCount)
                     }
 
                     BouncyFsrsRatingButton(
@@ -651,9 +683,16 @@ fun FlipCardScreen(
                         soundManager.playHard()
                         hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.HARD)
-                        completedCount++
+                        val nextCount = completedCount + 1
+                        completedCount = nextCount
                         isFlipped = false
-                        currentIndex++
+                        val nextIdx = currentIndex + 1
+                        currentIndex = nextIdx
+                        if (nextIdx >= sessionQueue.size) {
+                            repository.clearActiveSession()
+                        } else {
+                            persistCurrentSession(nextIdx, nextCount)
+                        }
                     }
 
                     BouncyFsrsRatingButton(
@@ -665,9 +704,16 @@ fun FlipCardScreen(
                         soundManager.playCorrect()
                         hapticManager.successPulse()
                         repository.submitRating(currentCard.id, Rating.GOOD)
-                        completedCount++
+                        val nextCount = completedCount + 1
+                        completedCount = nextCount
                         isFlipped = false
-                        currentIndex++
+                        val nextIdx = currentIndex + 1
+                        currentIndex = nextIdx
+                        if (nextIdx >= sessionQueue.size) {
+                            repository.clearActiveSession()
+                        } else {
+                            persistCurrentSession(nextIdx, nextCount)
+                        }
                     }
 
                     BouncyFsrsRatingButton(
@@ -679,9 +725,16 @@ fun FlipCardScreen(
                         soundManager.playEasy()
                         hapticManager.successPulse()
                         repository.submitRating(currentCard.id, Rating.EASY)
-                        completedCount++
+                        val nextCount = completedCount + 1
+                        completedCount = nextCount
                         isFlipped = false
-                        currentIndex++
+                        val nextIdx = currentIndex + 1
+                        currentIndex = nextIdx
+                        if (nextIdx >= sessionQueue.size) {
+                            repository.clearActiveSession()
+                        } else {
+                            persistCurrentSession(nextIdx, nextCount)
+                        }
                     }
                 }
             }

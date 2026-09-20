@@ -171,12 +171,12 @@ fun StreakBannerCard(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
                     shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                    modifier = Modifier.height(36.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Text(
                         text = "去打卡 ➔",
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.SansSerif,
                         color = Color.White

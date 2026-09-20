@@ -32,4 +32,6 @@ Thumbs.db
 
 # Local agent artifacts & temporary junctions
 .agents/
+.github/skills/
+skills/
 wenyan_link

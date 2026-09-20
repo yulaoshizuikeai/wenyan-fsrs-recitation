@@ -4,6 +4,27 @@
 
 ---
 
+## [v1.5.0] - 2026-09-20
+
+### ⏯️ Anki 级断点续背与中途退出无缝恢复 (Breakpoint Session Resumption)
+- **中途退出即时保存**：背诵古诗文过程中随时退出到主界面或关闭 App，当前背诵队列、指针位置与掌握进度将毫秒级自动持久化。
+- **主页动态续背卡片**：主页首屏动态展现“未完待续 · 点击继续背诵”悬浮卡片，清晰呈现当前篇目名称、句数进度条及已掌握句数，一键继续直达上次卡片；支持一键放弃并清理会话。
+- **篇目文库与专项练习联动**：篇目文库（ChapterTreeScreen）与专项练习（PracticeScreen）智能感知进行中的背诵会话，点击相同篇目可选择恢复历史进度或重新开始。
+- **动态重来队列保留**：背诵过程中选择“重来 (Again)”动态追加到队尾的复习卡片序列同样完整保存，绝不丢失复习队列。
+
+### ⚙️ 核心算法引擎与逻辑修复 (Algorithm & Stability Fixes)
+- **FSRS Easy 间隔单调递增**：彻底修复复习模式下极端步长评定“简单 (Easy)”可能未严格长于“良好 (Good)”的计算边界，确保间隔倍数严格单调递增。
+- **掌握句数计数修正**：修复翻卡界面评定“重来 (Again)”时计数器误增的缺陷，仅在判定掌握（Hard/Good/Easy）时正确计数。
+- **参数调优后台异步化**：FSRS 参数自动调优算法迁移至后台工作协程非阻塞执行，配合转圈 Loading 状态，彻底杜绝主线程掉帧卡顿。
+- **仓储层并发线程安全**：增强内存卡片状态映射与复习记录的并发保护，彻底杜绝多协程读写异常。
+
+### 📱 现代 Android 体验与规范升级 (Modern Android & Material 3 Alignment)
+- **Android 15 Edge-to-Edge 全面屏**：升级 `compileSdk = 35`、`targetSdk = 35`，接入官方 `enableEdgeToEdge()` 与 `adjustResize`，适配沉浸式状态栏与导航手势。
+- **Material 3 深色模式 (Dark Theme)**：规范构建 `ModernDarkColorScheme`，全局适配系统深色模式切换。
+- **无障碍点击区域与无障碍语义**：交互按钮与弹窗关闭按钮均优化至合规触摸区域（$\ge 44\text{dp} \sim 48\text{dp}$）；为挖空词胶囊增加 `Role.Button` 与 TalkBack 读屏标签。
+
+---
+
 ## [v1.4.1] - 2026-09-20
 
 ### 📜 顺承篇章原序背诵机制 (Sequential Poem Recitation Order & Context Preservation)

@@ -123,4 +123,20 @@ class BookSelectionAndHeatmapTest {
         repository.setOnboardingCompleted(true)
         // Verify method executes safely without crash
     }
+
+    @Test
+    fun test08_cardStateTransitionsAndSafety() {
+        val firstCard = repository.getDueQueue(dailyNewLimit = 1).first().first
+        assertEquals(com.ancient.wenyan.domain.fsrs.CardState.NEW, repository.getCardState(firstCard.id).state)
+
+        repository.submitRating(firstCard.id, Rating.GOOD)
+        val stateAfterGood = repository.getCardState(firstCard.id)
+        assertNotEquals(com.ancient.wenyan.domain.fsrs.CardState.NEW, stateAfterGood.state)
+        assertTrue(stateAfterGood.reps > 0)
+        assertTrue(stateAfterGood.lastReviewTime != null)
+
+        repository.clearPersistedCardStates()
+        val stateAfterClear = repository.getCardState(firstCard.id)
+        assertEquals(com.ancient.wenyan.domain.fsrs.CardState.NEW, stateAfterClear.state)
+    }
 }

@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.domain.model.HeatmapStats
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.theme.*
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -143,7 +145,13 @@ fun RecitationHeatmapCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Heatmap Grid with horizontal scroll
-            val scrollState = rememberScrollState(Int.MAX_VALUE)
+            val scrollState = rememberScrollState()
+            LaunchedEffect(Unit) {
+                snapshotFlow { scrollState.maxValue }
+                    .filter { it < Int.MAX_VALUE }
+                    .first()
+                scrollState.scrollTo(scrollState.maxValue)
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -1,4 +1,5 @@
 import java.net.URLClassLoader
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -8,14 +9,14 @@ plugins {
 
 android {
     namespace = "com.ancient.wenyan"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 9
-        versionName = "1.4.1"
+        targetSdk = 35
+        versionCode = 10
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -23,12 +24,47 @@ android {
         }
     }
 
+    val keystorePropertiesFile = rootProject.file("local.properties")
+    val keystoreProperties = Properties().apply {
+        if (keystorePropertiesFile.exists()) {
+            keystorePropertiesFile.inputStream().use { load(it) }
+        }
+    }
+
+    val releaseStorePath = System.getenv("KEYSTORE_FILE")
+        ?: System.getenv("RELEASE_STORE_FILE")
+        ?: keystoreProperties.getProperty("KEYSTORE_FILE")
+        ?: keystoreProperties.getProperty("RELEASE_STORE_FILE")
+        ?: keystoreProperties.getProperty("storeFile")
+        ?: "${rootDir}/wenyan-release.jks"
+
+    val releaseStorePassword = System.getenv("KEYSTORE_PASSWORD")
+        ?: System.getenv("RELEASE_STORE_PASSWORD")
+        ?: keystoreProperties.getProperty("KEYSTORE_PASSWORD")
+        ?: keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
+        ?: keystoreProperties.getProperty("storePassword")
+        ?: ""
+
+    val releaseKeyAlias = System.getenv("KEY_ALIAS")
+        ?: System.getenv("RELEASE_KEY_ALIAS")
+        ?: keystoreProperties.getProperty("KEY_ALIAS")
+        ?: keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
+        ?: keystoreProperties.getProperty("keyAlias")
+        ?: "wenyan"
+
+    val releaseKeyPassword = System.getenv("KEY_PASSWORD")
+        ?: System.getenv("RELEASE_KEY_PASSWORD")
+        ?: keystoreProperties.getProperty("KEY_PASSWORD")
+        ?: keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+        ?: keystoreProperties.getProperty("keyPassword")
+        ?: ""
+
     signingConfigs {
         create("release") {
-            storeFile = file("${rootDir}/wenyan-release.jks")
-            storePassword = "wenyanpassword"
-            keyAlias = "wenyan"
-            keyPassword = "wenyanpassword"
+            storeFile = file(releaseStorePath)
+            storePassword = releaseStorePassword.ifEmpty { "wenyanpassword" }
+            keyAlias = releaseKeyAlias.ifEmpty { "wenyan" }
+            keyPassword = releaseKeyPassword.ifEmpty { "wenyanpassword" }
             enableV1Signing = true
             enableV2Signing = true
         }
@@ -128,6 +164,17 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
+afterEvaluate {
+    tasks.named<Test>("testDebugUnitTest").configure {
+        val buildDir = layout.buildDirectory.asFile.get()
+        testClassesDirs += files("$buildDir/tmp/kotlin-classes/debugUnitTest")
+        classpath += files(
+            "$buildDir/tmp/kotlin-classes/debugUnitTest",
+            "$buildDir/tmp/kotlin-classes/debug"
+        )
+    }
+}
+
 tasks.register("runInProcessTests") {
     dependsOn("compileDebugUnitTestKotlin", "compileDebugKotlin")
     doLast {
@@ -147,6 +194,7 @@ tasks.register("runInProcessTests") {
             "com.ancient.wenyan.MultiClozeVariantAndIntensifiedFsrsTest",
             "com.ancient.wenyan.BookSelectionAndHeatmapTest",
             "com.ancient.wenyan.SequentialRecitationOrderTest",
+            "com.ancient.wenyan.ActiveSessionPersistenceTest",
             "com.ancient.wenyan.e2e.Tier1FeatureCoverageTest",
             "com.ancient.wenyan.e2e.Tier2BoundaryCornerCasesTest"
         )

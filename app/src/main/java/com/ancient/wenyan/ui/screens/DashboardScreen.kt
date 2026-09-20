@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
+import com.ancient.wenyan.domain.model.ActiveSession
 import com.ancient.wenyan.ui.components.BookSelectionDialog
 import com.ancient.wenyan.ui.components.FSRSConfigDialog
 import com.ancient.wenyan.ui.components.FeedbackPreferencesDialog
@@ -87,12 +88,14 @@ fun DashboardScreen(
     repository: WenYanRepository,
     onStartTodayReview: () -> Unit,
     onStartGaoKaoReview: () -> Unit,
-    onNavigateToPractice: () -> Unit
+    onNavigateToPractice: () -> Unit,
+    onResumeActiveSession: (ActiveSession) -> Unit = {}
 ) {
     val stats by repository.statsFlow.collectAsState()
     val selectedBookScope by repository.selectedBookScope.collectAsState()
     val selectedBookName by repository.selectedBookName.collectAsState()
     val heatmapStats by repository.heatmapStatsFlow.collectAsState()
+    val activeSession by repository.activeSessionFlow.collectAsState()
 
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
@@ -164,21 +167,17 @@ fun DashboardScreen(
                             letterSpacing = (-0.5).sp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        SuggestionChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    text = "高中必背",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                            },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = StudyBlueAccent.copy(alpha = 0.10f),
-                                labelColor = StudyBlueAccent
-                            ),
-                            border = null,
-                            modifier = Modifier.height(24.dp)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = StudyBlueAccent.copy(alpha = 0.10f)
+                        ) {
+                            Text(
+                                text = "高中必背",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = StudyBlueAccent,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                     Text(
                         text = "FSRS-5 间隔记忆 · 熟读成诵",
@@ -248,6 +247,121 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp)
         ) {
+            // ----------------------------------------------------------------
+            // 0. Active Session Resume Card (Anki-like 断点续背)
+            // ----------------------------------------------------------------
+            activeSession?.let { session ->
+                item(key = "active_session_card") {
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            onResumeActiveSession(session)
+                        }
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier
+                                                .padding(6.dp)
+                                                .size(16.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = "未完待续 · 点击继续背诵",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        hapticManager.tapLight()
+                                        repository.clearActiveSession()
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "放弃本次进度",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = session.title,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val progress = if (session.totalCards > 0) {
+                                (session.currentIndex.toFloat() / session.totalCards.toFloat()).coerceIn(0f, 1f)
+                            } else 0f
+
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "当前进度：第 ${session.currentIndex + 1} / ${session.totalCards} 句",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                )
+                                Text(
+                                    text = "已记 ${session.completedCount} 句",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
             // ----------------------------------------------------------------
             // 1. Mission Header: Today's Recitation Objective & Quick Jump
             // ----------------------------------------------------------------

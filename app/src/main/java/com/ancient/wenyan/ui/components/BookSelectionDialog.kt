@@ -87,15 +87,18 @@ fun BookSelectionDialog(
                         )
                     }
 
-                    IconButton(onClick = {
-                        hapticManager.tapLight()
-                        onDismiss()
-                    }, modifier = Modifier.size(32.dp)) {
+                    IconButton(
+                        onClick = {
+                            hapticManager.tapLight()
+                            onDismiss()
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "关闭",
                             tint = TextSecondary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

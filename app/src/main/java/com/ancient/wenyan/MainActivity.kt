@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,13 +54,21 @@ enum class MainTab(
 }
 
 sealed class OverlayScreen {
-    data class Flashcards(val title: String, val cards: List<Pair<Flashcard, CardFsrsState>>) : OverlayScreen()
+    data class Flashcards(
+        val title: String,
+        val cards: List<Pair<Flashcard, CardFsrsState>>,
+        val initialIndex: Int = 0,
+        val initialCompletedCount: Int = 0,
+        val sessionId: String = "session_default",
+        val sessionType: String = "GENERAL"
+    ) : OverlayScreen()
     data class Cloze(val article: Article) : OverlayScreen()
 }
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         val repository = WenYanRepository.getInstance(applicationContext)
@@ -77,16 +86,6 @@ class MainActivity : ComponentActivity() {
                     val pagerState = rememberPagerState(initialPage = 0, pageCount = { MainTab.entries.size })
                     val coroutineScope = rememberCoroutineScope()
                     var overlayScreen by remember { mutableStateOf<OverlayScreen?>(null) }
-
-                    // Set up light status bar with BgCanvas background
-                    val view = LocalView.current
-                    if (!view.isInEditMode) {
-                        SideEffect {
-                            val window = (view.context as Activity).window
-                            window.statusBarColor = BgCanvas.toArgb()
-                            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
-                        }
-                    }
 
                     // Navigation BackHandler
                     BackHandler(enabled = overlayScreen != null || pagerState.currentPage != 0) {
@@ -111,7 +110,11 @@ class MainActivity : ComponentActivity() {
                                     title = screen.title,
                                     cards = screen.cards,
                                     repository = repository,
-                                    onBack = { overlayScreen = null }
+                                    onBack = { overlayScreen = null },
+                                    initialIndex = screen.initialIndex,
+                                    initialCompletedCount = screen.initialCompletedCount,
+                                    sessionId = screen.sessionId,
+                                    sessionType = screen.sessionType
                                 )
                             }
 
@@ -183,13 +186,47 @@ class MainActivity : ComponentActivity() {
                                                     DashboardScreen(
                                                         repository = repository,
                                                         onStartTodayReview = {
+                                                            val active = repository.getActiveSession()
+                                                            if (active != null && active.sessionType == "TODAY_DUE" && !active.isComplete) {
+                                                                val restored = repository.restoreCardsForSession(active)
+                                                                if (restored.isNotEmpty()) {
+                                                                    overlayScreen = OverlayScreen.Flashcards(
+                                                                        title = active.title,
+                                                                        cards = restored,
+                                                                        initialIndex = active.currentIndex,
+                                                                        initialCompletedCount = active.completedCount,
+                                                                        sessionId = active.id,
+                                                                        sessionType = active.sessionType
+                                                                    )
+                                                                    return@DashboardScreen
+                                                                }
+                                                            }
                                                             val dueCards = repository.getDueQueue()
                                                             overlayScreen = OverlayScreen.Flashcards(
                                                                 title = "今日复习 · FSRS调度队列",
-                                                                cards = dueCards
+                                                                cards = dueCards,
+                                                                initialIndex = 0,
+                                                                initialCompletedCount = 0,
+                                                                sessionId = "today_due_${System.currentTimeMillis()}",
+                                                                sessionType = "TODAY_DUE"
                                                             )
                                                         },
                                                         onStartGaoKaoReview = {
+                                                            val active = repository.getActiveSession()
+                                                            if (active != null && active.sessionType == "GAOKAO_72" && !active.isComplete) {
+                                                                val restored = repository.restoreCardsForSession(active)
+                                                                if (restored.isNotEmpty()) {
+                                                                    overlayScreen = OverlayScreen.Flashcards(
+                                                                        title = active.title,
+                                                                        cards = restored,
+                                                                        initialIndex = active.currentIndex,
+                                                                        initialCompletedCount = active.completedCount,
+                                                                        sessionId = active.id,
+                                                                        sessionType = active.sessionType
+                                                                    )
+                                                                    return@DashboardScreen
+                                                                }
+                                                            }
                                                             val gaoKaoCards = repository.getRandomQueue(
                                                                 limit = 20,
                                                                 moduleIds = null,
@@ -197,8 +234,25 @@ class MainActivity : ComponentActivity() {
                                                             )
                                                             overlayScreen = OverlayScreen.Flashcards(
                                                                 title = "高考必背 72 篇专项背诵",
-                                                                cards = gaoKaoCards
+                                                                cards = gaoKaoCards,
+                                                                initialIndex = 0,
+                                                                initialCompletedCount = 0,
+                                                                sessionId = "gaokao_72_${System.currentTimeMillis()}",
+                                                                sessionType = "GAOKAO_72"
                                                             )
+                                                        },
+                                                        onResumeActiveSession = { active ->
+                                                            val restored = repository.restoreCardsForSession(active)
+                                                            if (restored.isNotEmpty()) {
+                                                                overlayScreen = OverlayScreen.Flashcards(
+                                                                    title = active.title,
+                                                                    cards = restored,
+                                                                    initialIndex = active.currentIndex,
+                                                                    initialCompletedCount = active.completedCount,
+                                                                    sessionId = active.id,
+                                                                    sessionType = active.sessionType
+                                                                )
+                                                            }
                                                         },
                                                         onNavigateToPractice = {
                                                             coroutineScope.launch {
@@ -221,7 +275,11 @@ class MainActivity : ComponentActivity() {
                                                             val cardsWithState = fcs.map { Pair(it, repository.getCardState(it.id)) }
                                                             overlayScreen = OverlayScreen.Flashcards(
                                                                 title = "《${article.title}》· 闪卡背诵",
-                                                                cards = cardsWithState
+                                                                cards = cardsWithState,
+                                                                initialIndex = 0,
+                                                                initialCompletedCount = 0,
+                                                                sessionId = "article_${article.id}",
+                                                                sessionType = "ARTICLE"
                                                             )
                                                         },
                                                         onStartCloze = { article ->
@@ -236,7 +294,11 @@ class MainActivity : ComponentActivity() {
                                                         onStartSession = { title, cards ->
                                                             overlayScreen = OverlayScreen.Flashcards(
                                                                 title = title,
-                                                                cards = cards
+                                                                cards = cards,
+                                                                initialIndex = 0,
+                                                                initialCompletedCount = 0,
+                                                                sessionId = "practice_${System.currentTimeMillis()}",
+                                                                sessionType = "PRACTICE"
                                                             )
                                                         },
                                                         onStartCloze = { article ->

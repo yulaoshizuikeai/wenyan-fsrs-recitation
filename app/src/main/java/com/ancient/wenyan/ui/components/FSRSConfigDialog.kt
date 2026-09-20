@@ -37,6 +37,7 @@ import com.ancient.wenyan.domain.model.RecitationOrderMode
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
@@ -81,13 +82,16 @@ fun FSRSConfigDialog(
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
 
+    val coroutineScope = rememberCoroutineScope()
+    var isOptimizing by remember { mutableStateOf(false) }
+
     // Read current engine states
     var retention by remember { mutableFloatStateOf(repository.fsrsEngine.requestRetention.toFloat()) }
     var factor by remember { mutableFloatStateOf(repository.fsrsEngine.recitationStabilityFactor.toFloat()) }
     var maxInterval by remember { mutableIntStateOf(repository.fsrsEngine.maximumInterval) }
     var currentWeights by remember { mutableStateOf(repository.fsrsEngine.weights.clone()) }
     var autoTuneEnabled by remember { mutableStateOf(repository.isAutoTuneEnabled()) }
-    var currentOrderMode by remember { mutableStateOf(repository.recitationOrderMode.value) }
+    var selectedOrderMode by remember { mutableStateOf(repository.recitationOrderMode.value) }
 
     var optimizationResult by remember { mutableStateOf<OptimizationResult?>(null) }
     var isExpandedWeights by remember { mutableStateOf(false) }
@@ -207,13 +211,13 @@ fun FSRSConfigDialog(
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
-                                        color = if (currentOrderMode == RecitationOrderMode.SEQUENTIAL) SuccessGreen.copy(alpha = 0.12f) else BorderSubtle
+                                        color = if (selectedOrderMode == RecitationOrderMode.SEQUENTIAL) SuccessGreen.copy(alpha = 0.12f) else BorderSubtle
                                     ) {
                                         Text(
-                                            text = if (currentOrderMode == RecitationOrderMode.SEQUENTIAL) "推荐 · 保护语脉" else "自定义",
+                                            text = if (selectedOrderMode == RecitationOrderMode.SEQUENTIAL) "推荐 · 保护语脉" else "自定义",
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = if (currentOrderMode == RecitationOrderMode.SEQUENTIAL) SuccessGreen else TextSecondary
+                                            color = if (selectedOrderMode == RecitationOrderMode.SEQUENTIAL) SuccessGreen else TextSecondary
                                         )
                                     }
                                 }
@@ -230,7 +234,7 @@ fun FSRSConfigDialog(
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 RecitationOrderMode.entries.forEach { mode ->
-                                    val isSelected = (currentOrderMode == mode)
+                                    val isSelected = (selectedOrderMode == mode)
                                     Surface(
                                         shape = RoundedCornerShape(10.dp),
                                         color = if (isSelected) BgSurface else Color.Transparent,
@@ -243,7 +247,7 @@ fun FSRSConfigDialog(
                                             .padding(vertical = 3.dp)
                                             .clickable {
                                                 hapticManager.tapLight()
-                                                currentOrderMode = mode
+                                                selectedOrderMode = mode
                                             }
                                     ) {
                                         Row(
@@ -254,7 +258,7 @@ fun FSRSConfigDialog(
                                                 selected = isSelected,
                                                 onClick = {
                                                     hapticManager.tapLight()
-                                                    currentOrderMode = mode
+                                                    selectedOrderMode = mode
                                                 },
                                                 colors = RadioButtonDefaults.colors(selectedColor = StudyBlueAccent)
                                             )
@@ -524,14 +528,24 @@ fun FSRSConfigDialog(
                                 // Trigger Optimization Button
                                 Button(
                                     onClick = {
-                                        hapticManager.successPulse()
-                                        soundManager.playCorrect()
-                                        val res = repository.optimizeFSRSParameters()
-                                        optimizationResult = res
-                                        if (res.success) {
-                                            currentWeights = res.optimizedWeights.clone()
+                                        if (!isOptimizing) {
+                                            isOptimizing = true
+                                            hapticManager.successPulse()
+                                            soundManager.playCorrect()
+                                            coroutineScope.launch {
+                                                try {
+                                                    val res = repository.optimizeFSRSParameters()
+                                                    optimizationResult = res
+                                                    if (res.success) {
+                                                        currentWeights = res.optimizedWeights.clone()
+                                                    }
+                                                } finally {
+                                                    isOptimizing = false
+                                                }
+                                            }
                                         }
                                     },
+                                    enabled = !isOptimizing,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(min = 44.dp),
@@ -539,19 +553,33 @@ fun FSRSConfigDialog(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = StudyBlueAccent)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoFixHigh,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "一键优化记忆参数",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    if (isOptimizing) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "正在智能迭代优化中...",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoFixHigh,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "一键优化记忆参数",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
                                 // Optimization Result Banner
@@ -721,7 +749,7 @@ fun FSRSConfigDialog(
                             hapticManager.tapLight()
                             repository.resetFSRSSettingsToDefault()
                             repository.setRecitationOrderMode(RecitationOrderMode.SEQUENTIAL)
-                            currentOrderMode = RecitationOrderMode.SEQUENTIAL
+                            selectedOrderMode = RecitationOrderMode.SEQUENTIAL
                             retention = 0.93f
                             factor = 0.72f
                             maxInterval = 36500
@@ -747,7 +775,7 @@ fun FSRSConfigDialog(
                         onClick = {
                             hapticManager.successPulse()
                             soundManager.playCorrect()
-                            repository.setRecitationOrderMode(currentOrderMode)
+                            repository.setRecitationOrderMode(selectedOrderMode)
                             repository.updateFSRSSettings(
                                 weights = currentWeights,
                                 retention = retention.toDouble(),
