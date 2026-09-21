@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,14 +14,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancient.wenyan.BuildConfig
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.RecitationOrderMode
 import com.ancient.wenyan.notification.ReminderWorker
@@ -41,7 +40,7 @@ fun SettingsScreen(
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
 
-    // Dialog Visibility States
+    // Dialog / Sheet Visibility States
     var showDailyGoalDialog by remember { mutableStateOf(false) }
     var showFSRSDialog by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
@@ -60,7 +59,7 @@ fun SettingsScreen(
     var reminderTime by remember { mutableStateOf(repository.getReminderTime()) }
     var isReminderOn by remember { mutableStateOf(repository.isReminderEnabled()) }
 
-    // Dialogs
+    // Dialogs & Sheets
     if (showDailyGoalDialog) {
         DailyGoalSettingsDialog(
             currentConfig = studyGoals,
@@ -245,18 +244,11 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "设置中心",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "文言背诵偏好与功能管理",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "设置中心",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 },
                 navigationIcon = {
                     IconButton(
@@ -282,18 +274,15 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 48.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 48.dp)
         ) {
             // ================================================================
-            // Submenu 1: 学习与复习目标 (Daily Study & Review Goals)
+            // 分组一：学习与调度 (Study & Algorithm) - 4合1大卡片
             // ================================================================
             item {
-                SettingsCategoryHeader(
-                    title = "学习与复习目标",
-                    subtitle = "类似 Anki 的每日新卡配额与复习负荷控制"
-                )
+                SettingsCategoryHeader(title = "学习与调度")
             }
 
             item {
@@ -303,15 +292,13 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
-                        // Tile 1: Daily Target Setting
-                        val newDesc = if (studyGoals.dailyNewLimit >= 999) "不限" else if (studyGoals.dailyNewLimit <= 0) "暂停新学" else "${studyGoals.dailyNewLimit} 句"
-                        val revDesc = if (studyGoals.dailyReviewLimit >= 999) "不限" else "${studyGoals.dailyReviewLimit} 句"
+                        // 1. 每日目标
+                        val newDesc = if (studyGoals.dailyNewLimit >= 999) "不限" else if (studyGoals.dailyNewLimit <= 0) "暂停新学" else "${studyGoals.dailyNewLimit}句"
+                        val revDesc = if (studyGoals.dailyReviewLimit >= 999) "不限" else "${studyGoals.dailyReviewLimit}句"
                         SettingsActionItem(
                             icon = Icons.Default.Flag,
-                            iconTint = StudyBlueAccent,
-                            iconBg = StudyBlueLight,
                             title = "每日新学与复习上限",
-                            subtitle = "新学上限：$newDesc · 复习上限：$revDesc · ${studyGoals.orderPreference.displayName}",
+                            subtitle = "新学 $newDesc · 复习 $revDesc · ${studyGoals.orderPreference.displayName}",
                             onClick = {
                                 hapticManager.tapLight()
                                 soundManager.playClick()
@@ -319,17 +306,11 @@ fun SettingsScreen(
                             }
                         )
 
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            thickness = 0.6.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
+                        SettingsItemDivider()
 
-                        // Tile 2: Recitation Sequence Mode
+                        // 2. 篇章排布与原序
                         SettingsActionItem(
                             icon = Icons.Default.Reorder,
-                            iconTint = StreakFlame,
-                            iconBg = StreakFlame.copy(alpha = 0.12f),
                             title = "篇章排布与原序",
                             subtitle = recitationOrderMode.displayName,
                             onClick = {
@@ -338,144 +319,46 @@ fun SettingsScreen(
                                 showOrderModeDialog = true
                             }
                         )
+
+                        SettingsItemDivider()
+
+                        // 3. FSRS 算法
+                        SettingsActionItem(
+                            icon = Icons.Default.Psychology,
+                            title = "FSRS-5 算法参数调优",
+                            subtitle = "保留率 ${(repository.fsrsEngine.requestRetention * 100).toInt()}% · 19项权重参数拟合",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showFSRSDialog = true
+                            }
+                        )
+
+                        SettingsItemDivider()
+
+                        // 4. 定时背诵提醒
+                        val hourStr = reminderTime.first.toString().padStart(2, '0')
+                        val minStr = reminderTime.second.toString().padStart(2, '0')
+                        SettingsActionItem(
+                            icon = Icons.Default.NotificationsActive,
+                            title = "每日定时背诵通知",
+                            subtitle = if (isReminderOn) "每日 $hourStr:$minStr 定时推送" else "打卡提醒已暂停",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showReminderDialog = true
+                            }
+                        )
                     }
                 }
             }
 
             // ================================================================
-            // Submenu 2: FSRS 记忆算法调优 (Memory Algorithm)
+            // 分组二：偏好与教材 (Preferences & Curriculum) - 2合1大卡片
             // ================================================================
             item {
-                SettingsCategoryHeader(
-                    title = "记忆算法与调度",
-                    subtitle = "最新 FSRS-5 间隔重复模型参数与自适应拟合"
-                )
-            }
-
-            item {
-                OutlinedCard(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    SettingsActionItem(
-                        icon = Icons.Default.Psychology,
-                        iconTint = StudyBlueAccent,
-                        iconBg = StudyBlueLight,
-                        title = "FSRS-5 算法参数调优",
-                        subtitle = "记忆保留率 ${(repository.fsrsEngine.requestRetention * 100).toInt()}% · 19项权重矩阵与自动拟合",
-                        onClick = {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showFSRSDialog = true
-                        }
-                    )
-                }
-            }
-
-            // ================================================================
-            // Submenu 3: 提醒与通知 (Reminders)
-            // ================================================================
-            item {
-                SettingsCategoryHeader(
-                    title = "背诵打卡提醒",
-                    subtitle = "设定每日坚持背诵的最佳推送时钟"
-                )
-            }
-
-            item {
-                OutlinedCard(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val hourStr = reminderTime.first.toString().padStart(2, '0')
-                    val minStr = reminderTime.second.toString().padStart(2, '0')
-                    SettingsActionItem(
-                        icon = Icons.Default.NotificationsActive,
-                        iconTint = SuccessGreen,
-                        iconBg = SuccessGreen.copy(alpha = 0.12f),
-                        title = "每日定时背诵通知",
-                        subtitle = if (isReminderOn) "每日 $hourStr:$minStr 定时推送督促背诵" else "定时打卡提醒已暂停",
-                        onClick = {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showReminderDialog = true
-                        }
-                    )
-                }
-            }
-
-            // ================================================================
-            // Submenu 4: 交互与多媒体 (Sensory Feedback)
-            // ================================================================
-            item {
-                SettingsCategoryHeader(
-                    title = "视听与触感偏好",
-                    subtitle = "按键音效、答题翻卡声与震动触觉调节"
-                )
-            }
-
-            item {
-                OutlinedCard(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    SettingsActionItem(
-                        icon = Icons.Default.Vibration,
-                        iconTint = Color(0xFF8E24AA),
-                        iconBg = Color(0xFF8E24AA).copy(alpha = 0.12f),
-                        title = "动效音效与触感震动",
-                        subtitle = if (soundManager.isSoundEnabled && hapticManager.isHapticEnabled) "音效开启 · 触感开启" else "部分已关闭",
-                        onClick = {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showFeedbackDialog = true
-                        }
-                    )
-                }
-            }
-
-            // ================================================================
-            // Submenu 5: 教材与篇目范围 (Curriculum Selection)
-            // ================================================================
-            item {
-                SettingsCategoryHeader(
-                    title = "教材与篇目范围",
-                    subtitle = "切换当前背诵的高考与统编教材篇目"
-                )
-            }
-
-            item {
-                OutlinedCard(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    SettingsActionItem(
-                        icon = Icons.AutoMirrored.Filled.MenuBook,
-                        iconTint = StudyBlueAccent,
-                        iconBg = StudyBlueLight,
-                        title = "背诵课本与选篇范围",
-                        subtitle = "当前所选：$selectedBookName",
-                        onClick = {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            showBookDialog = true
-                        }
-                    )
-                }
-            }
-
-            // ================================================================
-            // Submenu 6: 维护与关于 (Maintenance & About)
-            // ================================================================
-            item {
-                SettingsCategoryHeader(
-                    title = "应用维护与关于",
-                    subtitle = "新手引导、复习数据维护与版本信息"
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                SettingsCategoryHeader(title = "偏好与教材")
             }
 
             item {
@@ -485,12 +368,55 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
+                        // 1. 视听偏好
+                        SettingsActionItem(
+                            icon = Icons.Default.Vibration,
+                            title = "动效音效与触感震动",
+                            subtitle = if (soundManager.isSoundEnabled && hapticManager.isHapticEnabled) "音效开启 · 触感开启" else "部分已关闭",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showFeedbackDialog = true
+                            }
+                        )
+
+                        SettingsItemDivider()
+
+                        // 2. 教材选篇
+                        SettingsActionItem(
+                            icon = Icons.AutoMirrored.Filled.MenuBook,
+                            title = "背诵课本与选篇范围",
+                            subtitle = "当前所选：$selectedBookName",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showBookDialog = true
+                            }
+                        )
+                    }
+                }
+            }
+
+            // ================================================================
+            // 分组三：维护与关于 (System & About) - 3合1大卡片
+            // ================================================================
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                SettingsCategoryHeader(title = "数据与关于")
+            }
+
+            item {
+                OutlinedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        // 1. 使用指南
                         SettingsActionItem(
                             icon = Icons.AutoMirrored.Filled.HelpOutline,
-                            iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            iconBg = MaterialTheme.colorScheme.surfaceVariant,
                             title = "新手使用指南",
-                            subtitle = "重温 FSRS 记忆算法、翻卡及默写背诵技巧",
+                            subtitle = "重温 FSRS 算法与背诵技巧",
                             onClick = {
                                 hapticManager.tapLight()
                                 soundManager.playClick()
@@ -498,18 +424,14 @@ fun SettingsScreen(
                             }
                         )
 
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            thickness = 0.6.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
+                        SettingsItemDivider()
 
+                        // 2. 高危操作：重置数据
                         SettingsActionItem(
                             icon = Icons.Default.DeleteOutline,
-                            iconTint = DueRed,
-                            iconBg = DueRed.copy(alpha = 0.12f),
                             title = "重置所有背诵数据",
-                            subtitle = "清空本地卡片记忆历史，重置为新篇章",
+                            subtitle = "清空本地卡片记忆历史，恢复为未学状态",
+                            isDestructive = true,
                             onClick = {
                                 hapticManager.tapLight()
                                 soundManager.playClick()
@@ -517,45 +439,14 @@ fun SettingsScreen(
                             }
                         )
 
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            thickness = 0.6.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
+                        SettingsItemDivider()
 
-                        // App Version & About
-                        ListItem(
-                            leadingContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .background(StudyBlueAccent.copy(alpha = 0.10f), RoundedCornerShape(10.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = StudyBlueAccent,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            },
-                            headlineContent = {
-                                Text(
-                                    text = "关于 文言背诵",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text = "版本 v1.2.0 · 离线文库 72篇高考必背 · 统编 11 册教材 · FSRS-5 算法驱动",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        // 3. 关于文言背诵
+                        SettingsActionItem(
+                            icon = Icons.Default.Info,
+                            title = "关于 文言背诵",
+                            subtitle = "版本 v${BuildConfig.VERSION_NAME} · 离线文库 72篇高考必背 · FSRS-5 算法驱动",
+                            onClick = {}
                         )
                     }
                 }
@@ -567,72 +458,112 @@ fun SettingsScreen(
 @Composable
 private fun SettingsCategoryHeader(
     title: String,
-    subtitle: String
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.padding(top = 6.dp, bottom = 2.dp, start = 4.dp)) {
-        Text(
-            text = title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = subtitle,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    Text(
+        text = title,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp)
+    )
 }
 
 @Composable
+private fun SettingsItemDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    )
+}
+
+/**
+ * 彻底锁定垂直居中的设置条目。
+ * 摒弃 M3 ListItem 在多行模式下强制 leadingContent Top 对齐的黑盒行为，
+ * 无论文字多少行，左侧 38dp 图标与右侧操作标均坚固保持在几何中心水平线上，绝不被挤上去。
+ */
+@Composable
 private fun SettingsActionItem(
     icon: ImageVector,
-    iconTint: Color,
-    iconBg: Color,
     title: String,
     subtitle: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isDestructive: Boolean = false
 ) {
-    ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
-        leadingContent = {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(iconBg, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        },
-        headlineContent = {
+    val iconColor = if (isDestructive) DueRed else StudyBlueAccent
+    val iconBgColor = if (isDestructive) DueRed.copy(alpha = 0.12f) else StudyBlueLight
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 1. 左侧图标：尺寸锁定 38dp，绝对居中
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(iconBgColor, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        // 2. 中间文本区域：自动占据剩余宽度，垂直居中排版
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (isDestructive) DueRed else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
             )
-        },
-        supportingContent = {
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-        },
-        trailingContent = {
+        }
+
+        // 3. 右侧操作标识：高危操作展示醒目红标，常规操作展示微透 Chevron
+        if (isDestructive) {
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = DueRed.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = "重置",
+                    color = DueRed,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                )
+            }
+        } else {
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline
+                tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                modifier = Modifier.size(20.dp)
             )
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
+        }
+    }
 }

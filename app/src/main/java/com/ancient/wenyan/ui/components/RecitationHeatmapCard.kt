@@ -177,11 +177,11 @@ fun RecitationHeatmapCard(
                     modifier = Modifier.padding(end = 4.dp, top = 1.dp)
                 ) {
                     listOf("一", "", "三", "", "五", "", "日").forEach { label ->
-                        Box(modifier = Modifier.size(15.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
                             if (label.isNotEmpty()) {
                                 Text(
                                     text = label,
-                                    fontSize = 9.sp,
+                                    fontSize = 10.sp,
                                     fontFamily = FontFamily.SansSerif,
                                     color = TextTertiary,
                                     fontWeight = FontWeight.Medium
@@ -214,22 +214,32 @@ fun RecitationHeatmapCard(
 
                                     Box(
                                         modifier = Modifier
-                                            .size(15.dp)
-                                            .background(
-                                                color = cellColor,
-                                                shape = RoundedCornerShape(3.5.dp)
-                                            )
-                                            .then(
-                                                if (isToday) Modifier.border(1.4.dp, StreakFlame, RoundedCornerShape(3.5.dp))
-                                                else Modifier
-                                            )
-                                            .clickable(enabled = !isFuture) {
+                                            .size(24.dp)
+                                            .clickable(
+                                                enabled = !isFuture,
+                                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                                indication = androidx.compose.material.ripple.rememberRipple(bounded = false, radius = 24.dp)
+                                            ) {
                                                 hapticManager.tapLight()
                                                 selectedDateInfo = Pair(dateStr, count)
-                                            }
-                                    )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .background(
+                                                    color = cellColor,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                                .then(
+                                                    if (isToday) Modifier.border(1.5.dp, StreakFlame, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                        )
+                                    }
                                 } else {
-                                    Spacer(modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.size(24.dp))
                                 }
                             }
                         }

@@ -11,7 +11,8 @@ data class CardFsrsState(
     val reps: Int = 0,
     val lapses: Int = 0,
     val lastReviewTime: Long? = null,
-    val dueTime: Long = 0L
+    val dueTime: Long = 0L,
+    val isLeech: Boolean = false
 )
 
 data class ReviewLog(

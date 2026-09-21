@@ -15,8 +15,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.5.5"
+        versionCode = 16
+        versionName = "1.5.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -100,6 +100,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -197,6 +198,7 @@ tasks.register("runInProcessTests") {
             "com.ancient.wenyan.SequentialRecitationOrderTest",
             "com.ancient.wenyan.ActiveSessionPersistenceTest",
             "com.ancient.wenyan.Phase2Phase3FixesTest",
+            "com.ancient.wenyan.RoadmapPhaseExecutionTest",
             "com.ancient.wenyan.e2e.Tier1FeatureCoverageTest",
             "com.ancient.wenyan.e2e.Tier2BoundaryCornerCasesTest"
         )

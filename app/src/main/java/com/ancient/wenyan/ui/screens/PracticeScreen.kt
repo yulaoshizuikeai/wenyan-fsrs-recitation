@@ -35,7 +35,10 @@ import com.ancient.wenyan.ui.theme.*
 fun PracticeScreen(
     repository: WenYanRepository,
     onStartSession: (String, List<Pair<Flashcard, CardFsrsState>>) -> Unit,
-    onStartCloze: (Article) -> Unit
+    onStartCloze: (Article) -> Unit,
+    onOpenGaoKaoScenario: () -> Unit = {},
+    onOpenSnowball: (String) -> Unit = {},
+    onOpenCertificate: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
@@ -278,6 +281,64 @@ fun PracticeScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onPrimary
                                     )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                FilledTonalButton(
+                                    onClick = {
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
+                                        onOpenGaoKaoScenario()
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Quiz,
+                                        contentDescription = null,
+                                        tint = StudyBlueAccent
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "高考情境化理解性默写真题突破",
+                                        fontSize = 14.sp,
+                                        fontFamily = FontFamily.SansSerif,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                }
+
+                                val leechCards = remember { repository.getLeechCards() }
+                                if (leechCards.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    OutlinedButton(
+                                        onClick = {
+                                            hapticManager.tapLight()
+                                            soundManager.playClick()
+                                            onStartSession("难点攻坚错题集 · 顽固卡 (${leechCards.size}句)", leechCards)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(46.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, StreakFlame)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = null,
+                                            tint = StreakFlame
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "难点攻坚错题集 (${leechCards.size} 句屡错顽固卡)",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = StreakFlame
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -547,6 +608,35 @@ fun PracticeScreen(
                                 },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                SuggestionChip(
+                                    onClick = {
+                                        hapticManager.tapLight()
+                                        onOpenSnowball(article.id)
+                                    },
+                                    label = { Text("滚雪球串联", fontSize = 11.sp) },
+                                    icon = {
+                                        Icon(Icons.Default.Snowboarding, contentDescription = null, modifier = Modifier.size(14.dp), tint = StudyBlueAccent)
+                                    }
+                                )
+
+                                SuggestionChip(
+                                    onClick = {
+                                        hapticManager.tapLight()
+                                        onOpenCertificate(article.id)
+                                    },
+                                    label = { Text("文牒字帖", fontSize = 11.sp) },
+                                    icon = {
+                                        Icon(Icons.Default.WorkspacePremium, contentDescription = null, modifier = Modifier.size(14.dp), tint = StreakFlame)
+                                    }
+                                )
+                            }
                         }
                     }
                 }

@@ -1,11 +1,9 @@
 package com.ancient.wenyan.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,19 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.ancient.wenyan.domain.model.StudyGoalsConfig
 import com.ancient.wenyan.domain.model.StudyOrderPreference
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DailyGoalSettingsDialog(
     currentConfig: StudyGoalsConfig,
@@ -60,385 +55,432 @@ fun DailyGoalSettingsDialog(
         999 to "不设限"
     )
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, BorderSubtle, RoundedCornerShape(22.dp)),
-            shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = BgSurface),
-            elevation = CardDefaults.cardElevation(6.dp)
-        ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Header Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(StudyBlueLight, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Flag,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "每日背诵与复习目标",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "关闭",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Scrollable Content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(22.dp)
+                    .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
             ) {
-                // Header
+                // ==========================================
+                // Section 1: 每日新学句子上限
+                // ==========================================
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .background(StudyBlueLight, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Flag,
-                                contentDescription = null,
-                                tint = StudyBlueAccent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "每日背诵与复习目标",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "设定每日新学配额与复习负荷 (Anki风格)",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.SansSerif,
-                                color = TextTertiary
-                            )
-                        }
-                    }
-
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "关闭", tint = TextTertiary)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Section 1: Daily New Cards Limit
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.AddCircleOutline,
-                                    contentDescription = null,
-                                    tint = SuccessGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "每日新学句子上限",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            Text(
-                                text = if (newLimit >= 999) "不设限" else if (newLimit <= 0) "今日暂停新学" else "$newLimit 句/日",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StudyBlueAccent
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddCircleOutline,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "控制每日首次学习的新卡片数量。选 0 可进入“纯复习模式”消灭积压。",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "每日新学句子上限",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    // Inline Stepper
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val canMinus = newLimit > 0 && newLimit < 999
+                        val canPlus = newLimit < 100
+
+                        FilledTonalIconButton(
+                            onClick = {
+                                hapticManager.tapLight()
+                                newLimit = (newLimit - 5).coerceAtLeast(0)
+                            },
+                            enabled = canMinus,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Remove, contentDescription = "-5", modifier = Modifier.size(16.dp))
+                        }
+
+                        Text(
+                            text = if (newLimit >= 999) "不设限" else if (newLimit <= 0) "今日暂停" else "$newLimit 句/日",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = StudyBlueAccent,
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        FilledTonalIconButton(
+                            onClick = {
+                                hapticManager.tapLight()
+                                if (newLimit >= 999) newLimit = 20
+                                else newLimit = (newLimit + 5).coerceAtMost(100)
+                            },
+                            enabled = canPlus,
+                            modifier = Modifier.size(32.dp)
                         ) {
-                            newOptions.forEach { (count, label) ->
-                                val selected = (newLimit == count)
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        hapticManager.tapLight()
-                                        soundManager.playClick()
-                                        newLimit = count
-                                    },
-                                    label = { Text(text = label, fontSize = 12.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = StudyBlueLight,
-                                        selectedLabelColor = StudyBlueAccent
-                                    )
-                                )
-                            }
-                        }
-
-                        // Fine Adjustment Stepper
-                        if (newLimit in 1..998) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "微调：",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        hapticManager.tapLight()
-                                        newLimit = (newLimit - 5).coerceAtLeast(1)
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(Icons.Default.Remove, contentDescription = "-5", modifier = Modifier.size(16.dp))
-                                }
-                                Spacer(modifier = Modifier.width(6.dp))
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        hapticManager.tapLight()
-                                        newLimit = (newLimit + 5).coerceAtMost(100)
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = "+5", modifier = Modifier.size(16.dp))
-                                }
-                            }
+                            Icon(Icons.Default.Add, contentDescription = "+5", modifier = Modifier.size(16.dp))
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "控制每日首次学习的新卡片数量。选 0 可进入“纯复习模式”消灭积压。",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                // Section 2: Daily Review Cards Limit
-                OutlinedCard(
+                Spacer(modifier = Modifier.height(10.dp))
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Autorenew,
-                                    contentDescription = null,
-                                    tint = StreakFlame,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                    newOptions.forEach { (count, label) ->
+                        val selected = (newLimit == count)
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                newLimit = count
+                            },
+                            label = {
                                 Text(
-                                    text = "每日复习上限",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                                 )
-                            }
-                            Text(
-                                text = if (reviewLimit >= 999) "不设限" else "$reviewLimit 句/日",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StreakFlame
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = StudyBlueAccent,
+                                selectedLabelColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selected,
+                                borderColor = if (selected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
                             )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "限制今日最大复习卡片量，防范复习卡片滚雪球导致弃坑。",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            reviewOptions.forEach { (count, label) ->
-                                val selected = (reviewLimit == count)
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        hapticManager.tapLight()
-                                        soundManager.playClick()
-                                        reviewLimit = count
-                                    },
-                                    label = { Text(text = label, fontSize = 12.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = StreakFlame.copy(alpha = 0.12f),
-                                        selectedLabelColor = StreakFlame
-                                    )
-                                )
-                            }
-                        }
-
-                        // Fine Adjustment Stepper
-                        if (reviewLimit in 1..998) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "微调：",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        hapticManager.tapLight()
-                                        reviewLimit = (reviewLimit - 10).coerceAtLeast(10)
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(Icons.Default.Remove, contentDescription = "-10", modifier = Modifier.size(16.dp))
-                                }
-                                Spacer(modifier = Modifier.width(6.dp))
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        hapticManager.tapLight()
-                                        reviewLimit = (reviewLimit + 10).coerceAtMost(500)
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = "+10", modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                )
 
-                // Section 3: Study Order Preference
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.SwapVert,
-                                contentDescription = null,
-                                tint = StudyBlueAccent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "卡片出题优先顺序",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        StudyOrderPreference.entries.forEach { pref ->
-                            val isSelected = (orderPref == pref)
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clickable {
-                                        hapticManager.tapLight()
-                                        soundManager.playClick()
-                                        orderPref = pref
-                                    },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) StudyBlueLight else Color.Transparent,
-                                border = if (isSelected) null else androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = isSelected,
-                                        onClick = {
-                                            hapticManager.tapLight()
-                                            soundManager.playClick()
-                                            orderPref = pref
-                                        },
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = StudyBlueAccent
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text(
-                                            text = pref.displayName,
-                                            fontSize = 13.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = pref.description,
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Actions
+                // ==========================================
+                // Section 2: 每日复习上限
+                // ==========================================
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
-                        Text("取消", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(
+                            imageVector = Icons.Default.Autorenew,
+                            contentDescription = null,
+                            tint = StudyBlueAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "每日复习上限",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
 
-                    Button(
-                        onClick = {
-                            hapticManager.tapLight()
-                            soundManager.playClick()
-                            onConfirm(
-                                StudyGoalsConfig(
-                                    dailyNewLimit = newLimit,
-                                    dailyReviewLimit = reviewLimit,
-                                    orderPreference = orderPref
+                    // Inline Stepper
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val canMinus = reviewLimit > 10 && reviewLimit < 999
+                        val canPlus = reviewLimit < 500
+
+                        FilledTonalIconButton(
+                            onClick = {
+                                hapticManager.tapLight()
+                                reviewLimit = (reviewLimit - 10).coerceAtLeast(10)
+                            },
+                            enabled = canMinus,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Remove, contentDescription = "-10", modifier = Modifier.size(16.dp))
+                        }
+
+                        Text(
+                            text = if (reviewLimit >= 999) "不设限" else "$reviewLimit 句/日",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = StudyBlueAccent,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+
+                        FilledTonalIconButton(
+                            onClick = {
+                                hapticManager.tapLight()
+                                if (reviewLimit >= 999) reviewLimit = 50
+                                else reviewLimit = (reviewLimit + 10).coerceAtMost(500)
+                            },
+                            enabled = canPlus,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "+10", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "限制今日最大复习卡片量，防范复习卡片滚雪球导致弃坑。",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    reviewOptions.forEach { (count, label) ->
+                        val selected = (reviewLimit == count)
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                reviewLimit = count
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = StudyBlueAccent,
+                                selectedLabelColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selected,
+                                borderColor = if (selected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+                            )
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                )
+
+                // ==========================================
+                // Section 3: 卡片出题优先顺序
+                // ==========================================
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.SwapVert,
+                        contentDescription = null,
+                        tint = StudyBlueAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "卡片出题优先顺序",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                StudyOrderPreference.entries.forEach { pref ->
+                    val isSelected = (orderPref == pref)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                orderPref = pref
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) StudyBlueLight else Color.Transparent,
+                        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.2.dp, StudyBlueAccent) else androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    hapticManager.tapLight()
+                                    soundManager.playClick()
+                                    orderPref = pref
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = StudyBlueAccent
                                 )
                             )
-                        },
-                        modifier = Modifier.weight(1.3f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = StudyBlueAccent)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = pref.displayName,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) StudyBlueAccent else MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = pref.description,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // Sticky Bottom Action Bar
+            Surface(
+                tonalElevation = 2.dp,
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                            .navigationBarsPadding(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("保存目标", color = Color.White, fontWeight = FontWeight.Bold)
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("取消", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        Button(
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                onConfirm(
+                                    StudyGoalsConfig(
+                                        dailyNewLimit = newLimit,
+                                        dailyReviewLimit = reviewLimit,
+                                        orderPreference = orderPref
+                                    )
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .height(44.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = StudyBlueAccent)
+                        ) {
+                            Text("保存目标", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

@@ -74,6 +74,18 @@ class FSRSEngine(
         return min(max(round(interval).toInt(), 1), maximumInterval)
     }
 
+    /**
+     * Apply standard FSRS discrete fuzzing factor (+-5%) to avoid review clustering/avalanche
+     * for cards with scheduled intervals >= 3 days.
+     */
+    fun applyFuzz(interval: Int, cardId: String): Int {
+        if (interval < 3) return interval
+        val hash = kotlin.math.abs(cardId.hashCode())
+        val maxFuzz = max(1, (interval * 0.05).roundToInt())
+        val delta = (hash % (2 * maxFuzz + 1)) - maxFuzz
+        return min(max(interval + delta, 1), maximumInterval)
+    }
+
     fun initialStability(rating: Rating): Double {
         return max(weights[rating.value - 1] * recitationStabilityFactor, 0.001)
     }
@@ -320,6 +332,11 @@ class FSRSEngine(
             }
         }
 
+        if (nextState == CardState.REVIEW && scheduledDays >= 3) {
+            scheduledDays = applyFuzz(scheduledDays, card.cardId)
+            dueMillis = nowMillis + scheduledDays * 86_400_000L
+        }
+
         val updatedCard = card.copy(
             state = nextState,
             step = nextStep,
@@ -330,7 +347,8 @@ class FSRSEngine(
             reps = card.reps + 1,
             lapses = lapses,
             lastReviewTime = nowMillis,
-            dueTime = dueMillis
+            dueTime = dueMillis,
+            isLeech = lapses >= 4
         )
 
         val log = ReviewLog(

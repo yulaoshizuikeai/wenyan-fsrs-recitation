@@ -19,6 +19,11 @@ import com.ancient.wenyan.domain.model.RecitationOrderMode
 import com.ancient.wenyan.domain.model.StudyGoalsConfig
 import com.ancient.wenyan.domain.model.StudyOrderPreference
 import com.ancient.wenyan.domain.model.TodayStudyProgress
+import com.ancient.wenyan.data.db.AppDatabase
+import com.ancient.wenyan.data.db.DatabaseMigrationHelper
+import com.ancient.wenyan.data.db.entities.CardStateEntity
+import com.ancient.wenyan.data.db.entities.DailyRecordEntity
+import com.ancient.wenyan.data.db.entities.ReviewLogEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -45,6 +51,10 @@ class WenYanRepository(
     val fsrsEngine: FSRSEngine = FSRSEngine()
 ) {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val database: AppDatabase? by lazy {
+        context?.let { AppDatabase.getInstance(it) }
+    }
 
     private val cardsStateMap = java.util.concurrent.ConcurrentHashMap<String, CardFsrsState>()
     private val reviewLogs = java.util.concurrent.CopyOnWriteArrayList<ReviewLog>()
@@ -123,6 +133,44 @@ class WenYanRepository(
         initializeHeatmap()
         loadPersistedActiveSession()
         _todayStudyProgressFlow.value = computeTodayProgress()
+
+        context?.let { ctx ->
+            database?.let { db ->
+                repositoryScope.launch {
+                    try {
+                        DatabaseMigrationHelper.migrateIfNeeded(ctx, db)
+                        loadFromRoomDatabase(db)
+                    } catch (_: Exception) {
+                        // Resilient to background DB initialization delays
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun loadFromRoomDatabase(db: AppDatabase) {
+        val entities = db.cardStateDao().getAllCardStates()
+        if (entities.isNotEmpty()) {
+            for (entity in entities) {
+                cardsStateMap[entity.cardId] = entity.toDomain()
+            }
+            _statsFlow.value = computeStats()
+        }
+        val dbLogs = db.reviewLogDao().getAllReviewLogs()
+        if (dbLogs.isNotEmpty()) {
+            synchronized(reviewLogs) {
+                reviewLogs.clear()
+                reviewLogs.addAll(dbLogs.map { it.toDomain() })
+            }
+        }
+        val dbDaily = db.dailyRecordDao().getAllDailyRecords()
+        if (dbDaily.isNotEmpty()) {
+            for (rec in dbDaily) {
+                dailyReviewMap[rec.date] = rec.reviewCount
+            }
+            _heatmapStatsFlow.value = computeHeatmapStats()
+            _todayStudyProgressFlow.value = computeTodayProgress()
+        }
     }
 
     private fun loadPreferences() {
@@ -293,6 +341,12 @@ class WenYanRepository(
         return cardsStateMap[cardId] ?: CardFsrsState(cardId = cardId)
     }
 
+    fun getAllCardStates(): List<CardFsrsState> {
+        return synchronized(cardsStateMap) {
+            cardsStateMap.values.toList()
+        }
+    }
+
     // ========================================================================
     // Review Rating & FSRS Submission
     // ========================================================================
@@ -311,8 +365,8 @@ class WenYanRepository(
         synchronized(reviewLogs) {
             reviewLogs.add(result.reviewLog)
         }
-        persistReviewLogs()
-        persistCardStates()
+        persistReviewLogs(result.reviewLog)
+        persistCardStates(result.updatedCard)
 
         // Auto-tune every 20 reviews asynchronously in background if enabled and sufficient logs
         val logCount = synchronized(reviewLogs) { reviewLogs.size }
@@ -746,9 +800,24 @@ class WenYanRepository(
         prefs?.edit()?.putBoolean("pref_reminder_enabled", enabled)?.apply()
     }
 
-    private fun persistReviewLogs() {
+    private fun persistReviewLogs(newLog: ReviewLog? = null) {
+        // Persist to Room SQLite without 500-item hardcoded truncation
+        database?.let { db ->
+            repositoryScope.launch {
+                try {
+                    if (newLog != null) {
+                        db.reviewLogDao().insertLog(ReviewLogEntity.fromDomain(newLog))
+                    } else {
+                        val logsToSave = synchronized(reviewLogs) { reviewLogs.map { ReviewLogEntity.fromDomain(it) } }
+                        db.reviewLogDao().insertLogs(logsToSave)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
+        // Secondary backup to SharedPreferences (keeping up to 2000 for fallback)
         prefs?.let { sp ->
-            val recentLogs = reviewLogs.takeLast(500)
+            val recentLogs = reviewLogs.takeLast(2000)
             val sb = StringBuilder()
             for (log in recentLogs) {
                 sb.append("${log.cardId}|${log.rating.name}|${log.previousState.name}|${log.currentState.name}|${log.stability}|${log.difficulty}|${log.elapsedDays}|${log.scheduledDays}|${log.reviewTime}\n")
@@ -757,7 +826,22 @@ class WenYanRepository(
         }
     }
 
-    private fun persistCardStates() {
+    private fun persistCardStates(updatedCard: CardFsrsState? = null) {
+        database?.let { db ->
+            repositoryScope.launch {
+                try {
+                    if (updatedCard != null) {
+                        db.cardStateDao().upsertCardState(CardStateEntity.fromDomain(updatedCard))
+                    } else {
+                        val cardsToSave = synchronized(cardsStateMap) {
+                            cardsStateMap.values.map { CardStateEntity.fromDomain(it) }
+                        }
+                        db.cardStateDao().upsertCardStates(cardsToSave)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
         prefs?.let { sp ->
             val nonNewCards = synchronized(cardsStateMap) {
                 cardsStateMap.values.filter {
@@ -769,6 +853,14 @@ class WenYanRepository(
                 sb.append("${c.cardId}|${c.state.name}|${c.step ?: ""}|${c.stability}|${c.difficulty}|${c.elapsedDays}|${c.scheduledDays}|${c.reps}|${c.lapses}|${c.lastReviewTime ?: ""}|${c.dueTime}\n")
             }
             sp.edit().putString(PREF_CARD_STATES_KEY, sb.toString()).apply()
+        }
+    }
+
+    fun getLeechCards(): List<Pair<Flashcard, CardFsrsState>> {
+        val leechStates = cardsStateMap.values.filter { it.isLeech }
+        return leechStates.mapNotNull { state ->
+            val fc = CurriculumDataSource.getFlashcard(state.cardId)
+            if (fc != null) Pair(fc, state) else null
         }
     }
 
@@ -897,21 +989,23 @@ class WenYanRepository(
     // FSRS Parameter Optimization & Settings
     // ========================================================================
 
-    suspend fun optimizeFSRSParameters(): OptimizationResult = withContext(Dispatchers.Default) {
-        val logs = synchronized(reviewLogs) { reviewLogs.toList() }
-        val result = FSRSOptimizer.optimize(logs, fsrsEngine.weights)
-        if (result.success) {
-            fsrsEngine.updateParameters(newWeights = result.optimizedWeights)
-            saveFSRSSettingsToPrefs(
-                weights = result.optimizedWeights,
-                retention = fsrsEngine.requestRetention,
-                factor = fsrsEngine.recitationStabilityFactor,
-                maxInterval = fsrsEngine.maximumInterval,
-                lastOptimized = System.currentTimeMillis()
-            )
-            _statsFlow.value = computeStats()
+    suspend fun optimizeFSRSParameters(): OptimizationResult = FSRSOptimizer.optimizationMutex.withLock {
+        withContext(Dispatchers.Default) {
+            val logs = synchronized(reviewLogs) { reviewLogs.toList() }
+            val result = FSRSOptimizer.optimize(logs, fsrsEngine.weights)
+            if (result.success) {
+                fsrsEngine.updateParameters(newWeights = result.optimizedWeights)
+                saveFSRSSettingsToPrefs(
+                    weights = result.optimizedWeights,
+                    retention = fsrsEngine.requestRetention,
+                    factor = fsrsEngine.recitationStabilityFactor,
+                    maxInterval = fsrsEngine.maximumInterval,
+                    lastOptimized = System.currentTimeMillis()
+                )
+                _statsFlow.value = computeStats()
+            }
+            result
         }
-        result
     }
 
     fun updateFSRSSettings(

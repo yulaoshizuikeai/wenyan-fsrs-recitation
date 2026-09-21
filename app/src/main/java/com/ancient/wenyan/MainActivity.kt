@@ -73,6 +73,9 @@ sealed class OverlayScreen {
     ) : OverlayScreen()
     data class Cloze(val article: Article) : OverlayScreen()
     data object Settings : OverlayScreen()
+    data object GaoKaoScenario : OverlayScreen()
+    data class SnowballRecitation(val articleId: String = "art_chibifu") : OverlayScreen()
+    data class CertificateAndCopybook(val articleId: String = "art_chibifu") : OverlayScreen()
 }
 
 // State holder for OverlayScreen to preserve recitation and settings overlay state across configuration changes (Bug 4.2)
@@ -81,6 +84,9 @@ object OverlayScreenStateHolder {
         return when (screen) {
             null -> null
             is OverlayScreen.Settings -> arrayListOf("SETTINGS")
+            is OverlayScreen.GaoKaoScenario -> arrayListOf("GAOKAO_SCENARIO")
+            is OverlayScreen.SnowballRecitation -> arrayListOf("SNOWBALL", screen.articleId)
+            is OverlayScreen.CertificateAndCopybook -> arrayListOf("CERTIFICATE", screen.articleId)
             is OverlayScreen.Cloze -> arrayListOf("CLOZE", screen.article.id)
             is OverlayScreen.Flashcards -> {
                 val active = repository.getActiveSession()
@@ -107,6 +113,15 @@ object OverlayScreenStateHolder {
             is List<*> -> {
                 when (saved.getOrNull(0) as? String) {
                     "SETTINGS" -> OverlayScreen.Settings
+                    "GAOKAO_SCENARIO" -> OverlayScreen.GaoKaoScenario
+                    "SNOWBALL" -> {
+                        val articleId = saved.getOrNull(1) as? String ?: "art_chibifu"
+                        OverlayScreen.SnowballRecitation(articleId)
+                    }
+                    "CERTIFICATE" -> {
+                        val articleId = saved.getOrNull(1) as? String ?: "art_chibifu"
+                        OverlayScreen.CertificateAndCopybook(articleId)
+                    }
                     "CLOZE" -> {
                         val articleId = saved.getOrNull(1) as? String
                         val article = articleId?.let { CurriculumDataSource.ARTICLE_MAP[it] }
@@ -238,6 +253,26 @@ class MainActivity : ComponentActivity() {
                                 SettingsScreen(
                                     repository = repository,
                                     onBack = { overlayScreen = null }
+                                )
+                            }
+
+                            is OverlayScreen.GaoKaoScenario -> {
+                                GaoKaoScenarioScreen(
+                                    onNavigateBack = { overlayScreen = null }
+                                )
+                            }
+
+                            is OverlayScreen.SnowballRecitation -> {
+                                SnowballRecitationScreen(
+                                    articleId = screen.articleId,
+                                    onNavigateBack = { overlayScreen = null }
+                                )
+                            }
+
+                            is OverlayScreen.CertificateAndCopybook -> {
+                                CertificateAndCopybookScreen(
+                                    articleId = screen.articleId,
+                                    onNavigateBack = { overlayScreen = null }
                                 )
                             }
 
@@ -468,6 +503,15 @@ class MainActivity : ComponentActivity() {
                                                         },
                                                         onStartCloze = { article ->
                                                             overlayScreen = OverlayScreen.Cloze(article)
+                                                        },
+                                                        onOpenGaoKaoScenario = {
+                                                            overlayScreen = OverlayScreen.GaoKaoScenario
+                                                        },
+                                                        onOpenSnowball = { artId ->
+                                                            overlayScreen = OverlayScreen.SnowballRecitation(artId)
+                                                        },
+                                                        onOpenCertificate = { artId ->
+                                                            overlayScreen = OverlayScreen.CertificateAndCopybook(artId)
                                                         }
                                                     )
                                                 }

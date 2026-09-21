@@ -4,6 +4,78 @@
 
 ---
 
+## [v1.5.6] - 2026-09-21
+
+### 🎨 设置中心与目标设置弹窗 UI/UX 体验深度重构 (Settings & Goals UI/UX Overhaul)
+- **设置列表页去零碎化与卡片收拢 (Card Overkill Resolution)**：
+  - 彻底打破“一功能一独立卡片”造成的视觉割裂与信息密度过稀问题，收拢整合为 **3 大语义化分组大卡片**（学习与调度、偏好与教材、数据与关于）；
+  - 内部采用 Material 3 标准精致内缩分割线（避开左侧 38dp 图标与文字边缘），界面屏占比大幅提升。
+- **信息层级纯净化与防折行控制 (Header Noise & Overflow Control)**：
+  - 移除所有分组头副标题与 TopAppBar 冗余副标，归还清爽阅读呼吸感；
+  - 精简条目状态描述并增加 `maxLines = 1` 与 `TextOverflow.Ellipsis`，从根本上杜绝“100”与“句”孤立折行。
+- **调色板规范化与高危操作阻断提示 (Design Tokens & Danger Indication)**：
+  - 统一功能项图标为品牌科技蓝 `StudyBlueAccent`，消除原先五颜六色的视觉噪音；
+  - 高危操作“重置所有背诵数据”标题加粗标红（`DueRed`），右侧增加醒目红色“重置”指示标，强化用户操作阻断心智。
+- **彻底根除“文字增多把左侧 SVG 挤上去”布局缺陷 (Vertical Center Lock)**：
+  - 摒弃 M3 `ListItem` 在多行模式下强制将 `leadingContent` 顶端对齐的黑盒行为；
+  - 采用全受控 `Row(verticalAlignment = Alignment.CenterVertically)`，配合 38dp 尺寸锁定与中间 `Modifier.weight(1f)`，确保无论文字多少行，左侧图标始终稳固处在几何垂直居中轴线上。
+- **目标设置弹窗升级为自适应 M3 `ModalBottomSheet` (Dialog to BottomSheet)**：
+  - 彻底根除居中弹窗底部“出题优先顺序”被屏幕边缘截断遮挡的严重缺陷；
+  - 顶部配备标准 Drag Handle，中间区域支持流畅垂直滚动，底部常驻固定“取消 / 保存目标”操作栏，杜绝误触与遮挡。
+- **扁平化结构与行内步进器 (Inline Stepper)**：
+  - 移除内部多层嵌套卡片（嵌套边框叠加），改用通透的单向垂直线性流；
+  - 将加减微调按钮直接合流并入右上角数值栏 `[ − ] 20 句/日 [ + ]`，大幅释放纵向空间，触控热区达标且提供微触感震动反馈。
+- **高对比度激活 Chip (High-Contrast Active State)**：
+  - 统一新学与复习模块的 Chip 样式：选中态为饱和蓝底白字加粗，未选态为灰底灰字，彻底解决选中态难以辨认的问题。
+
+### 🏛️ Room SQLite 离线数据库底座与数据无损平滑迁移 (Room Offline DB & Uncapped Logs)
+- **Room 架构体系落地**：
+  - 声明 `CardStateEntity`、`ReviewLogEntity`、`DailyRecordEntity`，建立规范的 `@Dao` 数据访问层；
+  - 彻底解耦过往 SharedPreferences 管道符拼接序列化，消除单 XML 膨胀与主线程 I/O 阻塞；
+  - 编写 `DatabaseMigrationHelper`，冷启动自动检测并无缝迁移旧版用户卡片状态、复习记录与每日打卡数据；
+  - **解除 500 条复习日志硬编码截断**，全面记录全生命周期复习记录，为离线算法参数调优提供真实全量数据支持。
+- **无障碍触摸靶与 Edge-to-Edge 视觉规范**：
+  - 重构 `RecitationHeatmapCard` 打卡热力图，网格单元交互区域扩展至符合无障碍标准的触摸靶，加入涟漪动效与周次对齐。
+
+### 🎓 高考实战赋能：情境化默写、LCS 智能评测与长文滚雪球 (GaoKao Pedagogy & Snowball Recitation)
+- **历年高考情境化理解性默写专项 (`GaoKaoScenarioScreen`)**：
+  - 紧扣高考名篇考点，内置高频真题题库与易错通假字、古今异义采分点提点；
+  - 卡片正面呈现情境提示，背面高亮考点与失分陷阱，支持答案即时对比与评分提交。
+- **端侧轻量 LCS 动态规划比对引擎 (`RecitationDiffEngine`)**：
+  - 基于最长公共子序列（Longest Common Subsequence）算法，毫秒级比对学生默写与原文；
+  - 精确标记错字（Wrong）、漏字（Missing）、多字（Extra），输出高精度准确率评估。
+- **长篇诗文“滚雪球”串联背诵 (`SnowballRecitationScreen`)**：
+  - 针对《赤壁赋》、《蜀道难》、《琵琶行》等长篇古文，提供渐进式上下文累加记忆流程：
+    - 阶段一：背诵首联
+    - 阶段二：遮挡连背 1+2 联
+    - 阶段三：遮挡连背 1+2+3 联……直至全篇通背；
+  - 彻底攻克“单句会背、通篇连不起来”的断层痛点。
+
+### 🔬 FSRS-5 算法极致攻坚：19 参数 Nelder-Mead 调优、Leech 熔断与 Fuzz 扰动
+- **Nelder-Mead 19 参数本地离线联合优化 (`FSRSOptimizer`)**：
+  - 废弃网格搜索，引入纯 Kotlin 实现的 Nelder-Mead 多维单纯形寻优算法；
+  - 结合二元交叉熵损失（Log Loss）与生理单调性惩罚函数（$w_0 \le w_1 \le w_2 \le w_3$），对全部 19 个参数实现真正的端侧全局拟合；
+  - 引入 `Mutex` 互斥锁保护，彻底消除快速连续翻卡时并发调优的竞态写入。
+- **顽固漏卡 (Leech) 自动熔断与难点攻坚**：
+  - 统计卡片累计遗忘次数（`lapses >= 4`），自动标记为 Leech 顽固卡并熔断常规队列刷屏；
+  - 在练习中心开辟“顽固卡专项突破”专区，集中攻坚核心生僻字词。
+- **同文防碰撞离散扰动 (Fuzzing Factor)**：
+  - 对调度天数 $\ge 3$ 天的卡片施加 $\pm 5\%$ 离散扰动，防止同篇课文同一天集中到期引发“复习雪崩”。
+
+### 🌐 全域生态：纯 Kotlin WebDAV 多端备份与硬笔字帖导出
+- **WebDAV / 本地数据全量同步 (`WebDavBackupManager`)**：
+  - 支持学生在手机、折叠屏与平板间无缝流转复习进度与打卡热力图；
+  - 采用零依赖纯 Kotlin JSON 构建与解析，保障跨平台运行的高性能与轻量性。
+- **结业文牒成就海报与米字格硬笔楷书字帖 (`CertificateAndCopybookScreen`)**：
+  - 掌握度达标时自动颁发国风结业文牒，附带朱砂印章、宣纸底纹与篆书评语；
+  - 一键生成米字格楷书临摹练习帖，打通“眼脑口手”全感官记忆闭环。
+- **练习中心 (`PracticeScreen`) 全面重构**：
+  - 统一收拢“高考情境默写”、“长文滚雪球”、“楷书字帖临摹”与“顽固卡攻坚”四大核心能力。
+- **全面严密的自动化测试基准**：
+  - 扩充单元测试至 134 项（10 个完整测试套件），全面覆盖 Room 迁移、Nelder-Mead 调优、LCS 评测、滚雪球流转与 WebDAV 闭环。
+
+---
+
 ## [v1.5.5] - 2026-09-21
 
 ### 🎯 每日背诵学习目标 (Anki风格) 与全新独立设置中心 (Daily Goals & Settings Center)
