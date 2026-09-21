@@ -18,14 +18,12 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.ArticleProgress
@@ -48,18 +46,13 @@ fun ChapterTreeScreen(
     val hapticManager = remember { HapticManager.getInstance(context) }
 
     // Observe statsFlow so that when user completes flashcards/cloze, progress in tree updates reactively
-    val stats by repository.statsFlow.collectAsStateWithLifecycle()
+    val stats by repository.statsFlow.collectAsState()
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var filterGaoKaoOnly by rememberSaveable { mutableStateOf(false) }
 
     // Default to emptySet(): all modules start collapsed (no default expansion)
-    var expandedModuleIds by rememberSaveable(
-        stateSaver = listSaver<Set<String>, String>(
-            save = { it.toList() },
-            restore = { it.toSet() }
-        )
-    ) { mutableStateOf(emptySet()) }
+    var expandedModuleIds by remember { mutableStateOf(emptySet<String>()) }
 
     var selectedArticleForModal by remember { mutableStateOf<Article?>(null) }
 
@@ -100,6 +93,7 @@ fun ChapterTreeScreen(
 
     Scaffold(
         modifier = modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -305,7 +299,10 @@ fun ChapterTreeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
@@ -491,18 +488,21 @@ fun ArticleItemRow(
         }
 
         Column(horizontalAlignment = Alignment.End) {
+            val rawMastery = progress.masteryPercentage
+            val safeMastery = if (rawMastery.isNaN() || rawMastery.isInfinite()) 0f else rawMastery.coerceIn(0f, 100f)
+            val progressFraction = safeMastery / 100f
             Text(
-                text = "${progress.masteryPercentage.toInt()}% 掌握",
+                text = "${safeMastery.toInt()}% 掌握",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
-                color = if (progress.masteryPercentage >= 80f) SuccessGreen else TextTertiary
+                color = if (safeMastery >= 80f) SuccessGreen else TextTertiary
             )
             LinearProgressIndicator(
-                progress = { (progress.masteryPercentage / 100f).coerceIn(0f, 1f) },
+                progress = { progressFraction },
                 modifier = Modifier
                     .width(60.dp)
                     .height(4.dp)
                     .padding(top = 4.dp),
-                color = if (progress.masteryPercentage >= 80f) SuccessGreen else StudyBlueAccent,
+                color = if (safeMastery >= 80f) SuccessGreen else StudyBlueAccent,
                 trackColor = BgSurfaceMuted
             )
         }

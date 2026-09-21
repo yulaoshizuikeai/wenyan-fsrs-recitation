@@ -278,13 +278,16 @@ fun OnboardingTutorialDialog(
                         },
                         modifier = Modifier.weight(if (currentStep > 0) 1.2f else 1f),
                         shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = StudyNavy)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     ) {
                         Text(
                             text = if (currentStep < steps.size - 1) "下一步" else "完成指引，开始背诵",
                             fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }

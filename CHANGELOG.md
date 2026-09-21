@@ -4,6 +4,30 @@
 
 ---
 
+## [v1.5.3] - 2026-09-21
+
+### 🛡️ 篇目文库崩溃根治与全屏排版留白优化 (Crash Elimination & Layout Insets Optimization)
+- **篇目文库切换崩溃彻底根治**：
+  - 移除了在非标准导航容器下易因 LifecycleOwner 状态未就绪导致崩溃的 `collectAsStateWithLifecycle()`，改用标准的 Compose `collectAsState()`；
+  - 彻底清理 `expandedModuleIds` 中使用 `listSaver<Set<String>, String>` 导致 `SaveableStateRegistry` 注册失败与 Bundle 序列化抛出 `IllegalArgumentException` 的致命隐患；
+  - 为文库列表进度条 `LinearProgressIndicator` 增加全面的 `safeMastery`、`NaN` 与 `Infinite` 防御，彻底杜绝底层 Android Canvas 在绘制非有限浮点数时闪退；
+  - 内层 `Scaffold` 显式设置 `contentWindowInsets = WindowInsets(0, 0, 0, 0)`，根除双重 Scaffold 嵌套测量冲突。
+- **主标题上方双重状态栏留空根治**：
+  - 修复根 `Scaffold` 默认将系统状态栏高度计入 `innerPadding` 导致外层下沉一次、子界面 `TopAppBar` 再次消费状态栏而产生的**双重状态栏叠加（80dp+ 巨大留白空白）**；
+  - 根 `Scaffold` 的 `contentWindowInsets` 显式设置为 `WindowInsets(0, 0, 0, 0)`，仅保留底部导航栏边距，各子界面 `TopAppBar` 贴顶并精确适配单倍系统状态栏，页面视觉恢复精致紧凑。
+- **闪卡切题防剧透与评级防抖**：
+  - 卡片 3D 翻转动画与状态使用 `key(currentIndex, currentCard.id)` 实现各卡片严格隔离，切题瞬间新卡必定以 0° 正面呈现，彻底消除上一张卡片 180° 反向旋转导致的瞬时答案剧透；
+  - 为“重来”、“困难”、“良好”、“简单”评级按钮加入状态防抖（`isTransitioning`），杜绝快速连击导致的重复扣除或多次提交 FSRS 评级；
+  - 优化“重来”卡片的队列插入机制，确保至少间隔 3 张卡片或顺承原序插入，避免瞬间作弊式复现。
+- **FSRS-5 算法跨自然日与短周期稳定性加固**：
+  - 跨天计算由过去的绝对 24 小时毫秒除法全面升级为自然日历比较（`ChronoUnit.DAYS.between`），解决夜间 23:50 背诵与次日 08:00 晨读被误判定为同一次复习的缺陷；
+  - 修正 `shortTermStability` 中 `HARD` 评级约束（`rating.value >= 3` 保持 `>= 1.0`，使困难评级能够正常生效短期惩罚）；
+  - 全面防护稳定性与难度入参 `NaN`。
+- **深色模式（Dark Theme）全界面高对比度修复**：
+  - 统一重构 `BookSelectionDialog`、`ReminderSettingsDialog`、`OnboardingTutorialDialog`、`PracticeScreen`、`DashboardScreen`、`ChapterTreeScreen` 底部确认/主操作按钮颜色，彻底告别深色模式下使用浅灰 `StudyNavy` 配纯白文字所产生的 1.2:1 白底白字可读性灾难，严格对齐 Material 3 主题 `primary` / `onPrimary` 规范。
+
+---
+
 ## [v1.5.2] - 2026-09-21
 
 ### 🚀 彻底根治滑动闪退与线程并发崩溃 (Root Cause Fix: Gesture & Concurrency Stability)

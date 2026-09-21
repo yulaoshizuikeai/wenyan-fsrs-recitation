@@ -17,6 +17,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -179,13 +181,15 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     },
+                                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                                     containerColor = MaterialTheme.colorScheme.background
                                 ) { innerPadding ->
                                     var totalDragX by remember { mutableFloatStateOf(0f) }
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(innerPadding)
+                                            .padding(bottom = innerPadding.calculateBottomPadding())
+                                            .consumeWindowInsets(innerPadding)
                                             .pointerInput(selectedTab) {
                                                 detectHorizontalDragGestures(
                                                     onDragStart = { totalDragX = 0f },

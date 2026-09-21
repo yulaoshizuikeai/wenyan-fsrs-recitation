@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -122,13 +123,16 @@ fun FlipCardScreen(
                             soundManager.playClick()
                             onBack()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
                     ) {
-                        Text("返回主页", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                        Text("返回主页", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -138,7 +142,6 @@ fun FlipCardScreen(
 
     val sessionQueue = remember(cards) { mutableStateListOf(*cards.toTypedArray()) }
     var currentIndex by remember(initialIndex) { mutableIntStateOf(initialIndex.coerceIn(0, (cards.size - 1).coerceAtLeast(0))) }
-    var isFlipped by remember { mutableStateOf(false) }
     var completedCount by remember(initialCompletedCount) { mutableIntStateOf(initialCompletedCount) }
     var isFinished by remember { mutableStateOf(false) }
 
@@ -264,7 +267,10 @@ fun FlipCardScreen(
                                 soundManager.playClick()
                                 onBack()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
@@ -274,7 +280,8 @@ fun FlipCardScreen(
                                 text = "返回主页查验足迹",
                                 fontFamily = FontFamily.SansSerif,
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
@@ -284,28 +291,17 @@ fun FlipCardScreen(
         return
     }
 
+    var isTransitioning by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentIndex) {
+        isTransitioning = false
+    }
+
     val currentPair = sessionQueue.getOrNull(currentIndex) ?: sessionQueue.last()
     val (currentCard, currentCardState) = currentPair
     val intervalPreviews = remember(currentCardState) {
         repository.fsrsEngine.previewIntervals(currentCardState)
     }
-
-    // 3D Flip Animation Specs with dynamic physical elevation
-    val flipRotation by animateFloatAsState(
-        targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "card_flip_rotation"
-    )
-
-    // Dynamic elevation: lifts up during mid-flip
-    val cardElevation by animateDpAsState(
-        targetValue = if (abs(flipRotation - 90f) < 45f) 10.dp else 2.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-        label = "card_flip_elevation"
-    )
 
     Scaffold(
         topBar = {
@@ -374,6 +370,8 @@ fun FlipCardScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        var isFlipped by rememberSaveable(currentIndex, currentCard.id) { mutableStateOf(false) }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -381,46 +379,60 @@ fun FlipCardScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Flashcard with 3D Flip & Elevation
-            OutlinedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .graphicsLayer {
-                        rotationY = flipRotation
-                        cameraDistance = 16f * density
-                    }
-                    .clickable {
-                        isFlipped = !isFlipped
-                        soundManager.playFlip()
-                        hapticManager.cardFlip()
-                    },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.outlinedCardElevation(defaultElevation = cardElevation)
-            ) {
-                Box(
+            // Flashcard with 3D Flip & Elevation, keyed per card to prevent timing spoiler
+            key(currentIndex, currentCard.id) {
+                val flipRotation by animateFloatAsState(
+                    targetValue = if (isFlipped) 180f else 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "card_flip_rotation"
+                )
+                val cardElevation by animateDpAsState(
+                    targetValue = if (isFlipped) 8.dp else 2.dp,
+                    label = "card_elevation"
+                )
+
+                OutlinedCard(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
+                        .fillMaxWidth()
+                        .weight(1f)
                         .graphicsLayer {
-                            // Invert content horizontally when flipped so text isn't mirrored
-                            if (flipRotation > 90f) {
-                                rotationY = 180f
-                            }
+                            rotationY = flipRotation
+                            cameraDistance = 16f * density
                         }
+                        .clickable {
+                            isFlipped = !isFlipped
+                            soundManager.playFlip()
+                            hapticManager.cardFlip()
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = cardElevation)
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .padding(24.dp)
+                            .graphicsLayer {
+                                // Invert content horizontally when flipped so text isn't mirrored
+                                if (flipRotation > 90f) {
+                                    rotationY = 180f
+                                }
+                            }
                     ) {
-                        // Mode Pill Header (Front: Prompt vs Back: Answer + Sequential Position)
-                        val isBack = flipRotation > 90f
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            // Mode Pill Header (Front: Prompt vs Back: Answer + Sequential Position)
+                            val isBack = flipRotation > 90f
                         val modeLabel = if (isBack) {
                             "【背面 · 填空正解与对照】"
                         } else {
@@ -625,6 +637,7 @@ fun FlipCardScreen(
                     }
                 }
             }
+            }
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -632,7 +645,7 @@ fun FlipCardScreen(
             if (!isFlipped) {
                 BouncyButton(
                     text = "显示答案",
-                    containerColor = StudyNavy,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     onClick = {
                         isFlipped = true
                         soundManager.playFlip()
@@ -654,18 +667,21 @@ fun FlipCardScreen(
                         color = DueRed,
                         modifier = Modifier.weight(1f)
                     ) {
+                        if (isTransitioning) return@BouncyFsrsRatingButton
+                        isTransitioning = true
                         soundManager.playWrong()
                         hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.AGAIN)
                         val updatedState = repository.getCardState(currentCard.id)
-                        // 顺承原序：将重来卡片就近插入当前篇目的末尾重温，绝不跨篇甩到全队列最末打乱语脉
+                        // 顺承原序：将重来卡片就近插入当前篇目末尾，并至少间隔3张卡避免瞬时记忆作弊
                         var lastIndexInArticle = currentIndex
                         for (i in (currentIndex + 1) until sessionQueue.size) {
                             if (sessionQueue[i].first.articleId == currentCard.articleId) {
                                 lastIndexInArticle = i
                             }
                         }
-                        val insertPos = (lastIndexInArticle + 1).coerceAtMost(sessionQueue.size)
+                        val idealPos = maxOf(currentIndex + 3, lastIndexInArticle + 1)
+                        val insertPos = idealPos.coerceAtMost(sessionQueue.size)
                         sessionQueue.add(insertPos, Pair(currentCard, updatedState))
                         // 重来不算作完成，不递增 completedCount
                         isFlipped = false
@@ -680,6 +696,8 @@ fun FlipCardScreen(
                         color = WarningGold,
                         modifier = Modifier.weight(1f)
                     ) {
+                        if (isTransitioning) return@BouncyFsrsRatingButton
+                        isTransitioning = true
                         soundManager.playHard()
                         hapticManager.warningThud()
                         repository.submitRating(currentCard.id, Rating.HARD)
@@ -701,6 +719,8 @@ fun FlipCardScreen(
                         color = SuccessGreen,
                         modifier = Modifier.weight(1f)
                     ) {
+                        if (isTransitioning) return@BouncyFsrsRatingButton
+                        isTransitioning = true
                         soundManager.playCorrect()
                         hapticManager.successPulse()
                         repository.submitRating(currentCard.id, Rating.GOOD)
@@ -722,6 +742,8 @@ fun FlipCardScreen(
                         color = StudyBlueAccent,
                         modifier = Modifier.weight(1f)
                     ) {
+                        if (isTransitioning) return@BouncyFsrsRatingButton
+                        isTransitioning = true
                         soundManager.playEasy()
                         hapticManager.successPulse()
                         repository.submitRating(currentCard.id, Rating.EASY)

@@ -106,11 +106,12 @@ class FSRSEngine(
     }
 
     fun shortTermStability(s: Double, rating: Rating): Double {
+        val safeS = if (s.isNaN() || s <= 0.0) 0.001 else s
         var sInc = exp(weights[17] * (rating.value - 3.0 + weights[18]))
-        if (rating.value >= 2) {
+        if (rating.value >= 3) {
             sInc = max(sInc, 1.0)
         }
-        return max(s * sInc, 0.001)
+        return max(safeS * sInc, 0.001)
     }
 
     fun formatDurationBadge(millis: Long): String {
@@ -153,8 +154,20 @@ class FSRSEngine(
         rating: Rating,
         nowMillis: Long = System.currentTimeMillis()
     ): NextStateResult {
-        val elapsedDays = if (card.lastReviewTime == null) 0 else max(0, ((nowMillis - card.lastReviewTime) / 86_400_000L).toInt())
-        val isSameDay = card.lastReviewTime != null && elapsedDays < 1
+        val elapsedDays = if (card.lastReviewTime == null) 0 else {
+            try {
+                val zone = java.time.ZoneId.systemDefault()
+                val lastDate = java.time.Instant.ofEpochMilli(card.lastReviewTime).atZone(zone).toLocalDate()
+                val currentDate = java.time.Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+                java.time.temporal.ChronoUnit.DAYS.between(lastDate, currentDate).toInt().coerceAtLeast(0)
+            } catch (_: Exception) {
+                max(0, ((nowMillis - card.lastReviewTime) / 86_400_000L).toInt())
+            }
+        }
+        val isSameDay = card.lastReviewTime != null && elapsedDays == 0
+
+        val safeStability = if (card.stability.isNaN() || card.stability <= 0.0) 0.001 else card.stability
+        val safeDifficulty = if (card.difficulty.isNaN()) 5.0 else card.difficulty.coerceIn(1.0, 10.0)
 
         val newStability: Double
         val newDifficulty: Double
@@ -166,30 +179,30 @@ class FSRSEngine(
             }
             CardState.LEARNING, CardState.RELEARNING -> {
                 if (isSameDay) {
-                    newStability = shortTermStability(card.stability, rating)
-                    newDifficulty = nextDifficulty(card.difficulty, rating)
+                    newStability = shortTermStability(safeStability, rating)
+                    newDifficulty = nextDifficulty(safeDifficulty, rating)
                 } else {
-                    val r = retrievability(elapsedDays, card.stability)
+                    val r = retrievability(elapsedDays, safeStability)
                     newStability = if (rating == Rating.AGAIN) {
-                        nextForgetStability(card.difficulty, card.stability, r)
+                        nextForgetStability(safeDifficulty, safeStability, r)
                     } else {
-                        nextRecallStability(card.difficulty, card.stability, r, rating)
+                        nextRecallStability(safeDifficulty, safeStability, r, rating)
                     }
-                    newDifficulty = nextDifficulty(card.difficulty, rating)
+                    newDifficulty = nextDifficulty(safeDifficulty, rating)
                 }
             }
             CardState.REVIEW -> {
                 if (isSameDay) {
-                    newStability = shortTermStability(card.stability, rating)
+                    newStability = shortTermStability(safeStability, rating)
                 } else {
-                    val r = retrievability(elapsedDays, card.stability)
+                    val r = retrievability(elapsedDays, safeStability)
                     newStability = if (rating == Rating.AGAIN) {
-                        nextForgetStability(card.difficulty, card.stability, r)
+                        nextForgetStability(safeDifficulty, safeStability, r)
                     } else {
-                        nextRecallStability(card.difficulty, card.stability, r, rating)
+                        nextRecallStability(safeDifficulty, safeStability, r, rating)
                     }
                 }
-                newDifficulty = nextDifficulty(card.difficulty, rating)
+                newDifficulty = nextDifficulty(safeDifficulty, rating)
             }
         }
 

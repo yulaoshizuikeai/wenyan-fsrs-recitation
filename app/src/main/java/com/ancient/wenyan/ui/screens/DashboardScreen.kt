@@ -569,14 +569,17 @@ fun DashboardScreen(
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .scale(reviewScale),
-                            colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Psychology,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp),
-                                tint = Color.White
+                                tint = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -584,10 +587,14 @@ fun DashboardScreen(
                                 fontSize = 15.sp,
                                 fontFamily = FontFamily.SansSerif,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "➔", fontSize = 14.sp, color = Color.White.copy(alpha = 0.85f))
+                            Text(
+                                text = "➔",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                            )
                         }
                     }
                 }

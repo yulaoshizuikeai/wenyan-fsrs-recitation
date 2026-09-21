@@ -259,17 +259,24 @@ fun PracticeScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(50.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "开启 72 篇专项背诵 (20题)",
                                         fontSize = 15.sp,
                                         fontFamily = FontFamily.SansSerif,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = MaterialTheme.colorScheme.onPrimary
                                     )
                                 }
                             }
@@ -451,16 +458,24 @@ fun PracticeScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(50.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Shuffle, contentDescription = null)
+                                    Icon(
+                                        imageVector = Icons.Default.Shuffle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "开始跨篇目随机背诵",
                                         fontSize = 15.sp,
                                         fontFamily = FontFamily.SansSerif,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
                                     )
                                 }
                             }

@@ -139,4 +139,63 @@ class BookSelectionAndHeatmapTest {
         val stateAfterClear = repository.getCardState(firstCard.id)
         assertEquals(com.ancient.wenyan.domain.fsrs.CardState.NEW, stateAfterClear.state)
     }
+
+    // ========================================================================
+    // 4. Chapter Tree Library & FSRS Robustness Regression Tests
+    // ========================================================================
+
+    @Test
+    fun test09_chapterTreeModulesAndProgressSafety() {
+        val modules = repository.getModules()
+        assertEquals("Must have exactly 11 curriculum modules", 11, modules.size)
+
+        var totalArticlesFound = 0
+        for (module in modules) {
+            val articles = repository.getArticlesByModule(module.id)
+            assertTrue("Module ${module.name} must have articles", articles.isNotEmpty())
+            totalArticlesFound += articles.size
+
+            for (article in articles) {
+                val progress = repository.getArticleProgress(article.id)
+                assertEquals(article.id, progress.articleId)
+                assertFalse("Mastery percentage must never be NaN for ${article.title}", progress.masteryPercentage.isNaN())
+                assertFalse("Mastery percentage must never be Infinite for ${article.title}", progress.masteryPercentage.isInfinite())
+                assertTrue("Mastery percentage must be within 0..100 for ${article.title}", progress.masteryPercentage in 0f..100f)
+                assertTrue("Total cards must be >= 0", progress.totalCards >= 0)
+            }
+        }
+        assertEquals("Total articles across all modules must be 100", 100, totalArticlesFound)
+    }
+
+    @Test
+    fun test10_fsrsCalendarDayAndShortTermStability() {
+        val engine = repository.fsrsEngine
+
+        // 1. Verify midnight calendar-day calculation
+        // Review at 23:50 today, review again at 08:00 tomorrow (8h10m gap, but DIFFERENT calendar day)
+        val zone = java.time.ZoneId.systemDefault()
+        val todayNight = java.time.LocalDate.now().atTime(23, 50).atZone(zone).toInstant().toEpochMilli()
+        val tomorrowMorning = java.time.LocalDate.now().plusDays(1).atTime(8, 0).atZone(zone).toInstant().toEpochMilli()
+
+        val card = com.ancient.wenyan.domain.fsrs.CardFsrsState(
+            cardId = "test_card",
+            state = com.ancient.wenyan.domain.fsrs.CardState.REVIEW,
+            stability = 5.0,
+            difficulty = 5.0,
+            lastReviewTime = todayNight
+        )
+
+        val result = engine.evaluateReview(card, Rating.GOOD, tomorrowMorning)
+        // Since it's a new calendar day, elapsedDays should be 1 (NOT same-day short term)
+        assertTrue("Interval should reflect full recall stability update across calendar days", result.updatedCard.scheduledDays >= 1)
+
+        // 2. Short term stability check for HARD vs GOOD
+        val initialS = 4.0
+        val hardS = engine.shortTermStability(initialS, Rating.HARD)
+        val goodS = engine.shortTermStability(initialS, Rating.GOOD)
+
+        assertTrue("GOOD short-term stability should not decrease", goodS >= initialS)
+        assertTrue("HARD short-term stability should be strictly less than GOOD", hardS < goodS)
+    }
 }
+
