@@ -34,4 +34,6 @@ Thumbs.db
 .agents/
 .github/skills/
 skills/
+skills-lock.json
+tools/
 wenyan_link
