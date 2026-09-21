@@ -90,6 +90,7 @@ jobs:
           retention-days: 30
 
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.tag_name != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.prepare_artifacts.outputs.tag_name }}
@@ -99,4 +100,4 @@ jobs:
             release_assets/SHA256SUMS.txt
           generate_release_notes: true
           draft: false
-          prerelease: ${{ steps.prepare_artifacts.outputs.is_release_tag == 'false' }}
+          prerelease: false
