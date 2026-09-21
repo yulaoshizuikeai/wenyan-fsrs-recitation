@@ -365,7 +365,7 @@ fun DashboardScreen(
             // ----------------------------------------------------------------
             // 1. Mission Header: Today's Recitation Objective & Quick Jump
             // ----------------------------------------------------------------
-            item {
+            item(key = "mission_header_row") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -443,7 +443,7 @@ fun DashboardScreen(
             // ----------------------------------------------------------------
             // 2. Focused Core Memory Mission Card (M3 OutlinedCard)
             // ----------------------------------------------------------------
-            item {
+            item(key = "fsrs_status_card") {
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -596,7 +596,7 @@ fun DashboardScreen(
             // ----------------------------------------------------------------
             // 3. Classical Quote Card: Minimalist M3 OutlinedCard
             // ----------------------------------------------------------------
-            item {
+            item(key = "daily_quote_card") {
                 OutlinedCard(
                     onClick = {
                         hapticManager.tapLight()
@@ -677,7 +677,7 @@ fun DashboardScreen(
             // ----------------------------------------------------------------
             // 4. Quick Practice Dual Tiles
             // ----------------------------------------------------------------
-            item {
+            item(key = "quick_practice_tiles") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)

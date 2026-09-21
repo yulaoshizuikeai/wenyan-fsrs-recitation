@@ -157,8 +157,11 @@ fun RecitationHeatmapCard(
 
             // Interactive Heatmap Grid (Scrollable horizontally)
             val scrollState = rememberScrollState()
-            LaunchedEffect(Unit) {
-                // Scroll to the latest weeks on initial render
+            LaunchedEffect(scrollState) {
+                // Scroll to the latest weeks once layout measurement provides a valid maxValue
+                snapshotFlow { scrollState.maxValue }
+                    .filter { it > 0 && it < Int.MAX_VALUE }
+                    .first()
                 scrollState.scrollTo(scrollState.maxValue)
             }
 

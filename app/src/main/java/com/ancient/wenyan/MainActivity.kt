@@ -10,12 +10,15 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -23,7 +26,9 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -66,7 +71,6 @@ sealed class OverlayScreen {
 }
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -93,18 +97,15 @@ class MainActivity : ComponentActivity() {
                     val soundManager = remember { SoundEffectManager.getInstance(context) }
                     val hapticManager = remember { HapticManager.getInstance(context) }
 
-                    val pagerState = rememberPagerState(initialPage = 0, pageCount = { MainTab.entries.size })
-                    val coroutineScope = rememberCoroutineScope()
+                    var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
                     var overlayScreen by remember { mutableStateOf<OverlayScreen?>(null) }
 
                     // Navigation BackHandler
-                    BackHandler(enabled = overlayScreen != null || pagerState.currentPage != 0) {
+                    BackHandler(enabled = overlayScreen != null || selectedTab != MainTab.TODAY) {
                         if (overlayScreen != null) {
                             overlayScreen = null
-                        } else if (pagerState.currentPage != 0) {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(0)
-                            }
+                        } else if (selectedTab != MainTab.TODAY) {
+                            selectedTab = MainTab.TODAY
                         }
                     }
 
@@ -143,16 +144,14 @@ class MainActivity : ComponentActivity() {
                                             tonalElevation = 3.dp
                                         ) {
                                             MainTab.entries.forEach { tab ->
-                                                val selected = (pagerState.currentPage == tab.ordinal)
+                                                val selected = (selectedTab == tab)
                                                 NavigationBarItem(
                                                     selected = selected,
                                                     onClick = {
-                                                        if (pagerState.currentPage != tab.ordinal) {
+                                                        if (selectedTab != tab) {
                                                             hapticManager.tapLight()
                                                             soundManager.playClick()
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(tab.ordinal)
-                                                            }
+                                                            selectedTab = tab
                                                         }
                                                     },
                                                     icon = {
@@ -182,16 +181,66 @@ class MainActivity : ComponentActivity() {
                                     },
                                     containerColor = MaterialTheme.colorScheme.background
                                 ) { innerPadding ->
+                                    var totalDragX by remember { mutableFloatStateOf(0f) }
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(innerPadding)
+                                            .pointerInput(selectedTab) {
+                                                detectHorizontalDragGestures(
+                                                    onDragStart = { totalDragX = 0f },
+                                                    onHorizontalDrag = { _, dragAmount ->
+                                                        totalDragX += dragAmount
+                                                    },
+                                                    onDragEnd = {
+                                                        val threshold = 72.dp.toPx()
+                                                        if (totalDragX < -threshold) {
+                                                            val nextOrdinal = (selectedTab.ordinal + 1).coerceAtMost(MainTab.entries.size - 1)
+                                                            if (nextOrdinal != selectedTab.ordinal) {
+                                                                hapticManager.tapLight()
+                                                                soundManager.playClick()
+                                                                selectedTab = MainTab.entries[nextOrdinal]
+                                                            }
+                                                        } else if (totalDragX > threshold) {
+                                                            val prevOrdinal = (selectedTab.ordinal - 1).coerceAtLeast(0)
+                                                            if (prevOrdinal != selectedTab.ordinal) {
+                                                                hapticManager.tapLight()
+                                                                soundManager.playClick()
+                                                                selectedTab = MainTab.entries[prevOrdinal]
+                                                            }
+                                                        }
+                                                    }
+                                                )
+                                            }
                                     ) {
-                                        HorizontalPager(
-                                            state = pagerState,
-                                            modifier = Modifier.fillMaxSize()
-                                        ) { page ->
-                                            when (MainTab.entries[page]) {
+                                        AnimatedContent(
+                                            targetState = selectedTab,
+                                            transitionSpec = {
+                                                if (targetState.ordinal > initialState.ordinal) {
+                                                    (slideInHorizontally(
+                                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                                        initialOffsetX = { fullWidth -> fullWidth }
+                                                    ) + fadeIn(tween(220))).togetherWith(
+                                                        slideOutHorizontally(
+                                                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                                            targetOffsetX = { fullWidth -> -fullWidth }
+                                                        ) + fadeOut(tween(180))
+                                                    )
+                                                } else {
+                                                    (slideInHorizontally(
+                                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                                        initialOffsetX = { fullWidth -> -fullWidth }
+                                                    ) + fadeIn(tween(220))).togetherWith(
+                                                        slideOutHorizontally(
+                                                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                                            targetOffsetX = { fullWidth -> fullWidth }
+                                                        ) + fadeOut(tween(180))
+                                                    )
+                                                }
+                                            },
+                                            label = "main_tab_slide_transition"
+                                        ) { tab ->
+                                            when (tab) {
                                                 MainTab.TODAY -> {
                                                     DashboardScreen(
                                                         repository = repository,
@@ -265,9 +314,7 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         },
                                                         onNavigateToPractice = {
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(MainTab.PRACTICE.ordinal)
-                                                            }
+                                                            selectedTab = MainTab.PRACTICE
                                                         }
                                                     )
                                                 }
@@ -276,9 +323,7 @@ class MainActivity : ComponentActivity() {
                                                     ChapterTreeScreen(
                                                         repository = repository,
                                                         onBack = {
-                                                            coroutineScope.launch {
-                                                                pagerState.animateScrollToPage(MainTab.TODAY.ordinal)
-                                                            }
+                                                            selectedTab = MainTab.TODAY
                                                         },
                                                         onStartFlashcards = { article ->
                                                             val fcs = repository.getFlashcardsForArticle(article.id)

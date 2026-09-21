@@ -4,6 +4,24 @@
 
 ---
 
+## [v1.5.2] - 2026-09-21
+
+### 🚀 彻底根治滑动闪退与线程并发崩溃 (Root Cause Fix: Gesture & Concurrency Stability)
+- **主界面手势与导航解耦重构**：
+  - 彻底拔除导致手势冲突与 `SubcomposeLayout` 递归度量崩溃的 `HorizontalPager` 嵌套大架构；
+  - 采用现代单向数据流（UDF）驱动的 `AnimatedContent` 方向感知平滑横滑切页，配合轻量级 `detectHorizontalDragGestures` 阻尼阈值手势判断；
+  - 完美保障四大主 Tab（今日背诵、篇目文库、专项练习、研墨足迹）在左右跟手滑动手势与底部导航栏点击时如丝般顺滑，彻底杜绝触摸滑动即闪退的顽疾；
+  - 纵向 `LazyColumn` 滚动与横向切页手势完全分离，阻尼与触摸斜率自然分流，消除上下滑动时的误判卡死。
+- **热力图坐标溢出崩溃修复**：
+  - 修复 `RecitationHeatmapCard` 在首帧测量前 `scrollState.maxValue` 为 `Int.MAX_VALUE` 时直接调用 `scrollTo()` 导致坐标溢出奔溃的严重隐患；
+  - 恢复并加固响应式 `snapshotFlow` 布局就绪监听，严格在测量得到有效像素值时执行视口平移。
+- **仓储层高并发线程安全加固**：
+  - 将 `WenYanRepository` 中的卡片状态映射与日志集合全面升级为 `ConcurrentHashMap` 与 `CopyOnWriteArrayList`，彻底根除高并发状态计算下的 `ConcurrentModificationException`。
+- **全局非捕获异常兜底防御**：
+  - 在 `WenYanApp` 注册全局 `UncaughtExceptionHandler` 与持久化日志记录（`crash.log`），全方位增强极端 OEM 系统环境下的容灾自愈与诊断能力。
+
+---
+
 ## [v1.5.1] - 2026-09-21
 
 ### 🛡️ 启动崩溃与机型兼容性紧急修复 (Crash & Compatibility Fix)

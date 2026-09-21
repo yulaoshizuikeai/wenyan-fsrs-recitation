@@ -43,9 +43,9 @@ class WenYanRepository(
 ) {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val cardsStateMap = mutableMapOf<String, CardFsrsState>()
-    private val reviewLogs = mutableListOf<ReviewLog>()
-    private val dailyReviewMap = mutableMapOf<String, Int>()
+    private val cardsStateMap = java.util.concurrent.ConcurrentHashMap<String, CardFsrsState>()
+    private val reviewLogs = java.util.concurrent.CopyOnWriteArrayList<ReviewLog>()
+    private val dailyReviewMap = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     private val prefs: SharedPreferences? by lazy {
         context?.getSharedPreferences("wenyan_study_prefs", Context.MODE_PRIVATE)
