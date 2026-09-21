@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,7 +36,8 @@ import com.ancient.wenyan.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FootprintScreen(
-    repository: WenYanRepository
+    repository: WenYanRepository,
+    onOpenSettings: () -> Unit = {}
 ) {
     val heatmapStats by repository.heatmapStatsFlow.collectAsState()
     val context = LocalContext.current
@@ -104,6 +107,21 @@ fun FootprintScreen(
                         color = TextPrimary
                     )
                 },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            onOpenSettings()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "系统设置中心",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgCanvas)
             )
         },
@@ -124,14 +142,89 @@ fun FootprintScreen(
 
             // System Utilities & Guidance Header
             item {
-                Text(
-                    text = "背诵设置与偏好",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "背诵偏好与管理",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.SansSerif,
+                        color = TextPrimary
+                    )
+                    TextButton(
+                        onClick = {
+                            hapticManager.tapLight()
+                            soundManager.playClick()
+                            onOpenSettings()
+                        }
+                    ) {
+                        Text("进入设置中心", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = StudyBlueAccent)
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = StudyBlueAccent)
+                    }
+                }
+            }
+
+            // All-in-one Settings Center Card
+            item {
+                OutlinedCard(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        onOpenSettings()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
+                ) {
+                    ListItem(
+                        leadingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(StudyBlueLight, RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = StudyBlueAccent,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        },
+                        headlineContent = {
+                            Text(
+                                text = "文言背诵设置中心",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                text = "学习复习目标、FSRS算法、定时提醒、音效触感等子菜单",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
+                }
             }
 
             // Feedback Preferences (Sound & Haptics) Tile

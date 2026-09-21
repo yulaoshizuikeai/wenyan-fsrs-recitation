@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
 import com.ancient.wenyan.domain.model.Article
@@ -70,7 +72,91 @@ sealed class OverlayScreen {
         val sessionType: String = "GENERAL"
     ) : OverlayScreen()
     data class Cloze(val article: Article) : OverlayScreen()
+    data object Settings : OverlayScreen()
 }
+
+// State holder for OverlayScreen to preserve recitation and settings overlay state across configuration changes (Bug 4.2)
+object OverlayScreenStateHolder {
+    fun save(screen: OverlayScreen?, repository: WenYanRepository): Any? {
+        return when (screen) {
+            null -> null
+            is OverlayScreen.Settings -> arrayListOf("SETTINGS")
+            is OverlayScreen.Cloze -> arrayListOf("CLOZE", screen.article.id)
+            is OverlayScreen.Flashcards -> {
+                val active = repository.getActiveSession()
+                val (idx, count, cardIds) = if (active != null && active.id == screen.sessionId) {
+                    Triple(active.currentIndex, active.completedCount, active.cardIds)
+                } else {
+                    Triple(screen.initialIndex, screen.initialCompletedCount, screen.cards.map { it.first.id })
+                }
+                arrayListOf(
+                    "FLASHCARDS",
+                    screen.title,
+                    screen.sessionId,
+                    screen.sessionType,
+                    idx,
+                    count,
+                    ArrayList(cardIds)
+                )
+            }
+        }
+    }
+
+    fun restore(saved: Any?, repository: WenYanRepository): OverlayScreen? {
+        return when (saved) {
+            is List<*> -> {
+                when (saved.getOrNull(0) as? String) {
+                    "SETTINGS" -> OverlayScreen.Settings
+                    "CLOZE" -> {
+                        val articleId = saved.getOrNull(1) as? String
+                        val article = articleId?.let { CurriculumDataSource.ARTICLE_MAP[it] }
+                        if (article != null) OverlayScreen.Cloze(article) else null
+                    }
+                    "FLASHCARDS" -> {
+                        val title = saved.getOrNull(1) as? String ?: ""
+                        val sessionId = saved.getOrNull(2) as? String ?: "session_default"
+                        val sessionType = saved.getOrNull(3) as? String ?: "GENERAL"
+                        val index = (saved.getOrNull(4) as? Number)?.toInt() ?: 0
+                        val count = (saved.getOrNull(5) as? Number)?.toInt() ?: 0
+                        @Suppress("UNCHECKED_CAST")
+                        val cardIds = (saved.getOrNull(6) as? List<String>) ?: emptyList()
+
+                        val active = repository.getActiveSession()
+                        val (actualIndex, actualCount, actualCards) = if (active != null && active.id == sessionId && !active.isComplete) {
+                            val restored = repository.restoreCardsForSession(active)
+                            Triple(active.currentIndex, active.completedCount, restored)
+                        } else {
+                            val restored = cardIds.mapNotNull { id ->
+                                val fc = CurriculumDataSource.getFlashcard(id)
+                                if (fc != null) Pair(fc, repository.getCardState(id)) else null
+                            }
+                            Triple(index, count, restored)
+                        }
+
+                        if (actualCards.isNotEmpty()) {
+                            OverlayScreen.Flashcards(
+                                title = title,
+                                cards = actualCards,
+                                initialIndex = actualIndex,
+                                initialCompletedCount = actualCount,
+                                sessionId = sessionId,
+                                sessionType = sessionType
+                            )
+                        } else null
+                    }
+                    else -> null
+                }
+            }
+            else -> null
+        }
+    }
+}
+
+internal fun overlayScreenSaver(repository: WenYanRepository): Saver<MutableState<OverlayScreen?>, Any> =
+    Saver(
+        save = { state -> OverlayScreenStateHolder.save(state.value, repository) },
+        restore = { saved -> mutableStateOf(OverlayScreenStateHolder.restore(saved, repository)) }
+    )
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,7 +186,11 @@ class MainActivity : ComponentActivity() {
                     val hapticManager = remember { HapticManager.getInstance(context) }
 
                     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
-                    var overlayScreen by remember { mutableStateOf<OverlayScreen?>(null) }
+                    var overlayScreen by rememberSaveable(
+                        saver = remember(repository) { overlayScreenSaver(repository) }
+                    ) {
+                        mutableStateOf<OverlayScreen?>(null)
+                    }
 
                     // Navigation BackHandler
                     BackHandler(enabled = overlayScreen != null || selectedTab != MainTab.TODAY) {
@@ -127,13 +217,26 @@ class MainActivity : ComponentActivity() {
                                     initialIndex = screen.initialIndex,
                                     initialCompletedCount = screen.initialCompletedCount,
                                     sessionId = screen.sessionId,
-                                    sessionType = screen.sessionType
+                                    sessionType = screen.sessionType,
+                                    onProgressUpdate = { idx, count ->
+                                        overlayScreen = screen.copy(
+                                            initialIndex = idx,
+                                            initialCompletedCount = count
+                                        )
+                                    }
                                 )
                             }
 
                             is OverlayScreen.Cloze -> {
                                 ClozeRecitationScreen(
                                     article = screen.article,
+                                    onBack = { overlayScreen = null }
+                                )
+                            }
+
+                            is OverlayScreen.Settings -> {
+                                SettingsScreen(
+                                    repository = repository,
                                     onBack = { overlayScreen = null }
                                 )
                             }
@@ -319,6 +422,9 @@ class MainActivity : ComponentActivity() {
                                                         },
                                                         onNavigateToPractice = {
                                                             selectedTab = MainTab.PRACTICE
+                                                        },
+                                                        onOpenSettings = {
+                                                            overlayScreen = OverlayScreen.Settings
                                                         }
                                                     )
                                                 }
@@ -367,7 +473,12 @@ class MainActivity : ComponentActivity() {
                                                 }
 
                                                 MainTab.FOOTPRINT -> {
-                                                    FootprintScreen(repository = repository)
+                                                    FootprintScreen(
+                                                        repository = repository,
+                                                        onOpenSettings = {
+                                                            overlayScreen = OverlayScreen.Settings
+                                                        }
+                                                    )
                                                 }
                                             }
                                         }

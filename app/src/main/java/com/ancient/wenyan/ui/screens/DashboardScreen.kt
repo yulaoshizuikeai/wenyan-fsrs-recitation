@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.ActiveSession
+import com.ancient.wenyan.ui.components.DailyGoalSettingsDialog
 import com.ancient.wenyan.ui.components.BookSelectionDialog
 import com.ancient.wenyan.ui.components.FSRSConfigDialog
 import com.ancient.wenyan.ui.components.FeedbackPreferencesDialog
@@ -89,6 +90,7 @@ fun DashboardScreen(
     onStartTodayReview: () -> Unit,
     onStartGaoKaoReview: () -> Unit,
     onNavigateToPractice: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onResumeActiveSession: (ActiveSession) -> Unit = {}
 ) {
     val stats by repository.statsFlow.collectAsState()
@@ -96,6 +98,8 @@ fun DashboardScreen(
     val selectedBookName by repository.selectedBookName.collectAsState()
     val heatmapStats by repository.heatmapStatsFlow.collectAsState()
     val activeSession by repository.activeSessionFlow.collectAsState()
+    val studyGoals by repository.studyGoalsConfig.collectAsState()
+    val todayProgress by repository.todayStudyProgressFlow.collectAsState()
 
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
@@ -103,8 +107,8 @@ fun DashboardScreen(
     var isSoundEnabled by remember { mutableStateOf(soundManager.isSoundEnabled) }
 
     var showBookDialog by remember { mutableStateOf(false) }
-    var showFeedbackDialog by remember { mutableStateOf(false) }
     var showFSRSConfigDialog by remember { mutableStateOf(false) }
+    var showDailyGoalDialog by remember { mutableStateOf(false) }
 
     // Rotating daily quote based on day-of-year, tap to cycle
     val dayOfYear = remember { LocalDate.now().dayOfYear }
@@ -135,9 +139,14 @@ fun DashboardScreen(
         )
     }
 
-    if (showFeedbackDialog) {
-        FeedbackPreferencesDialog(
-            onDismiss = { showFeedbackDialog = false }
+    if (showDailyGoalDialog) {
+        DailyGoalSettingsDialog(
+            currentConfig = studyGoals,
+            onDismiss = { showDailyGoalDialog = false },
+            onConfirm = { newConfig ->
+                repository.setStudyGoalsConfig(newConfig)
+                showDailyGoalDialog = false
+            }
         )
     }
 
@@ -187,36 +196,6 @@ fun DashboardScreen(
                 }
             },
             actions = {
-                // FSRS Algorithm Settings & Auto-Tuning
-                IconButton(
-                    onClick = {
-                        hapticManager.tapLight()
-                        soundManager.playClick()
-                        showFSRSConfigDialog = true
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Psychology,
-                        contentDescription = "FSRS 记忆算法与参数设置",
-                        tint = StudyBlueAccent
-                    )
-                }
-
-                // Settings & sensory sandbox
-                IconButton(
-                    onClick = {
-                        hapticManager.tapLight()
-                        soundManager.playClick()
-                        showFeedbackDialog = true
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = "音效与震动偏好",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
                 // Quick mute/unmute
                 IconButton(
                     onClick = {
@@ -231,6 +210,21 @@ fun DashboardScreen(
                         imageVector = if (isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                         contentDescription = "音效开关",
                         tint = if (isSoundEnabled) StudyBlueAccent else MaterialTheme.colorScheme.outline
+                    )
+                }
+
+                // Dedicated Settings Entry to SettingsScreen
+                IconButton(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        onOpenSettings()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "设置中心与子菜单",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
@@ -437,6 +431,186 @@ fun DashboardScreen(
                             borderColor = MaterialTheme.colorScheme.outlineVariant
                         )
                     )
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // 1.5 Today's Study & Review Goals Progress Card (Anki 每日学习目标看板)
+            // ----------------------------------------------------------------
+            item(key = "daily_goals_progress_card") {
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(StudyBlueLight, RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Flag,
+                                        contentDescription = null,
+                                        tint = StudyBlueAccent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "今日学习目标",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = studyGoals.orderPreference.displayName,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    hapticManager.tapLight()
+                                    soundManager.playClick()
+                                    showDailyGoalDialog = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("调整目标", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Target 1: New Cards Today
+                        val newTargetStr = if (studyGoals.dailyNewLimit >= 999) "不限" else if (studyGoals.dailyNewLimit <= 0) "暂停新学" else "${studyGoals.dailyNewLimit} 句"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(SuccessGreen, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "新学目标",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "已学 ${todayProgress.todayNewLearned} / $newTargetStr",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (todayProgress.isNewGoalReached) SuccessGreen else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        LinearProgressIndicator(
+                            progress = { todayProgress.newProgressPercentage },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = SuccessGreen,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Target 2: Review Cards Today
+                        val reviewTargetStr = if (studyGoals.dailyReviewLimit >= 999) "不限" else "${studyGoals.dailyReviewLimit} 句"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(StreakFlame, CircleShape)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "复习目标",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "已复习 ${todayProgress.todayReviewed} / $reviewTargetStr",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (todayProgress.isReviewGoalReached) StreakFlame else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        LinearProgressIndicator(
+                            progress = { todayProgress.reviewProgressPercentage },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = StreakFlame,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+
+                        // If both goals reached, show celebratory badge
+                        if (todayProgress.isNewGoalReached && todayProgress.isReviewGoalReached) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = SuccessGreen.copy(alpha = 0.12f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = SuccessGreen,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "今日设定的背诵目标已全部圆满达成！",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SuccessGreen
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

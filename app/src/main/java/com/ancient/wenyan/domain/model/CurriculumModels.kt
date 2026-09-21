@@ -82,3 +82,29 @@ data class ArticleProgress(
     val lastStudiedTime: Long? = null
 )
 
+enum class StudyOrderPreference(val displayName: String, val description: String) {
+    REVIEW_FIRST("先复习后新学", "优先完成到期复习以防遗忘堆积，再学习新卡片（Anki 经典推荐）"),
+    NEW_FIRST("先新学后复习", "精力充沛时先接触新篇章，随后完成旧卡复习"),
+    MIXED("混合顺承排布", "依照篇章原文结构自然混合穿插新旧句子")
+}
+
+data class StudyGoalsConfig(
+    val dailyNewLimit: Int = 20,
+    val dailyReviewLimit: Int = 100,
+    val orderPreference: StudyOrderPreference = StudyOrderPreference.REVIEW_FIRST
+)
+
+data class TodayStudyProgress(
+    val todayNewLearned: Int = 0,
+    val targetNew: Int = 20,
+    val todayReviewed: Int = 0,
+    val targetReview: Int = 100
+) {
+    val isNewGoalReached: Boolean get() = if (targetNew <= 0) true else todayNewLearned >= targetNew
+    val isReviewGoalReached: Boolean get() = if (targetReview <= 0) true else todayReviewed >= targetReview
+    val newProgressPercentage: Float
+        get() = if (targetNew <= 0) 1.0f else (todayNewLearned.toFloat() / targetNew.toFloat()).coerceIn(0f, 1f)
+    val reviewProgressPercentage: Float
+        get() = if (targetReview <= 0) 1.0f else (todayReviewed.toFloat() / targetReview.toFloat()).coerceIn(0f, 1f)
+}
+

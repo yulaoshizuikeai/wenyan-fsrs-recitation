@@ -59,7 +59,8 @@ fun FlipCardScreen(
     initialIndex: Int = 0,
     initialCompletedCount: Int = 0,
     sessionId: String = "session_default",
-    sessionType: String = "GENERAL"
+    sessionType: String = "GENERAL",
+    onProgressUpdate: ((currentIndex: Int, completedCount: Int) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
@@ -143,7 +144,7 @@ fun FlipCardScreen(
     val sessionQueue = remember(cards) { mutableStateListOf(*cards.toTypedArray()) }
     var currentIndex by remember(initialIndex) { mutableIntStateOf(initialIndex.coerceIn(0, (cards.size - 1).coerceAtLeast(0))) }
     var completedCount by remember(initialCompletedCount) { mutableIntStateOf(initialCompletedCount) }
-    var isFinished by remember { mutableStateOf(false) }
+    var isFinished by rememberSaveable { mutableStateOf(false) }
 
     fun persistCurrentSession(idx: Int, count: Int) {
         if (sessionQueue.isNotEmpty() && idx < sessionQueue.size) {
@@ -163,6 +164,7 @@ fun FlipCardScreen(
 
     LaunchedEffect(Unit) {
         persistCurrentSession(currentIndex, completedCount)
+        onProgressUpdate?.invoke(currentIndex, completedCount)
     }
 
     val isSessionComplete = isFinished || (sessionQueue.isNotEmpty() && currentIndex >= sessionQueue.size)
@@ -688,6 +690,7 @@ fun FlipCardScreen(
                         val nextIdx = currentIndex + 1
                         currentIndex = nextIdx
                         persistCurrentSession(nextIdx, completedCount)
+                        onProgressUpdate?.invoke(nextIdx, completedCount)
                     }
 
                     BouncyFsrsRatingButton(
@@ -711,6 +714,7 @@ fun FlipCardScreen(
                         } else {
                             persistCurrentSession(nextIdx, nextCount)
                         }
+                        onProgressUpdate?.invoke(nextIdx, nextCount)
                     }
 
                     BouncyFsrsRatingButton(
@@ -734,6 +738,7 @@ fun FlipCardScreen(
                         } else {
                             persistCurrentSession(nextIdx, nextCount)
                         }
+                        onProgressUpdate?.invoke(nextIdx, nextCount)
                     }
 
                     BouncyFsrsRatingButton(
@@ -757,6 +762,7 @@ fun FlipCardScreen(
                         } else {
                             persistCurrentSession(nextIdx, nextCount)
                         }
+                        onProgressUpdate?.invoke(nextIdx, nextCount)
                     }
                 }
             }

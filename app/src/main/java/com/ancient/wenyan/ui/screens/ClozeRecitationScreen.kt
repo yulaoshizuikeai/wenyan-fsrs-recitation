@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -51,14 +52,9 @@ fun ClozeRecitationScreen(
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
 
-    var selectedLevel by remember { mutableIntStateOf(1) }
-    var revealOriginal by remember { mutableStateOf(false) }
-    var revealedTokenIds by remember { mutableStateOf(setOf<Int>()) }
-
-    LaunchedEffect(selectedLevel, article) {
-        revealedTokenIds = emptySet()
-        revealOriginal = false
-    }
+    var selectedLevel by rememberSaveable { mutableIntStateOf(1) }
+    var revealOriginal by rememberSaveable { mutableStateOf(false) }
+    var revealedTokenIds by remember(selectedLevel, article.id) { mutableStateOf(setOf<Int>()) }
 
     val fullText = article.fullContent
     val clozeKeywords = remember(article) {

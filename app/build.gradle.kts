@@ -15,8 +15,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 14
-        versionName = "1.5.4"
+        versionCode = 15
+        versionName = "1.5.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -190,6 +190,7 @@ tasks.register("runInProcessTests") {
         val classLoader = URLClassLoader(allUrls, ClassLoader.getPlatformClassLoader())
         val junitCoreClass = classLoader.loadClass("org.junit.runner.JUnitCore")
         val testClassNames = listOf(
+            "com.ancient.wenyan.DailyGoalsAndQueueTest",
             "com.ancient.wenyan.FSRSOptimizerTest",
             "com.ancient.wenyan.MultiClozeVariantAndIntensifiedFsrsTest",
             "com.ancient.wenyan.BookSelectionAndHeatmapTest",

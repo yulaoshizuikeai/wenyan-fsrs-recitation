@@ -4,6 +4,24 @@
 
 ---
 
+## [v1.5.5] - 2026-09-21
+
+### 🧠 FSRS 队列调度合规化与配置变更状态无损持久化 (Spaced Repetition & Lifecycle Hardening)
+- **FSRS 学习队列截断与状态契约修复**：
+  - 严格对齐 FSRS / Anki 标准调度规范：`dailyReviewLimit` 仅限流已毕业的正式复习卡（`CardState.REVIEW`），初学卡（`LEARNING`）与遗忘重学卡（`RELEARNING`）不再受复习上限截断，确保当日记忆强化闭环；
+  - 修复 `DailyGoalsAndQueueTest` 中多步学习调度（`learningSteps`）到期时间验证，建立 126 项严密且无条件断言的自动化测试基线；
+  - 修复混合学习顺承排布（`StudyOrderPreference.MIXED`）在 SRS 优先级与课本顺序下的排序计算逻辑，解决未学新卡 `dueTime = 0L` 对章节紧急程度比对的干扰。
+- **屏幕旋转/分屏配置变更状态无损恢复**：
+  - 在 `MainActivity` 中引入 `rememberSaveable` 与 `OverlayScreenStateHolder`，实时追踪翻卡背诵进度；
+  - 即使在 100% 完成背诵后的结算庆祝界面发生屏幕旋转或系统暗色主题切换，背诵进度与完成态亦能无损保全；
+  - 升级 `ClozeRecitationScreen` 的遮挡层级与“一键全览”开关为 `rememberSaveable`。
+- **纯复习模式目标判定修复**：
+  - 修复 `targetNew = 0` 时 `TodayStudyProgress.isNewGoalReached` 恒为 false 的问题，支持纯复习模式下目标正常达成并点亮当日足迹打卡。
+- **技术重构与未来功能演进路线图发布**：
+  - 编制并发布 [`ROADMAP.md`](file:///d:/OneDrive/Desktop/文言背诵/ROADMAP.md)，系统规划现代架构底座（Room/Hilt）、高考实战深化、FSRS-5 算法极致攻坚与多端生态全景路径。
+
+---
+
 ## [v1.5.3] - 2026-09-21
 
 ### 🛡️ 篇目文库崩溃根治与全屏排版留白优化 (Crash Elimination & Layout Insets Optimization)

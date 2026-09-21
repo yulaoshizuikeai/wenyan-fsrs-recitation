@@ -16,6 +16,9 @@ import com.ancient.wenyan.domain.model.ActiveSession
 import com.ancient.wenyan.domain.model.HeatmapStats
 import com.ancient.wenyan.domain.model.Module
 import com.ancient.wenyan.domain.model.RecitationOrderMode
+import com.ancient.wenyan.domain.model.StudyGoalsConfig
+import com.ancient.wenyan.domain.model.StudyOrderPreference
+import com.ancient.wenyan.domain.model.TodayStudyProgress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -66,9 +69,44 @@ class WenYanRepository(
     private val _recitationOrderMode = MutableStateFlow(RecitationOrderMode.SEQUENTIAL)
     val recitationOrderMode: StateFlow<RecitationOrderMode> = _recitationOrderMode.asStateFlow()
 
+    // Daily Study Goals (Anki-style new cards & review limits)
+    private val _studyGoalsConfig = MutableStateFlow(StudyGoalsConfig())
+    val studyGoalsConfig: StateFlow<StudyGoalsConfig> = _studyGoalsConfig.asStateFlow()
+
+    private val _todayStudyProgressFlow = MutableStateFlow(TodayStudyProgress())
+    val todayStudyProgressFlow: StateFlow<TodayStudyProgress> = _todayStudyProgressFlow.asStateFlow()
+
     fun setRecitationOrderMode(mode: RecitationOrderMode) {
         _recitationOrderMode.value = mode
         prefs?.edit()?.putString("pref_recitation_order_mode", mode.name)?.apply()
+    }
+
+    fun getStudyGoalsConfig(): StudyGoalsConfig = _studyGoalsConfig.value
+
+    fun setStudyGoalsConfig(config: StudyGoalsConfig) {
+        _studyGoalsConfig.value = config
+        prefs?.edit()?.apply {
+            putInt("pref_daily_new_cards_limit", config.dailyNewLimit)
+            putInt("pref_daily_review_cards_limit", config.dailyReviewLimit)
+            putString("pref_study_order_pref", config.orderPreference.name)
+            apply()
+        }
+        _todayStudyProgressFlow.value = computeTodayProgress()
+    }
+
+    fun setDailyNewCardsLimit(limit: Int) {
+        val updated = _studyGoalsConfig.value.copy(dailyNewLimit = limit)
+        setStudyGoalsConfig(updated)
+    }
+
+    fun setDailyReviewCardsLimit(limit: Int) {
+        val updated = _studyGoalsConfig.value.copy(dailyReviewLimit = limit)
+        setStudyGoalsConfig(updated)
+    }
+
+    fun setStudyOrderPreference(pref: StudyOrderPreference) {
+        val updated = _studyGoalsConfig.value.copy(orderPreference = pref)
+        setStudyGoalsConfig(updated)
     }
 
     // Deck & Heatmap State
@@ -84,6 +122,7 @@ class WenYanRepository(
         loadPersistedCardStates()
         initializeHeatmap()
         loadPersistedActiveSession()
+        _todayStudyProgressFlow.value = computeTodayProgress()
     }
 
     private fun loadPreferences() {
@@ -101,6 +140,21 @@ class WenYanRepository(
             } catch (e: Exception) {
                 RecitationOrderMode.SEQUENTIAL
             }
+
+            // Load daily study goals
+            val savedNewLimit = sp.getInt("pref_daily_new_cards_limit", 20)
+            val savedReviewLimit = sp.getInt("pref_daily_review_cards_limit", 100)
+            val savedOrderPrefStr = sp.getString("pref_study_order_pref", StudyOrderPreference.REVIEW_FIRST.name)
+            val savedOrderPref = try {
+                StudyOrderPreference.valueOf(savedOrderPrefStr ?: StudyOrderPreference.REVIEW_FIRST.name)
+            } catch (_: Exception) {
+                StudyOrderPreference.REVIEW_FIRST
+            }
+            _studyGoalsConfig.value = StudyGoalsConfig(
+                dailyNewLimit = savedNewLimit,
+                dailyReviewLimit = savedReviewLimit,
+                orderPreference = savedOrderPref
+            )
 
             // Load custom/optimized FSRS parameters
             val savedRetention = sp.getFloat("pref_fsrs_retention", 0.93f).toDouble()
@@ -249,6 +303,7 @@ class WenYanRepository(
         nowMillis: Long = System.currentTimeMillis()
     ): CardFsrsState {
         val currentState = getCardState(cardId)
+        val wasNew = currentState.state == CardState.NEW
         val result = fsrsEngine.evaluateReview(currentState, rating, nowMillis)
         synchronized(cardsStateMap) {
             cardsStateMap[cardId] = result.updatedCard
@@ -276,9 +331,34 @@ class WenYanRepository(
         }
         saveDailyReviewToPrefs(todayStr, currentDayCount)
 
+        // Record daily new/review count for Anki-style progress tracking
+        prefs?.let { sp ->
+            if (wasNew) {
+                val newCount = sp.getInt("pref_daily_new_learned_$todayStr", 0) + 1
+                sp.edit().putInt("pref_daily_new_learned_$todayStr", newCount).apply()
+            } else {
+                val revCount = sp.getInt("pref_daily_reviewed_$todayStr", 0) + 1
+                sp.edit().putInt("pref_daily_reviewed_$todayStr", revCount).apply()
+            }
+        }
+        _todayStudyProgressFlow.value = computeTodayProgress()
+
         _heatmapStatsFlow.value = computeHeatmapStats()
         _statsFlow.value = computeStats(nowMillis)
         return result.updatedCard
+    }
+
+    fun computeTodayProgress(): TodayStudyProgress {
+        val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val newCount = prefs?.getInt("pref_daily_new_learned_$todayStr", 0) ?: 0
+        val revCount = prefs?.getInt("pref_daily_reviewed_$todayStr", 0) ?: 0
+        val config = _studyGoalsConfig.value
+        return TodayStudyProgress(
+            todayNewLearned = newCount,
+            targetNew = config.dailyNewLimit,
+            todayReviewed = revCount,
+            targetReview = config.dailyReviewLimit
+        )
     }
 
     // ========================================================================
@@ -287,9 +367,11 @@ class WenYanRepository(
 
     fun getDueQueue(
         nowMillis: Long = System.currentTimeMillis(),
-        dailyNewLimit: Int = 20,
+        dailyNewLimit: Int = _studyGoalsConfig.value.dailyNewLimit,
+        dailyReviewLimit: Int = _studyGoalsConfig.value.dailyReviewLimit,
         scope: Set<String>? = _selectedBookScope.value,
-        orderMode: RecitationOrderMode = _recitationOrderMode.value
+        orderMode: RecitationOrderMode = _recitationOrderMode.value,
+        orderPref: StudyOrderPreference = _studyGoalsConfig.value.orderPreference
     ): List<Pair<Flashcard, CardFsrsState>> {
         val targetArticles = if (scope.isNullOrEmpty()) {
             CurriculumDataSource.ALL_ARTICLES
@@ -318,11 +400,30 @@ class WenYanRepository(
             .filter { it.state == CardState.REVIEW && it.dueTime <= endOfTodayMillis && it.cardId in allFlashcards }
             .sortedWith(compareByDescending<CardFsrsState> { it.lapses }.thenBy { it.dueTime })
 
-        val newQueue = cardsStateMap.values
-            .filter { it.state == CardState.NEW && it.cardId in allFlashcards }
-            .take(dailyNewLimit)
+        // Apply dailyReviewLimit ONLY to graduated review cards (CardState.REVIEW)
+        // According to FSRS/Anki specifications, intraday learning (LEARNING) and relearning (RELEARNING)
+        // are step-based queues and must not be truncated by dailyReviewLimit.
+        val limitedReviewQueue = when {
+            dailyReviewLimit <= 0 -> emptyList()
+            dailyReviewLimit >= 999 -> reviewQueue
+            else -> reviewQueue.take(dailyReviewLimit)
+        }
+        val allReviewCards = relearningQueue + learningQueue + limitedReviewQueue
 
-        val candidateCards = (relearningQueue + learningQueue + reviewQueue + newQueue).mapNotNull { cardState ->
+        // Apply dailyNewLimit to new cards
+        val allNewCards = cardsStateMap.values
+            .filter { it.state == CardState.NEW && it.cardId in allFlashcards }
+        val newQueue = when {
+            dailyNewLimit <= 0 -> emptyList()
+            dailyNewLimit >= 999 -> allNewCards
+            else -> allNewCards.take(dailyNewLimit)
+        }
+
+        val candidateCards = when (orderPref) {
+            StudyOrderPreference.REVIEW_FIRST -> (allReviewCards + newQueue)
+            StudyOrderPreference.NEW_FIRST -> (newQueue + allReviewCards)
+            StudyOrderPreference.MIXED -> interleaveLists(allReviewCards, newQueue)
+        }.mapNotNull { cardState ->
             val fc = allFlashcards[cardState.cardId]
             if (fc != null) Pair(fc, cardState) else null
         }
@@ -339,22 +440,48 @@ class WenYanRepository(
                 val articleOrderMap = targetArticles.mapIndexed { idx, it -> it.id to idx }.toMap()
                 val groupedByArticle = candidateCards.groupBy { it.first.articleId }
 
-                // 篇目间按紧迫度与课本顺序排布
+                // 篇目间按策略与紧迫度排布
                 val sortedArticles = groupedByArticle.keys.sortedWith(
-                    compareBy<String> { articleId ->
-                        val cards = groupedByArticle[articleId] ?: emptyList()
-                        when {
-                            cards.any { it.second.state == CardState.RELEARNING } -> 0
-                            cards.any { it.second.state == CardState.LEARNING } -> 1
-                            cards.any { it.second.state == CardState.REVIEW && it.second.dueTime <= nowMillis } -> 2
-                            cards.any { it.second.state == CardState.REVIEW } -> 3
-                            else -> 4
+                    when (orderPref) {
+                        StudyOrderPreference.MIXED -> {
+                            // 自然混合顺承排布：直接遵循课本篇目编排原序
+                            compareBy { articleId ->
+                                articleOrderMap[articleId] ?: 0
+                            }
                         }
-                    }.thenBy { articleId ->
-                        val cards = groupedByArticle[articleId] ?: emptyList()
-                        cards.minOfOrNull { it.second.dueTime } ?: Long.MAX_VALUE
-                    }.thenBy { articleId ->
-                        articleOrderMap[articleId] ?: 0
+                        StudyOrderPreference.REVIEW_FIRST -> {
+                            compareBy<String> { articleId ->
+                                val cards = groupedByArticle[articleId] ?: emptyList()
+                                val hasReview = cards.any { it.second.state != CardState.NEW }
+                                when {
+                                    cards.any { it.second.state == CardState.RELEARNING } -> 0
+                                    cards.any { it.second.state == CardState.LEARNING } -> 1
+                                    cards.any { it.second.state == CardState.REVIEW && it.second.dueTime <= nowMillis } -> 2
+                                    hasReview -> 3
+                                    else -> 4 // 纯新课篇目靠后
+                                }
+                            }.thenBy { articleId ->
+                                val cards = groupedByArticle[articleId] ?: emptyList()
+                                cards.filter { it.second.state != CardState.NEW }
+                                    .minOfOrNull { it.second.dueTime } ?: Long.MAX_VALUE
+                            }.thenBy { articleId ->
+                                articleOrderMap[articleId] ?: 0
+                            }
+                        }
+                        StudyOrderPreference.NEW_FIRST -> {
+                            compareBy<String> { articleId ->
+                                val cards = groupedByArticle[articleId] ?: emptyList()
+                                val hasReview = cards.any { it.second.state != CardState.NEW }
+                                val hasNew = cards.any { it.second.state == CardState.NEW }
+                                when {
+                                    hasNew && !hasReview -> 0 // 纯新课优先
+                                    hasNew -> 1
+                                    else -> 2
+                                }
+                            }.thenBy { articleId ->
+                                articleOrderMap[articleId] ?: 0
+                            }
+                        }
                     }
                 )
 
@@ -368,6 +495,28 @@ class WenYanRepository(
                 }
             }
         }
+    }
+
+    private fun <T> interleaveLists(listA: List<T>, listB: List<T>): List<T> {
+        if (listA.isEmpty()) return listB
+        if (listB.isEmpty()) return listA
+        val result = ArrayList<T>(listA.size + listB.size)
+        var idxA = 0
+        var idxB = 0
+        val total = listA.size + listB.size
+        for (i in 0 until total) {
+            val takeFromA = if (idxA < listA.size && idxB < listB.size) {
+                (idxA.toDouble() / listA.size) <= (idxB.toDouble() / listB.size)
+            } else {
+                idxA < listA.size
+            }
+            if (takeFromA) {
+                result.add(listA[idxA++])
+            } else {
+                result.add(listB[idxB++])
+            }
+        }
+        return result
     }
 
     fun getRandomQueue(
