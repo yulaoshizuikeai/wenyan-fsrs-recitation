@@ -302,6 +302,10 @@ class WenYanRepository(
         }
         val allFlashcards = allFlashcardsList.associateBy { it.id }
 
+        val zone = java.time.ZoneId.systemDefault()
+        val nowDate = java.time.Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+        val endOfTodayMillis = nowDate.atTime(23, 59, 59).atZone(zone).toInstant().toEpochMilli()
+
         val relearningQueue = cardsStateMap.values
             .filter { it.state == CardState.RELEARNING && it.dueTime <= nowMillis && it.cardId in allFlashcards }
             .sortedBy { it.dueTime }
@@ -311,7 +315,7 @@ class WenYanRepository(
             .sortedBy { it.dueTime }
 
         val reviewQueue = cardsStateMap.values
-            .filter { it.state == CardState.REVIEW && it.dueTime <= (nowMillis + 86_400_000L) && it.cardId in allFlashcards }
+            .filter { it.state == CardState.REVIEW && it.dueTime <= endOfTodayMillis && it.cardId in allFlashcards }
             .sortedWith(compareByDescending<CardFsrsState> { it.lapses }.thenBy { it.dueTime })
 
         val newQueue = cardsStateMap.values
@@ -473,12 +477,18 @@ class WenYanRepository(
                 }
                 CardState.REVIEW -> {
                     reviewCount++
-                    if (card.dueTime <= (nowMillis + 86_400_000L)) dueCount++
+                    val zone = java.time.ZoneId.systemDefault()
+                    val nowDate = java.time.Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+                    val endOfTodayMillis = nowDate.atTime(23, 59, 59).atZone(zone).toInstant().toEpochMilli()
+                    if (card.dueTime <= endOfTodayMillis) dueCount++
                 }
             }
         }
 
-        val todayReviews = reviewLogs.count { it.reviewTime >= (nowMillis - 86_400_000L) }
+        val zone = java.time.ZoneId.systemDefault()
+        val nowDate = java.time.Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+        val startOfTodayMillis = nowDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val todayReviews = reviewLogs.count { it.reviewTime >= startOfTodayMillis }
         val retention = if (reviewLogs.isNotEmpty()) {
             val remembered = reviewLogs.count { it.rating != Rating.AGAIN }
             (remembered.toFloat() / reviewLogs.size.toFloat()) * 100.0f
@@ -678,7 +688,8 @@ class WenYanRepository(
         _activeSessionFlow.value = session
         prefs?.let { sp ->
             val cardIdsJoined = session.cardIds.joinToString(",")
-            val encoded = "${session.id}|${session.title}|${session.sessionType}|${session.currentIndex}|${session.completedCount}|${session.totalCards}|${session.lastActiveMillis}|$cardIdsJoined"
+            val encodedTitle = try { java.net.URLEncoder.encode(session.title, "UTF-8") } catch (_: Exception) { session.title }
+            val encoded = "${session.id}|$encodedTitle|${session.sessionType}|${session.currentIndex}|${session.completedCount}|${session.totalCards}|${session.lastActiveMillis}|$cardIdsJoined"
             sp.edit().putString(PREF_ACTIVE_SESSION_KEY, encoded).apply()
         }
     }
@@ -705,7 +716,8 @@ class WenYanRepository(
                 val parts = encoded.split("|")
                 if (parts.size >= 8) {
                     val id = parts[0]
-                    val title = parts[1]
+                    val rawTitle = parts[1]
+                    val title = try { java.net.URLDecoder.decode(rawTitle, "UTF-8") } catch (_: Exception) { rawTitle }
                     val sessionType = parts[2]
                     val currentIndex = parts[3].toIntOrNull() ?: 0
                     val completedCount = parts[4].toIntOrNull() ?: 0
@@ -815,6 +827,10 @@ class WenYanRepository(
         return if (t > 0L) t else null
     }
 
+    internal fun setCardStateForTesting(state: CardFsrsState) {
+        cardsStateMap[state.cardId] = state
+    }
+
     companion object {
         private const val PREF_CARD_STATES_KEY = "pref_persisted_card_states_v2"
         private const val PREF_ACTIVE_SESSION_KEY = "pref_active_recitation_session_v1"
@@ -824,7 +840,7 @@ class WenYanRepository(
 
         fun getInstance(context: Context? = null): WenYanRepository {
             return instance ?: synchronized(this) {
-                instance ?: WenYanRepository(context).also { instance = it }
+                instance ?: WenYanRepository(context?.applicationContext).also { instance = it }
             }
         }
     }

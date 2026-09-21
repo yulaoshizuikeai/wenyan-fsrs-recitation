@@ -15,9 +15,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
@@ -77,12 +77,14 @@ fun ClozeRecitationScreen(
     val paragraphs = remember(tokens) {
         val list = mutableListOf<MutableList<ClozeToken>>()
         var currentPara = mutableListOf<ClozeToken>()
+        var subTokenId = 100_000
         for (token in tokens) {
             if (token.originalText.contains("\n")) {
                 val parts = token.originalText.split("\n")
                 for (i in parts.indices) {
                     if (parts[i].isNotEmpty()) {
-                        currentPara.add(token.copy(originalText = parts[i]))
+                        val assignedId = if (i == 0) token.id else (subTokenId++)
+                        currentPara.add(token.copy(id = assignedId, originalText = parts[i]))
                     }
                     if (i < parts.size - 1) {
                         list.add(currentPara)
@@ -213,40 +215,45 @@ fun ClozeRecitationScreen(
                 ),
                 elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
             ) {
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(18.dp)
-                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 18.dp),
+                    contentPadding = PaddingValues(vertical = 18.dp)
                 ) {
                     // Tip bar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(StudyBlueLight, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = StudyBlueAccent,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "轻触文中遮挡胶囊即可实时揭晓/隐藏答案，熟背无误后可逐级提升难度",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.SansSerif,
-                            color = StudyBlueAccent,
-                            lineHeight = 15.sp
-                        )
+                    item(key = "tip_bar") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(StudyBlueLight, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = StudyBlueAccent,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "轻触文中遮挡胶囊即可实时揭晓/隐藏答案，熟背无误后可逐级提升难度",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.SansSerif,
+                                color = StudyBlueAccent,
+                                lineHeight = 15.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     // Text FlowRow Paragraphs
-                    paragraphs.forEach { paraTokens ->
+                    items(
+                        count = paragraphs.size,
+                        key = { idx -> "para_$idx" }
+                    ) { paraIndex ->
+                        val paraTokens = paragraphs[paraIndex]
                         FlowRow(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -289,18 +296,25 @@ fun ClozeRecitationScreen(
 
                     // Annotations
                     if (article.annotations.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        HorizontalDivider(color = BorderSubtle, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = "【重点字词考点注解】",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.SansSerif,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        article.annotations.forEach { note ->
+                        item(key = "annotations_header") {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = BorderSubtle, thickness = 1.dp)
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "【重点字词考点注解】",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.SansSerif,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        items(
+                            count = article.annotations.size,
+                            key = { idx -> "annot_$idx" }
+                        ) { idx ->
+                            val note = article.annotations[idx]
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()

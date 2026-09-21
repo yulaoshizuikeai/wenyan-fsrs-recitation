@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -47,6 +49,7 @@ fun FeedbackPreferencesDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp)
             ) {
                 // Title
@@ -272,11 +275,19 @@ fun FeedbackPreferencesDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = StudyNavy),
+                        .height(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("完成并返回", fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "完成并返回",
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
@@ -291,13 +302,16 @@ private fun FeedbackTestChip(
 ) {
     Surface(
         modifier = modifier
-            .height(36.dp)
-            .clickable { onClick() },
+            .defaultMinSize(minHeight = 44.dp)
+            .clickable(
+                role = androidx.compose.ui.semantics.Role.Button,
+                onClickLabel = "测试$label"
+            ) { onClick() },
         shape = RoundedCornerShape(8.dp),
         color = BgSurfaceMuted,
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)) {
             Text(
                 text = label,
                 fontSize = 12.sp,

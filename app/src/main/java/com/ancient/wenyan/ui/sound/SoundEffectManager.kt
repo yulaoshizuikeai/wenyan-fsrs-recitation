@@ -100,6 +100,18 @@ class SoundEffectManager private constructor(context: Context) {
     fun playCelebration() = play(SoundType.CELEBRATION, 0.95f)
     fun playStreakIgnite() = play(SoundType.STREAK_IGNITE, 0.85f)
 
+    fun release() {
+        try {
+            soundPool.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        synchronized(soundIds) {
+            soundIds.clear()
+        }
+        instance = null
+    }
+
     companion object {
         @Volatile
         private var instance: SoundEffectManager? = null

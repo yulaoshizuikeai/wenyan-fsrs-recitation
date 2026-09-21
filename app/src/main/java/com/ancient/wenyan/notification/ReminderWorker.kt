@@ -37,6 +37,20 @@ class ReminderWorker(
     }
 
     private fun sendNotification(title: String, message: String) {
+        // Notification permission check for Android 13+ (API 33) and system settings
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+        }
+        if (!androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return
+        }
+
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -72,7 +86,11 @@ class ReminderWorker(
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        try {
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
     }
 
     companion object {
@@ -83,11 +101,11 @@ class ReminderWorker(
         fun scheduleDailyReminder(context: Context, hour: Int = 21, minute: Int = 0) {
             val now = LocalDateTime.now()
             var targetTime = now.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
-            if (now.isAfter(targetTime)) {
+            if (!targetTime.isAfter(now)) {
                 targetTime = targetTime.plusDays(1)
             }
 
-            val initialDelayMinutes = Duration.between(now, targetTime).toMinutes()
+            val initialDelayMinutes = maxOf(1L, Duration.between(now, targetTime).toMinutes())
 
             val workRequest = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
                 .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)

@@ -16,13 +16,19 @@ data class ClozeToken(
 
 object ClozeEngine {
 
+    val PUNCTUATION_SET: Set<Char> = setOf(
+        '，', '。', '；', '！', '？', '：', '、',
+        '“', '”', '‘', '’', '《', '》', '（', '）', '【', '】', '—', '…',
+        '\n', '\r', ' ', '\t'
+    )
+
     fun tokenize(text: String, level: Int, keywords: List<String>): List<ClozeToken> {
         var nextId = 1
         when (level) {
-            0 -> return listOf(ClozeToken(nextId++, text, false))
+            0 -> return listOf(ClozeToken(nextId, text, false))
             1 -> {
                 val validKeywords = keywords.filter { it.isNotBlank() }
-                if (validKeywords.isEmpty()) return listOf(ClozeToken(nextId++, text, false))
+                if (validKeywords.isEmpty()) return listOf(ClozeToken(nextId, text, false))
                 val tokens = mutableListOf<ClozeToken>()
                 var cursor = 0
                 val sortedKws = validKeywords.sortedByDescending { it.length }
@@ -53,13 +59,12 @@ object ClozeEngine {
                 return tokens
             }
             2 -> {
-                val punctuation = setOf('，', '。', '；', '！', '？', '：', '、', '\n', '\r', ' ')
                 val tokens = mutableListOf<ClozeToken>()
                 var start = 0
                 for (i in text.indices) {
-                    if (text[i] in punctuation) {
+                    if (text[i] in PUNCTUATION_SET) {
                         val clause = text.substring(start, i)
-                        if (clause.length >= 4) {
+                        if (clause.length >= 2) {
                             val half = clause.length / 2
                             tokens.add(ClozeToken(nextId++, clause.substring(0, half), false))
                             tokens.add(ClozeToken(nextId++, clause.substring(half), true))
@@ -72,22 +77,21 @@ object ClozeEngine {
                 }
                 if (start < text.length) {
                     val remaining = text.substring(start)
-                    if (remaining.length >= 4) {
+                    if (remaining.length >= 2) {
                         val half = remaining.length / 2
                         tokens.add(ClozeToken(nextId++, remaining.substring(0, half), false))
-                        tokens.add(ClozeToken(nextId++, remaining.substring(half), true))
+                        tokens.add(ClozeToken(nextId, remaining.substring(half), true))
                     } else if (remaining.isNotEmpty()) {
-                        tokens.add(ClozeToken(nextId++, remaining, false))
+                        tokens.add(ClozeToken(nextId, remaining, false))
                     }
                 }
                 return tokens
             }
             3 -> {
-                val punctuation = setOf('，', '。', '；', '！', '？', '：', '“', '”', '、', '\n', '\r', ' ')
                 val tokens = mutableListOf<ClozeToken>()
                 var start = 0
                 for (i in text.indices) {
-                    if (text[i] in punctuation) {
+                    if (text[i] in PUNCTUATION_SET) {
                         val clause = text.substring(start, i)
                         if (clause.isNotEmpty()) {
                             tokens.add(ClozeToken(nextId++, clause.take(1), false))
@@ -102,20 +106,20 @@ object ClozeEngine {
                 if (start < text.length) {
                     val remaining = text.substring(start)
                     if (remaining.isNotEmpty()) {
-                        tokens.add(ClozeToken(nextId++, remaining.take(1), false))
-                        if (remaining.length > 1) {
-                            tokens.add(ClozeToken(nextId++, remaining.substring(1), true))
+                        val hasMore = remaining.length > 1
+                        tokens.add(ClozeToken(if (hasMore) nextId++ else nextId, remaining.take(1), false))
+                        if (hasMore) {
+                            tokens.add(ClozeToken(nextId, remaining.substring(1), true))
                         }
                     }
                 }
                 return tokens
             }
             4 -> {
-                val punctuation = setOf('，', '。', '；', '！', '？', '：', '“', '”', '、', '\n', '\r', ' ')
                 val tokens = mutableListOf<ClozeToken>()
                 var start = 0
                 for (i in text.indices) {
-                    if (text[i] in punctuation) {
+                    if (text[i] in PUNCTUATION_SET) {
                         val clause = text.substring(start, i)
                         if (clause.isNotEmpty()) {
                             tokens.add(ClozeToken(nextId++, clause, true))
@@ -127,12 +131,12 @@ object ClozeEngine {
                 if (start < text.length) {
                     val remaining = text.substring(start)
                     if (remaining.isNotEmpty()) {
-                        tokens.add(ClozeToken(nextId++, remaining, true))
+                        tokens.add(ClozeToken(nextId, remaining, true))
                     }
                 }
                 return tokens
             }
-            else -> return listOf(ClozeToken(nextId++, text, false))
+            else -> return listOf(ClozeToken(nextId, text, false))
         }
     }
 
@@ -140,22 +144,20 @@ object ClozeEngine {
 
     fun generateLevel1(text: String, keywords: List<String>): String {
         var masked = text
-        for (kw in keywords) {
-            if (kw.isNotBlank()) {
-                masked = masked.replace(kw, "⟦ ${"_".repeat(kw.length)} ⟧")
-            }
+        val sortedKws = keywords.filter { it.isNotBlank() }.sortedByDescending { it.length }
+        for (kw in sortedKws) {
+            masked = masked.replace(kw, "⟦ ${"_".repeat(kw.length)} ⟧")
         }
         return masked
     }
 
     fun generateLevel2(text: String): String {
-        val punctuation = setOf('，', '。', '；', '！', '？', '：', '、', '\n', '\r', ' ')
         val sb = StringBuilder()
         var start = 0
         for (i in text.indices) {
-            if (text[i] in punctuation) {
+            if (text[i] in PUNCTUATION_SET) {
                 val clause = text.substring(start, i)
-                if (clause.length >= 4) {
+                if (clause.length >= 2) {
                     val splitIdx = clause.length / 2
                     val half = clause.length - splitIdx
                     sb.append(clause.substring(0, splitIdx))
@@ -169,7 +171,7 @@ object ClozeEngine {
         }
         if (start < text.length) {
             val remaining = text.substring(start)
-            if (remaining.length >= 4) {
+            if (remaining.length >= 2) {
                 val splitIdx = remaining.length / 2
                 val half = remaining.length - splitIdx
                 sb.append(remaining.substring(0, splitIdx))
@@ -186,7 +188,7 @@ object ClozeEngine {
         var atStartOfClause = true
         for (ch in text) {
             when {
-                ch in listOf('，', '。', '；', '！', '？', '：', '“', '”', '、', '\n', '\r', ' ') -> {
+                ch in PUNCTUATION_SET -> {
                     sb.append(ch)
                     atStartOfClause = true
                 }
@@ -205,7 +207,7 @@ object ClozeEngine {
     fun generateLevel4(text: String): String {
         val sb = StringBuilder()
         for (ch in text) {
-            if (ch in listOf('，', '。', '；', '！', '？', '：', '“', '”', '、', '\n', '\r', ' ')) {
+            if (ch in PUNCTUATION_SET) {
                 sb.append(ch)
             } else {
                 sb.append('_')

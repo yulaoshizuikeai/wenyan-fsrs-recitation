@@ -70,7 +70,9 @@ object FSRSOptimizer {
         val eligibleLogs = reviewLogs.filter { it.elapsedDays >= 0 }
         val prevLoss = computeLogLoss(currentWeights, eligibleLogs)
 
-        val newWeights = currentWeights.clone()
+        // Anchor optimization fine-tuning on default baseline weights to ensure idempotency across multiple runs
+        val baseWeights = FSRSEngine.DEFAULT_FSRS_5_WEIGHTS
+        val newWeights = baseWeights.clone()
         val detailedChanges = mutableListOf<String>()
 
         // 1. Retention rate & Rating distribution analysis
@@ -96,46 +98,46 @@ object FSRSOptimizer {
         }
 
         // Adjust w2 (Good S0)
-        val oldW2 = newWeights[2]
-        newWeights[2] = (newWeights[2] * retentionDamping).coerceIn(1.0, 6.0)
-        if (abs(newWeights[2] - oldW2) > 0.01) {
-            detailedChanges.add("初始稳固度 (w2 · 良好): ${round2(oldW2)} ➔ ${round2(newWeights[2])}")
+        val curW2 = currentWeights[2]
+        newWeights[2] = (baseWeights[2] * retentionDamping).coerceIn(1.0, 6.0)
+        if (abs(newWeights[2] - curW2) > 0.01) {
+            detailedChanges.add("初始稳固度 (w2 · 良好): ${round2(curW2)} ➔ ${round2(newWeights[2])}")
         }
 
         // Adjust w1 (Hard S0)
-        val oldW1 = newWeights[1]
+        val curW1 = currentWeights[1]
         val hardAdjustment = if (hardRate > 0.35) 0.85 else if (hardRate < 0.10) 1.10 else 1.0
-        newWeights[1] = (newWeights[1] * retentionDamping * hardAdjustment).coerceIn(0.4, 2.5)
-        if (abs(newWeights[1] - oldW1) > 0.01) {
-            detailedChanges.add("初始稳固度 (w1 · 困难): ${round2(oldW1)} ➔ ${round2(newWeights[1])}")
+        newWeights[1] = (baseWeights[1] * retentionDamping * hardAdjustment).coerceIn(0.4, 2.5)
+        if (abs(newWeights[1] - curW1) > 0.01) {
+            detailedChanges.add("初始稳固度 (w1 · 困难): ${round2(curW1)} ➔ ${round2(newWeights[1])}")
         }
 
         // Adjust w3 (Easy S0)
-        val oldW3 = newWeights[3]
+        val curW3 = currentWeights[3]
         val easyAdjustment = if (easyRate > 0.30) 1.15 else 0.95
-        newWeights[3] = (newWeights[3] * easyAdjustment).coerceIn(6.0, 25.0)
-        if (abs(newWeights[3] - oldW3) > 0.01) {
-            detailedChanges.add("初始稳固度 (w3 · 简单): ${round2(oldW3)} ➔ ${round2(newWeights[3])}")
+        newWeights[3] = (baseWeights[3] * easyAdjustment).coerceIn(6.0, 25.0)
+        if (abs(newWeights[3] - curW3) > 0.01) {
+            detailedChanges.add("初始稳固度 (w3 · 简单): ${round2(curW3)} ➔ ${round2(newWeights[3])}")
         }
 
         // Adjust w0 (Again S0)
-        val oldW0 = newWeights[0]
-        newWeights[0] = (newWeights[0] * if (againRate > 0.25) 0.85 else 1.05).coerceIn(0.15, 0.9)
-        if (abs(newWeights[0] - oldW0) > 0.01) {
-            detailedChanges.add("遗忘重来基数 (w0 · 重来): ${round2(oldW0)} ➔ ${round2(newWeights[0])}")
+        val curW0 = currentWeights[0]
+        newWeights[0] = (baseWeights[0] * if (againRate > 0.25) 0.85 else 1.05).coerceIn(0.15, 0.9)
+        if (abs(newWeights[0] - curW0) > 0.01) {
+            detailedChanges.add("遗忘重来基数 (w0 · 重来): ${round2(curW0)} ➔ ${round2(newWeights[0])}")
         }
 
         // 3. Calibrate Base Difficulty (w4..w6)
-        val oldW4 = newWeights[4]
+        val curW4 = currentWeights[4]
         if (againRate > 0.25 || hardRate > 0.35) {
             // Content feels difficult for user: increase base difficulty
-            newWeights[4] = (newWeights[4] + 0.45).coerceIn(4.0, 9.5)
+            newWeights[4] = (baseWeights[4] + 0.45).coerceIn(4.0, 9.5)
         } else if (easyRate > 0.35 && actualRetention > 0.92) {
             // Content feels easy: decrease base difficulty
-            newWeights[4] = (newWeights[4] - 0.40).coerceIn(4.0, 9.5)
+            newWeights[4] = (baseWeights[4] - 0.40).coerceIn(4.0, 9.5)
         }
-        if (abs(newWeights[4] - oldW4) > 0.01) {
-            detailedChanges.add("文言认知难度基数 (w4): ${round2(oldW4)} ➔ ${round2(newWeights[4])}")
+        if (abs(newWeights[4] - curW4) > 0.01) {
+            detailedChanges.add("文言认知难度基数 (w4): ${round2(curW4)} ➔ ${round2(newWeights[4])}")
         }
 
         // 4. Local Grid Search for Recall Growth (w8) and Forget Damping (w11)
@@ -160,15 +162,15 @@ object FSRSOptimizer {
             }
         }
 
-        val oldW8 = newWeights[8]
-        val oldW11 = newWeights[11]
+        val curW8 = currentWeights[8]
+        val curW11 = currentWeights[11]
         newWeights[8] = bestW8
         newWeights[11] = bestW11
-        if (abs(newWeights[8] - oldW8) > 0.01) {
-            detailedChanges.add("复习成功增长因子 (w8): ${round2(oldW8)} ➔ ${round2(newWeights[8])}")
+        if (abs(newWeights[8] - curW8) > 0.01) {
+            detailedChanges.add("复习成功增长因子 (w8): ${round2(curW8)} ➔ ${round2(newWeights[8])}")
         }
-        if (abs(newWeights[11] - oldW11) > 0.01) {
-            detailedChanges.add("遗忘重学折损因子 (w11): ${round2(oldW11)} ➔ ${round2(newWeights[11])}")
+        if (abs(newWeights[11] - curW11) > 0.01) {
+            detailedChanges.add("遗忘重学折损因子 (w11): ${round2(curW11)} ➔ ${round2(newWeights[11])}")
         }
 
         val finalLoss = bestLoss

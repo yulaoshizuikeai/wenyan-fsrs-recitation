@@ -86,9 +86,19 @@ fun ChapterTreeScreen(
         }
     }
 
-    // Key getProgress on stats so progress updates reactively when recitation state changes
-    val getProgress: (Article) -> ArticleProgress = remember(stats) {
-        { article -> repository.getArticleProgress(article.id) }
+    // Precompute and cache article progress map so list scrolling is O(1) without repeated scans
+    val articleProgressMap = remember(stats, filteredModulesWithArticles) {
+        val map = mutableMapOf<String, ArticleProgress>()
+        filteredModulesWithArticles.forEach { (_, moduleArticles) ->
+            moduleArticles.forEach { article ->
+                map[article.id] = repository.getArticleProgress(article.id)
+            }
+        }
+        map
+    }
+
+    val getProgress: (Article) -> ArticleProgress = remember(articleProgressMap) {
+        { article -> articleProgressMap[article.id] ?: ArticleProgress(article.id, 0, 0, 0, 0, 0f) }
     }
 
     Scaffold(
