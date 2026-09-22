@@ -19,6 +19,7 @@ import com.ancient.wenyan.domain.model.RecitationOrderMode
 import com.ancient.wenyan.domain.model.StudyGoalsConfig
 import com.ancient.wenyan.domain.model.StudyOrderPreference
 import com.ancient.wenyan.domain.model.TodayStudyProgress
+import com.ancient.wenyan.domain.sync.WebDavConfig
 import com.ancient.wenyan.data.db.AppDatabase
 import com.ancient.wenyan.data.db.DatabaseMigrationHelper
 import com.ancient.wenyan.data.db.entities.CardStateEntity
@@ -129,6 +130,7 @@ class WenYanRepository(
     val heatmapStatsFlow: StateFlow<HeatmapStats> = _heatmapStatsFlow.asStateFlow()
 
     init {
+        instance = this
         loadPreferences()
         initializeCards()
         loadPersistedCardStates()
@@ -401,6 +403,13 @@ class WenYanRepository(
 
         _heatmapStatsFlow.value = computeHeatmapStats()
         _statsFlow.value = computeStats(nowMillis)
+
+        context?.let { ctx ->
+            try {
+                com.ancient.wenyan.widget.WenYanTodayWidgetProvider.updateAllWidgets(ctx)
+            } catch (_: Throwable) {}
+        }
+
         return result.updatedCard
     }
 
@@ -1070,6 +1079,27 @@ class WenYanRepository(
     fun getLastOptimizedTime(): Long? {
         val t = prefs?.getLong("pref_fsrs_last_optimized_time", 0L) ?: 0L
         return if (t > 0L) t else null
+    }
+
+    private var inMemoryWebDavConfig = WebDavConfig()
+
+    fun getWebDavConfig(): WebDavConfig {
+        val sp = prefs ?: return inMemoryWebDavConfig
+        return WebDavConfig(
+            serverUrl = sp.getString("pref_webdav_server_url", "https://dav.jianguoyun.com/dav/") ?: "https://dav.jianguoyun.com/dav/",
+            username = sp.getString("pref_webdav_username", "") ?: "",
+            password = sp.getString("pref_webdav_password", "") ?: ""
+        )
+    }
+
+    fun saveWebDavConfig(config: WebDavConfig) {
+        inMemoryWebDavConfig = config
+        prefs?.edit()?.apply {
+            putString("pref_webdav_server_url", config.serverUrl)
+            putString("pref_webdav_username", config.username)
+            putString("pref_webdav_password", config.password)
+            apply()
+        }
     }
 
     internal fun setCardStateForTesting(state: CardFsrsState) {

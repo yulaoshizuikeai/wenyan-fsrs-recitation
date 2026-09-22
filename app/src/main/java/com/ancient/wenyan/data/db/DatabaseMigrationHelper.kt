@@ -14,7 +14,8 @@ import kotlinx.coroutines.withContext
 object DatabaseMigrationHelper {
 
     private const val PREF_MIGRATION_FLAG = "has_migrated_to_room_v1"
-    private const val PREF_CARD_STATES_KEY = "pref_persisted_card_states_v1"
+    private const val PREF_CARD_STATES_KEY_V2 = "pref_persisted_card_states_v2"
+    private const val PREF_CARD_STATES_KEY_V1 = "pref_persisted_card_states_v1"
     private const val PREF_REVIEW_LOGS_KEY = "pref_persisted_review_logs_v1"
 
     suspend fun migrateIfNeeded(context: Context, database: AppDatabase) = withContext(Dispatchers.IO) {
@@ -27,8 +28,9 @@ object DatabaseMigrationHelper {
         val reviewLogDao = database.reviewLogDao()
         val dailyRecordDao = database.dailyRecordDao()
 
-        // 1. Migrate Card States
-        val savedCardsStr = prefs.getString(PREF_CARD_STATES_KEY, null)
+        // 1. Migrate Card States (prioritize v2 then fallback to v1)
+        val savedCardsStr = prefs.getString(PREF_CARD_STATES_KEY_V2, null)?.takeIf { it.isNotBlank() }
+            ?: prefs.getString(PREF_CARD_STATES_KEY_V1, null)
         if (!savedCardsStr.isNullOrBlank()) {
             val lines = savedCardsStr.split("\n")
             val cardEntities = mutableListOf<CardStateEntity>()

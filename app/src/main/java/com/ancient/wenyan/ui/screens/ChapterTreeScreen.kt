@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.ArticleProgress
@@ -46,6 +47,8 @@ fun ChapterTreeScreen(
     onBack: () -> Unit,
     onStartFlashcards: (Article) -> Unit,
     onStartCloze: (Article) -> Unit,
+    onOpenSnowball: (String) -> Unit = {},
+    onOpenCertificate: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -59,10 +62,13 @@ fun ChapterTreeScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var filterGaoKaoOnly by rememberSaveable { mutableStateOf(false) }
 
-    // Default to emptySet(): all modules start collapsed (no default expansion)
-    var expandedModuleIds by remember { mutableStateOf(emptySet<String>()) }
+    // Preserve expanded modules across screen rotations
+    var expandedModuleIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
 
-    var selectedArticleForModal by remember { mutableStateOf<Article?>(null) }
+    var selectedArticleIdForModal by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedArticleForModal = remember(selectedArticleIdForModal) {
+        selectedArticleIdForModal?.let { CurriculumDataSource.ARTICLE_MAP[it] }
+    }
 
     val modules = uiState.modules
 
@@ -90,7 +96,7 @@ fun ChapterTreeScreen(
         { article ->
             hapticManager.tapLight()
             soundManager.playClick()
-            selectedArticleForModal = article
+            selectedArticleIdForModal = article.id
         }
     }
 
@@ -111,7 +117,6 @@ fun ChapterTreeScreen(
 
     Scaffold(
         modifier = modifier,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -284,7 +289,7 @@ fun ChapterTreeScreen(
     // Article Mode Selection Bottom Sheet
     selectedArticleForModal?.let { article ->
         ModalBottomSheet(
-            onDismissRequest = { selectedArticleForModal = null },
+            onDismissRequest = { selectedArticleIdForModal = null },
             containerColor = BgSurface,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
@@ -306,12 +311,13 @@ fun ChapterTreeScreen(
                     modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                 )
 
+                // 1. FSRS Flashcards
                 Button(
                     onClick = {
                         hapticManager.tapLight()
                         soundManager.playClick()
                         val target = article
-                        selectedArticleForModal = null
+                        selectedArticleIdForModal = null
                         onStartFlashcards(target)
                     },
                     modifier = Modifier
@@ -335,14 +341,15 @@ fun ChapterTreeScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
+                // 2. Progressive Cloze Recitation
                 OutlinedButton(
                     onClick = {
                         hapticManager.tapLight()
                         soundManager.playClick()
                         val target = article
-                        selectedArticleForModal = null
+                        selectedArticleIdForModal = null
                         onStartCloze(target)
                     },
                     modifier = Modifier
@@ -362,6 +369,67 @@ fun ChapterTreeScreen(
                         text = "整篇渐进遮挡背诵",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
                         color = StudyBlueAccent
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 3. Snowball Chaining Recitation
+                OutlinedButton(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        val targetId = article.id
+                        selectedArticleIdForModal = null
+                        onOpenSnowball(targetId)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Snowboarding,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = StudyBlueAccent
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "长文滚雪球串联背诵",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                        color = TextPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 4. Certificate and Copybook
+                FilledTonalButton(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        val targetId = article.id
+                        selectedArticleIdForModal = null
+                        onOpenCertificate(targetId)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WorkspacePremium,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = StreakFlame
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "结业文牒与硬笔字帖",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                        color = TextPrimary
                     )
                 }
             }

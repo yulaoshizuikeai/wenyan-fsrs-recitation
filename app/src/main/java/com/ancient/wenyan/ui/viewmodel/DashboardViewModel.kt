@@ -54,7 +54,15 @@ class DashboardViewModel @Inject constructor(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DashboardUiState()
+        initialValue = DashboardUiState(
+            stats = repository.computeStats(),
+            selectedBookScope = repository.selectedBookScope.value,
+            selectedBookName = repository.selectedBookName.value,
+            heatmapStats = repository.computeHeatmapStats(),
+            activeSession = repository.getActiveSession(),
+            studyGoals = repository.getStudyGoalsConfig(),
+            todayProgress = repository.computeTodayProgress()
+        )
     )
 
     fun setSelectedBookScope(moduleIds: Set<String>?, displayName: String) {

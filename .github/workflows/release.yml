@@ -39,8 +39,8 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
-      - name: Build Release and Debug APKs
-        run: ./gradlew assembleRelease assembleDebug --no-daemon --stacktrace
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Prepare Release Artifacts
         id: prepare_artifacts
@@ -67,11 +67,6 @@ jobs:
           # Copy release APK
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
             cp app/build/outputs/apk/release/app-release.apk "release_assets/wenyan-recitation-${VERSION_TAG}.apk"
-          fi
-          
-          # Copy debug APK
-          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp app/build/outputs/apk/debug/app-debug.apk "release_assets/wenyan-recitation-${VERSION_TAG}-debug.apk"
           fi
           
           # Generate SHA256 checksums

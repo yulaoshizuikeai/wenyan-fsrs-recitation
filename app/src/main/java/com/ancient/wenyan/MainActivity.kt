@@ -16,11 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -34,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -282,57 +279,13 @@ class MainActivity : ComponentActivity() {
                             }
 
                             null -> {
-                                Scaffold(
-                                    bottomBar = {
-                                        NavigationBar(
-                                            containerColor = MaterialTheme.colorScheme.surface,
-                                            tonalElevation = 3.dp
-                                        ) {
-                                            MainTab.entries.forEach { tab ->
-                                                val selected = (selectedTab == tab)
-                                                NavigationBarItem(
-                                                    selected = selected,
-                                                    onClick = {
-                                                        if (selectedTab != tab) {
-                                                            hapticManager.tapLight()
-                                                            soundManager.playClick()
-                                                            selectedTab = tab
-                                                        }
-                                                    },
-                                                    icon = {
-                                                        Icon(
-                                                            imageVector = tab.icon,
-                                                            contentDescription = tab.title
-                                                        )
-                                                    },
-                                                    label = {
-                                                        Text(
-                                                            text = tab.title,
-                                                            fontFamily = FontFamily.SansSerif,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                                        )
-                                                    },
-                                                    colors = NavigationBarItemDefaults.colors(
-                                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    },
-                                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                                    containerColor = MaterialTheme.colorScheme.background
-                                ) { innerPadding ->
+                                val configuration = LocalConfiguration.current
+                                val isWideScreen = configuration.screenWidthDp >= 600
+
+                                val mainTabContent: @Composable (Modifier) -> Unit = { contentModifier ->
                                     var totalDragX by remember { mutableFloatStateOf(0f) }
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = innerPadding.calculateBottomPadding())
-                                            .consumeWindowInsets(innerPadding)
+                                        modifier = contentModifier
                                             .pointerInput(selectedTab) {
                                                 detectHorizontalDragGestures(
                                                     onDragStart = { totalDragX = 0f },
@@ -489,6 +442,12 @@ class MainActivity : ComponentActivity() {
                                                         },
                                                         onStartCloze = { article ->
                                                             overlayScreen = OverlayScreen.Cloze(article)
+                                                        },
+                                                        onOpenSnowball = { articleId ->
+                                                            overlayScreen = OverlayScreen.SnowballRecitation(articleId)
+                                                        },
+                                                        onOpenCertificate = { articleId ->
+                                                            overlayScreen = OverlayScreen.CertificateAndCopybook(articleId)
                                                         }
                                                     )
                                                 }
@@ -531,6 +490,117 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
                                         }
+                                    }
+                                }
+
+                                if (isWideScreen) {
+                                    Row(modifier = Modifier.fillMaxSize()) {
+                                        NavigationRail(
+                                            containerColor = MaterialTheme.colorScheme.surface,
+                                            header = {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(28.dp)
+                                                )
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                            }
+                                        ) {
+                                            MainTab.entries.forEach { tab ->
+                                                val selected = (selectedTab == tab)
+                                                NavigationRailItem(
+                                                    selected = selected,
+                                                    onClick = {
+                                                        if (selectedTab != tab) {
+                                                            hapticManager.tapLight()
+                                                            soundManager.playClick()
+                                                            selectedTab = tab
+                                                        }
+                                                    },
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = tab.icon,
+                                                            contentDescription = tab.title
+                                                        )
+                                                    },
+                                                    label = {
+                                                        Text(
+                                                            text = tab.title,
+                                                            fontFamily = FontFamily.SansSerif,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                                        )
+                                                    },
+                                                    colors = NavigationRailItemDefaults.colors(
+                                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        mainTabContent(
+                                            Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                        )
+                                    }
+                                } else {
+                                    Scaffold(
+                                        bottomBar = {
+                                            NavigationBar(
+                                                containerColor = MaterialTheme.colorScheme.surface,
+                                                tonalElevation = 3.dp
+                                            ) {
+                                                MainTab.entries.forEach { tab ->
+                                                    val selected = (selectedTab == tab)
+                                                    NavigationBarItem(
+                                                        selected = selected,
+                                                        onClick = {
+                                                            if (selectedTab != tab) {
+                                                                hapticManager.tapLight()
+                                                                soundManager.playClick()
+                                                                selectedTab = tab
+                                                            }
+                                                        },
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = tab.icon,
+                                                                contentDescription = tab.title
+                                                            )
+                                                        },
+                                                        label = {
+                                                            Text(
+                                                                text = tab.title,
+                                                                fontFamily = FontFamily.SansSerif,
+                                                                fontSize = 12.sp,
+                                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                                            )
+                                                        },
+                                                        colors = NavigationBarItemDefaults.colors(
+                                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                                        containerColor = MaterialTheme.colorScheme.background
+                                    ) { innerPadding ->
+                                        mainTabContent(
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(bottom = innerPadding.calculateBottomPadding())
+                                                .consumeWindowInsets(innerPadding)
+                                        )
                                     }
                                 }
                             }

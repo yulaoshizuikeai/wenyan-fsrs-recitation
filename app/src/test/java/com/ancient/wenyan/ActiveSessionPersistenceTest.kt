@@ -127,4 +127,36 @@ class ActiveSessionPersistenceTest {
         jobs.awaitAll()
         assertTrue("All concurrent updates completed successfully without deadlock or crash", true)
     }
+
+    @Test
+    fun test05_webDavConfigPersistenceAndSingletonInstance() {
+        // Test singleton instance registration
+        val repoInstance = WenYanRepository.getInstance()
+        assertNotNull("WenYanRepository.getInstance() must return non-null singleton", repoInstance)
+
+        // Test WebDAV config persistence fallback and getter/setter
+        val testConfig = com.ancient.wenyan.domain.sync.WebDavConfig(
+            serverUrl = "https://custom-dav.example.com/dav/",
+            username = "ancient_student",
+            password = "secret_password_123"
+        )
+        repository.saveWebDavConfig(testConfig)
+        val loadedConfig = repository.getWebDavConfig()
+        assertEquals(testConfig.serverUrl, loadedConfig.serverUrl)
+        assertEquals(testConfig.username, loadedConfig.username)
+        assertEquals(testConfig.password, loadedConfig.password)
+    }
+
+    @Test
+    fun test06_widgetProviderCuratedQuotesAndStats() {
+        val quotes = com.ancient.wenyan.ui.screens.CURATED_QUOTES
+        assertTrue("Curated quotes list must not be empty", quotes.isNotEmpty())
+        quotes.forEach { q ->
+            assertTrue("Quote title must not be blank", q.title.isNotBlank())
+            assertTrue("Quote author must not be blank", q.author.isNotBlank())
+            assertTrue("Quote text must not be blank", q.quote.isNotBlank())
+        }
+        val streak = repository.computeHeatmapStats().currentStreak
+        assertTrue("Current streak must be >= 0", streak >= 0)
+    }
 }

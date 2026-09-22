@@ -199,9 +199,11 @@ fun SettingsScreen(
 
     if (showWebDavDialog) {
         WebDavConfigDialog(
+            initialConfig = uiState.webDavConfig,
             isSyncing = uiState.isSyncing,
             onDismiss = { showWebDavDialog = false },
             onUpload = { config ->
+                viewModel.saveWebDavConfig(config)
                 viewModel.syncToWebDav(config) { success, msg ->
                     if (success) {
                         hapticManager.successPulse()
@@ -213,6 +215,7 @@ fun SettingsScreen(
                 }
             },
             onDownload = { config ->
+                viewModel.saveWebDavConfig(config)
                 viewModel.downloadFromWebDav(config) { success, msg ->
                     if (success) {
                         hapticManager.successPulse()

@@ -1,5 +1,6 @@
 package com.ancient.wenyan.ui.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -73,6 +74,40 @@ fun CertificateAndCopybookScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
+                            tint = TextPrimary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            hapticManager.tapLight()
+                            val shareText = if (selectedTab == 0) {
+                                """
+                                【文言背诵 · 结业文牒】
+                                恭喜研读《${article.title}》（${article.dynasty} · ${article.author}）圆满达成！
+                                通篇背诵熟练度已达 100%，特赐结业金榜文牒，以兹嘉奖！
+                                
+                                “${certificate.sealText}”
+                                """.trimIndent()
+                            } else {
+                                """
+                                【文言背诵 · 楷书米字格字帖】
+                                篇目：《${article.title}》
+                                ${article.fullContent}
+                                """.trimIndent()
+                            }
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "《${article.title}》背诵成果")
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "分享成果与字帖"))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "分享成果与字帖",
                             tint = TextPrimary
                         )
                     }

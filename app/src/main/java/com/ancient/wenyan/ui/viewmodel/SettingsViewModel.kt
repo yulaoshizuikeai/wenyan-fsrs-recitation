@@ -22,10 +22,11 @@ data class SettingsUiState(
     val recitationOrderMode: RecitationOrderMode = RecitationOrderMode.SEQUENTIAL,
     val selectedBookName: String = "全部 11 册教材",
     val selectedBookScope: Set<String>? = null,
-    val reminderTime: Pair<Int, Int> = Pair(20, 0),
-    val isReminderEnabled: Boolean = false,
+    val reminderTime: Pair<Int, Int> = Pair(21, 0),
+    val isReminderEnabled: Boolean = true,
     val isSyncing: Boolean = false,
-    val syncMessage: String? = null
+    val syncMessage: String? = null,
+    val webDavConfig: WebDavConfig = WebDavConfig()
 )
 
 @HiltViewModel
@@ -35,6 +36,7 @@ class SettingsViewModel @Inject constructor(
 
     private val _reminderTime = MutableStateFlow(repository.getReminderTime())
     private val _isReminderEnabled = MutableStateFlow(repository.isReminderEnabled())
+    private val _webDavConfig = MutableStateFlow(repository.getWebDavConfig())
     private val _isSyncing = MutableStateFlow(false)
     private val _syncMessage = MutableStateFlow<String?>(null)
 
@@ -45,8 +47,8 @@ class SettingsViewModel @Inject constructor(
         combine(repository.selectedBookName, repository.selectedBookScope) { bookName, bookScope ->
             Pair(bookName, bookScope)
         },
-        combine(_reminderTime, _isReminderEnabled, _isSyncing, _syncMessage) { time, remEnabled, syncing, msg ->
-            arrayOf(time, remEnabled, syncing, msg)
+        combine(_reminderTime, _isReminderEnabled, _isSyncing, _syncMessage, _webDavConfig) { time, remEnabled, syncing, msg, webDav ->
+            arrayOf(time, remEnabled, syncing, msg, webDav)
         }
     ) { (goals, order), (bookName, bookScope), syncArray ->
         @Suppress("UNCHECKED_CAST")
@@ -58,16 +60,27 @@ class SettingsViewModel @Inject constructor(
             reminderTime = syncArray[0] as Pair<Int, Int>,
             isReminderEnabled = syncArray[1] as Boolean,
             isSyncing = syncArray[2] as Boolean,
-            syncMessage = syncArray[3] as String?
+            syncMessage = syncArray[3] as String?,
+            webDavConfig = syncArray[4] as WebDavConfig
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = SettingsUiState(
+            studyGoals = repository.getStudyGoalsConfig(),
+            recitationOrderMode = repository.recitationOrderMode.value,
+            selectedBookName = repository.selectedBookName.value,
+            selectedBookScope = repository.selectedBookScope.value,
             reminderTime = repository.getReminderTime(),
-            isReminderEnabled = repository.isReminderEnabled()
+            isReminderEnabled = repository.isReminderEnabled(),
+            webDavConfig = repository.getWebDavConfig()
         )
     )
+
+    fun saveWebDavConfig(config: WebDavConfig) {
+        repository.saveWebDavConfig(config)
+        _webDavConfig.value = config
+    }
 
     fun setStudyGoalsConfig(config: StudyGoalsConfig) {
         repository.setStudyGoalsConfig(config)
