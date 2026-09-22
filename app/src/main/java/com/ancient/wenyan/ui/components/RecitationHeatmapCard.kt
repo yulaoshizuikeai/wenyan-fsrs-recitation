@@ -1,9 +1,12 @@
 package com.ancient.wenyan.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MilitaryTech
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +34,84 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Color Palette Definitions
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum class HeatmapColorTheme(val label: String) {
+    ANKI("Anki"),
+    MONET("莫奈"),
+    OCEAN("深海")
+}
+
+private data class HeatmapPalette(
+    val empty: Color,
+    val level1: Color,
+    val level2: Color,
+    val level3: Color,
+    val level4: Color,
+    val todayBorder: Color
+)
+
+@Composable
+private fun paletteFor(theme: HeatmapColorTheme, isDark: Boolean): HeatmapPalette = when (theme) {
+    // ── Anki: Classic GitHub-green style ──────────────────────────────────────
+    HeatmapColorTheme.ANKI -> if (isDark) HeatmapPalette(
+        empty     = Color(0xFF1B2028),
+        level1    = Color(0xFF1E3A1E),
+        level2    = Color(0xFF276227),
+        level3    = Color(0xFF4A9E4A),
+        level4    = Color(0xFF6FBE6F),
+        todayBorder = Color(0xFF89D489)
+    ) else HeatmapPalette(
+        empty     = Color(0xFFEBEDF0),
+        level1    = Color(0xFF9BE9A8),
+        level2    = Color(0xFF40C463),
+        level3    = Color(0xFF30A14E),
+        level4    = Color(0xFF216E39),
+        todayBorder = Color(0xFF216E39)
+    )
+
+    // ── Monet: Inspired by Monet's water-lily palette ──────────────────────────
+    // Blues, lilacs, sage greens, dusty roses extracted from "Water Lilies" series
+    HeatmapColorTheme.MONET -> if (isDark) HeatmapPalette(
+        empty     = Color(0xFF1A1C2E),
+        level1    = Color(0xFF2D3B5E),
+        level2    = Color(0xFF4A5E8F),
+        level3    = Color(0xFF7B8FBF),
+        level4    = Color(0xFFB5C3E8),
+        todayBorder = Color(0xFFD4B8D0)
+    ) else HeatmapPalette(
+        empty     = Color(0xFFF0EDF5),
+        level1    = Color(0xFFD4B8D0),   // 莫奈玫瑰紫
+        level2    = Color(0xFF9BAFD4),   // 晨雾蓝
+        level3    = Color(0xFF607CB8),   // 睡莲湖蓝
+        level4    = Color(0xFF3A5A9E),   // 深水蓝
+        todayBorder = Color(0xFF8B6FA8)  // 紫鸢尾
+    )
+
+    // ── Ocean: Deep blue-teal gradient ───────────────────────────────────────
+    HeatmapColorTheme.OCEAN -> if (isDark) HeatmapPalette(
+        empty     = Color(0xFF0D1B2A),
+        level1    = Color(0xFF1A3A4A),
+        level2    = Color(0xFF1E6B7A),
+        level3    = Color(0xFF1DA1B0),
+        level4    = Color(0xFF4DCBD8),
+        todayBorder = Color(0xFF4DCBD8)
+    ) else HeatmapPalette(
+        empty     = Color(0xFFE8F4F8),
+        level1    = Color(0xFFB3DDE8),
+        level2    = Color(0xFF5BBCD1),
+        level3    = Color(0xFF1E8FA3),
+        level4    = Color(0xFF0D6073),
+        todayBorder = Color(0xFF0D6073)
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Composable
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
 fun RecitationHeatmapCard(
     heatmapStats: HeatmapStats,
@@ -40,32 +122,91 @@ fun RecitationHeatmapCard(
 
     val today = remember { LocalDate.now() }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd") }
+    val monthFormatter = remember { DateTimeFormatter.ofPattern("MMM ''yy") }
     var selectedDateInfo by remember { mutableStateOf<Pair<String, Int>?>(null) }
 
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-    val emptyCellColor = if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)
-    val level1Color = if (isDark) Color(0xFF1E3A8A).copy(alpha = 0.65f) else Color(0xFFBFDBFE)
-    val level2Color = if (isDark) Color(0xFF2563EB).copy(alpha = 0.75f) else Color(0xFF60A5FA)
-    val level3Color = if (isDark) Color(0xFF3B82F6) else Color(0xFF2563EB)
-    val level4Color = if (isDark) Color(0xFF60A5FA) else Color(0xFF1E3A8A)
+    val isDark = isSystemInDarkTheme()
+    var colorTheme by remember { mutableStateOf(HeatmapColorTheme.ANKI) }
+    val palette = paletteFor(colorTheme, isDark)
 
-    // Display past 14 weeks (98 days)
+    // Animated palette transitions
+    val animEmpty   by animateColorAsState(palette.empty,   tween(320), label = "empty")
+    val animL1      by animateColorAsState(palette.level1,  tween(320), label = "l1")
+    val animL2      by animateColorAsState(palette.level2,  tween(320), label = "l2")
+    val animL3      by animateColorAsState(palette.level3,  tween(320), label = "l3")
+    val animL4      by animateColorAsState(palette.level4,  tween(320), label = "l4")
+    val animBorder  by animateColorAsState(palette.todayBorder, tween(320), label = "border")
+
+    // Anki-style: 14 weeks + month labels
     val totalWeeks = 14
     val startDate = remember { today.minusWeeks((totalWeeks - 1).toLong()).with(DayOfWeek.MONDAY) }
-    val endDate = remember { today.plusDays((7 - today.dayOfWeek.value).toLong()) } // till end of current week
+    val endDate = remember { today.plusDays((7 - today.dayOfWeek.value).toLong()) }
 
     val daysMatrix = remember(startDate, endDate) {
         val matrix = Array(7) { arrayOfNulls<LocalDate>(totalWeeks) }
         var curr = startDate
         var col = 0
         while (!curr.isAfter(endDate) && col < totalWeeks) {
-            val row = curr.dayOfWeek.value - 1 // 0: Mon, 6: Sun
+            val row = curr.dayOfWeek.value - 1
             matrix[row][col] = curr
             if (row == 6) col++
             curr = curr.plusDays(1)
         }
         matrix
     }
+
+    // ── Adaptive thresholds based on actual data distribution ─────────────────
+    // Collect all non-zero counts in the visible window (past 14 weeks, up to today)
+    val adaptiveThresholds = remember(heatmapStats.dailyReviewMap, startDate) {
+        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val counts = buildList {
+            var d = startDate
+            val now = LocalDate.now()
+            while (!d.isAfter(now)) {
+                val c = heatmapStats.dailyReviewMap[d.format(fmt)] ?: 0
+                if (c > 0) add(c)
+                d = d.plusDays(1)
+            }
+        }.sorted()
+
+        if (counts.isEmpty()) {
+            // No data yet — sensible defaults so legend still renders
+            intArrayOf(1, 5, 10, 20)
+        } else {
+            fun percentile(p: Double): Int {
+                val idx = ((p / 100.0) * (counts.size - 1)).toInt().coerceIn(0, counts.size - 1)
+                return counts[idx]
+            }
+            // p25 / p50 / p75 / max → each level always distinguishable
+            intArrayOf(
+                percentile(25.0).coerceAtLeast(1),
+                percentile(50.0).coerceAtLeast(2),
+                percentile(75.0).coerceAtLeast(3),
+                counts.last()
+            )
+        }
+    }
+
+    // Month label positions: first col where new month appears
+    val monthLabels = remember(startDate, totalWeeks) {
+        buildList {
+            var lastMonth = -1
+            for (col in 0 until totalWeeks) {
+                val date = daysMatrix[0][col] ?: continue
+                if (date.monthValue != lastMonth) {
+                    lastMonth = date.monthValue
+                    add(col to date.format(monthFormatter))
+                }
+            }
+        }
+    }
+
+    // Cell geometry (Anki-style: 11dp cell, 2dp gap — compact & clean)
+    val cellSize = 11.dp
+    val cellGap  = 2.dp
+    val cellRadius = 2.dp
+    // Width of weekday label column
+    val labelColWidth = 20.dp
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -75,7 +216,8 @@ fun RecitationHeatmapCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Title & Total Review Count Badge
+
+            // ── Header ─────────────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -107,24 +249,54 @@ fun RecitationHeatmapCard(
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = BgSurfaceMuted
+                // Color theme picker – compact icon row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = "共研读 ${heatmapStats.totalReviews} 次",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextSecondary
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = "切换配色",
+                        tint = TextTertiary,
+                        modifier = Modifier.size(13.dp)
                     )
+                    Spacer(Modifier.width(2.dp))
+                    HeatmapColorTheme.entries.forEach { theme ->
+                        val isSelected = colorTheme == theme
+                        val dotColor = when (theme) {
+                            HeatmapColorTheme.ANKI  -> if (isDark) Color(0xFF4A9E4A) else Color(0xFF30A14E)
+                            HeatmapColorTheme.MONET -> if (isDark) Color(0xFF7B8FBF) else Color(0xFF607CB8)
+                            HeatmapColorTheme.OCEAN -> if (isDark) Color(0xFF1DA1B0) else Color(0xFF1E8FA3)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(if (isSelected) 20.dp else 16.dp)
+                                .background(
+                                    dotColor,
+                                    RoundedCornerShape(50)
+                                )
+                                .then(
+                                    if (isSelected) Modifier.border(
+                                        2.dp,
+                                        if (isDark) Color.White.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.25f),
+                                        RoundedCornerShape(50)
+                                    ) else Modifier
+                                )
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    hapticManager.tapLight()
+                                    colorTheme = theme
+                                }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Streak & Total Statistics Row
+            // ── Metric Row ─────────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -153,93 +325,128 @@ fun RecitationHeatmapCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Interactive Heatmap Grid (Scrollable horizontally)
+            // ── Anki-style Heatmap Grid ────────────────────────────────────────
             val scrollState = rememberScrollState()
             LaunchedEffect(scrollState) {
-                // Scroll to the latest weeks once layout measurement provides a valid maxValue
                 snapshotFlow { scrollState.maxValue }
                     .filter { it > 0 && it < Int.MAX_VALUE }
                     .first()
                 scrollState.scrollTo(scrollState.maxValue)
             }
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(scrollState),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .horizontalScroll(scrollState)
             ) {
-                // Weekday labels on the left: 一, 三, 五, 日
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(3.5.dp),
-                    modifier = Modifier.padding(end = 4.dp, top = 1.dp)
+                // Month labels row (Anki-style: above the grid)
+                Row(
+                    modifier = Modifier.padding(start = labelColWidth + 4.dp)
                 ) {
-                    listOf("一", "", "三", "", "五", "", "日").forEach { label ->
-                        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                            if (label.isNotEmpty()) {
+                    for (col in 0 until totalWeeks) {
+                        val monthEntry = monthLabels.firstOrNull { it.first == col }
+                        Box(
+                            modifier = Modifier.width(cellSize + cellGap),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (monthEntry != null) {
                                 Text(
-                                    text = label,
-                                    fontSize = 10.sp,
+                                    text = monthEntry.second,
+                                    fontSize = 9.sp,
                                     fontFamily = FontFamily.SansSerif,
                                     color = TextTertiary,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
                     }
                 }
 
-                // Days Matrix: 7 rows x totalWeeks columns
-                Row(horizontalArrangement = Arrangement.spacedBy(3.5.dp)) {
-                    for (col in 0 until totalWeeks) {
-                        Column(verticalArrangement = Arrangement.spacedBy(3.5.dp)) {
-                            for (row in 0 until 7) {
-                                val date = daysMatrix[row][col]
-                                if (date != null && !date.isAfter(endDate)) {
-                                    val dateStr = date.format(formatter)
-                                    val count = heatmapStats.dailyReviewMap[dateStr] ?: 0
-                                    val isToday = (date == today)
-                                    val isFuture = date.isAfter(today)
+                Spacer(Modifier.height(3.dp))
 
-                                    val cellColor = when {
-                                        isFuture -> Color.Transparent
-                                        count == 0 -> emptyCellColor
-                                        count in 1..4 -> level1Color
-                                        count in 5..9 -> level2Color
-                                        count in 10..19 -> level3Color
-                                        else -> level4Color
-                                    }
+                // Weekday labels + grid
+                Row {
+                    // Weekday labels: M T W T F S S (Anki style)
+                    Column(
+                        modifier = Modifier
+                            .width(labelColWidth)
+                            .padding(end = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(cellGap)
+                    ) {
+                        listOf("M", "T", "W", "T", "F", "S", "S").forEach { label ->
+                            // Show only M, W, F to avoid crowding (Anki shows every other)
+                            val showLabel = label == "M" || label == "W" || label == "F"
+                            Box(
+                                modifier = Modifier
+                                    .size(cellSize)
+                                    .padding(end = 2.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                if (showLabel) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 8.sp,
+                                        fontFamily = FontFamily.SansSerif,
+                                        color = TextTertiary,
+                                        fontWeight = FontWeight.Medium,
+                                        lineHeight = 8.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
 
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clickable(
-                                                enabled = !isFuture,
-                                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                                indication = androidx.compose.material.ripple.rememberRipple(bounded = false, radius = 24.dp)
-                                            ) {
-                                                hapticManager.tapLight()
-                                                selectedDateInfo = Pair(dateStr, count)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
+                    // The week columns
+                    Row(horizontalArrangement = Arrangement.spacedBy(cellGap)) {
+                        for (col in 0 until totalWeeks) {
+                            Column(verticalArrangement = Arrangement.spacedBy(cellGap)) {
+                                for (row in 0 until 7) {
+                                    val date = daysMatrix[row][col]
+                                    if (date != null && !date.isAfter(endDate)) {
+                                        val dateStr = date.format(formatter)
+                                        val count = heatmapStats.dailyReviewMap[dateStr] ?: 0
+                                        val isToday  = (date == today)
+                                        val isFuture = date.isAfter(today)
+
+                                        val rawCellColor = when {
+                                            isFuture -> Color.Transparent
+                                            count == 0 -> animEmpty
+                                            count <= adaptiveThresholds[0] -> animL1
+                                            count <= adaptiveThresholds[1] -> animL2
+                                            count <= adaptiveThresholds[2] -> animL3
+                                            else                           -> animL4
+                                        }
+
                                         Box(
                                             modifier = Modifier
-                                                .size(16.dp)
-                                                .background(
-                                                    color = cellColor,
-                                                    shape = RoundedCornerShape(4.dp)
-                                                )
+                                                .size(cellSize)
+                                                .background(rawCellColor, RoundedCornerShape(cellRadius))
                                                 .then(
-                                                    if (isToday) Modifier.border(1.5.dp, StreakFlame, RoundedCornerShape(4.dp))
-                                                    else Modifier
+                                                    if (isToday) Modifier.border(
+                                                        1.dp,
+                                                        animBorder,
+                                                        RoundedCornerShape(cellRadius)
+                                                    ) else Modifier
                                                 )
+                                                .clickable(
+                                                    enabled = !isFuture,
+                                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                                    indication = androidx.compose.material.ripple.rememberRipple(
+                                                        bounded = false,
+                                                        radius = 10.dp
+                                                    )
+                                                ) {
+                                                    hapticManager.tapLight()
+                                                    selectedDateInfo = Pair(dateStr, count)
+                                                }
                                         )
+                                    } else {
+                                        Spacer(modifier = Modifier.size(cellSize))
                                     }
-                                } else {
-                                    Spacer(modifier = Modifier.size(24.dp))
                                 }
                             }
                         }
@@ -247,9 +454,9 @@ fun RecitationHeatmapCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Footer: Selected Date Detail or Tip + Legend
+            // ── Footer: Selection Info + Legend ────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -259,7 +466,7 @@ fun RecitationHeatmapCard(
                     val (dStr, cnt) = selectedDateInfo!!
                     Text(
                         text = "$dStr · 背诵 $cnt 次",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Bold,
                         color = if (cnt > 0) StudyBlueAccent else TextSecondary
@@ -267,29 +474,33 @@ fun RecitationHeatmapCard(
                 } else {
                     Text(
                         text = "轻触方格查看背诵记录",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontFamily = FontFamily.SansSerif,
                         color = TextTertiary
                     )
                 }
 
-                // Legend: 少 ⬜ 🟦 🟦 🟦 🟦 多
+                // Legend
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(text = "少", fontSize = 10.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
-                    Box(modifier = Modifier.size(10.dp).background(emptyCellColor, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(level1Color, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(level2Color, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(level3Color, RoundedCornerShape(2.dp)))
-                    Box(modifier = Modifier.size(10.dp).background(level4Color, RoundedCornerShape(2.dp)))
-                    Text(text = "多", fontSize = 10.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
+                    Text(text = "少", fontSize = 9.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
+                    listOf(animEmpty, animL1, animL2, animL3, animL4).forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(9.dp)
+                                .background(color, RoundedCornerShape(1.5.dp))
+                        )
+                    }
+                    Text(text = "多", fontSize = 9.sp, fontFamily = FontFamily.SansSerif, color = TextTertiary)
                 }
             }
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun HeatmapMetricItem(
