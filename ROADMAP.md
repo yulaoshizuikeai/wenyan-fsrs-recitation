@@ -47,10 +47,10 @@
   - 使用 SQLite 存储全生命周期复习日志，为离线算法参数调优提供真实全量数据支持。
 
 ### 1.3 现代架构迁移：Hilt 依赖注入与 ViewModel UDF (P1)
-- [ ] **接入 Hilt 依赖注入框架**
+- [x] **接入 Hilt 依赖注入框架**
   - 提供 `@Singleton` 的 `AppDatabase`、`WenYanRepository`、`FSRSEngine`。
   - 注入协程调度器（`@IoDispatcher CoroutineDispatcher`），彻底替换硬编码的 `Dispatchers.Default` / `Dispatchers.IO`。
-- [ ] **MVVM / MVI 单向数据流 (UDF) 重构**
+- [x] **MVVM / MVI 单向数据流 (UDF) 重构**
   - 拆分独立 ViewModel：`DashboardViewModel`、`FlipCardViewModel`、`ChapterTreeViewModel`、`SettingsViewModel`。
   - 状态由 `StateFlow<UiState>` 统一暴露，Composable 严格 Stateless。
 

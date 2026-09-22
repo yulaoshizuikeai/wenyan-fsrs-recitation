@@ -31,8 +31,11 @@ import com.ancient.wenyan.data.GaoKaoScenarioDataSource
 import com.ancient.wenyan.domain.gaokao.GaoKaoScenarioQuestion
 import com.ancient.wenyan.domain.speech.RecitationDiffEngine
 import com.ancient.wenyan.domain.speech.RecitationEvaluationResult
+import com.ancient.wenyan.domain.ai.ScenarioDiagnosisResult
+import com.ancient.wenyan.domain.ai.TypeSafeDiagnosisEngine
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -54,10 +57,13 @@ fun GaoKaoScenarioScreen(
         mutableStateOf(GaoKaoScenarioDataSource.getQuestionsByArticle(selectedArticle))
     }
 
+    val coroutineScope = rememberCoroutineScope()
     var currentIndex by remember(activeQuestions) { mutableIntStateOf(0) }
     var isRevealed by remember(currentIndex, activeQuestions) { mutableStateOf(false) }
     var userInput by remember(currentIndex, activeQuestions) { mutableStateOf("") }
     var evalResult by remember(currentIndex, activeQuestions) { mutableStateOf<RecitationEvaluationResult?>(null) }
+    var aiDiagnosis by remember(currentIndex, activeQuestions) { mutableStateOf<ScenarioDiagnosisResult?>(null) }
+    var isAiLoading by remember(currentIndex, activeQuestions) { mutableStateOf(false) }
 
     val currentQ = activeQuestions.getOrNull(currentIndex)
 
@@ -69,6 +75,16 @@ fun GaoKaoScenarioScreen(
             hapticManager.tapLight()
             evalResult = RecitationDiffEngine.evaluate(userInput, currentQ.answer)
             isRevealed = true
+            isAiLoading = true
+            coroutineScope.launch {
+                aiDiagnosis = TypeSafeDiagnosisEngine.diagnose(
+                    scenarioPrompt = currentQ.prompt,
+                    expectedAnswer = currentQ.answer,
+                    userInput = userInput,
+                    keyPoints = currentQ.keyPoints
+                )
+                isAiLoading = false
+            }
         }
     }
 
@@ -523,6 +539,104 @@ fun GaoKaoScenarioScreen(
                                 text = res.feedbackMessage,
                                 fontSize = 13.sp,
                                 color = TextPrimary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ==============================================================
+            // 5.5 TypeSafe AI 智能学情诊断卡片
+            // ==============================================================
+            AnimatedVisibility(
+                visible = isRevealed && (isAiLoading || (aiDiagnosis != null && aiDiagnosis!!.isSuccess)),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = StreakFlame,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "AI 智能学情诊断 · TypeSafe 驱动",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = StreakFlame
+                                )
+                            }
+                            if (isAiLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = StreakFlame
+                                )
+                            }
+                        }
+
+                        if (isAiLoading) {
+                            Text(
+                                text = "正在通过 Jev 模型智能研判审题意向与错因根源...",
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                        } else if (aiDiagnosis != null && aiDiagnosis!!.isSuccess) {
+                            val diag = aiDiagnosis!!
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = StreakFlame.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = "意象契合 ${diag.intentRate.toInt()}%",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StreakFlame,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                ) {
+                                    Text(
+                                        text = diag.categoryDesc,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = diag.advice,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimary,
+                                lineHeight = 18.sp
                             )
                         }
                     }

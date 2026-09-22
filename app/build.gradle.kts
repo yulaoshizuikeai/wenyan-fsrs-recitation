@@ -5,6 +5,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -15,8 +16,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "1.5.7"
+        versionCode = 18
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -150,6 +151,12 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 
+    // Hilt Dependency Injection
+    val hiltVersion = "2.51.1"
+    implementation("com.google.dagger:hilt-android:$hiltVersion")
+    ksp("com.google.dagger:hilt-compiler:$hiltVersion")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 
@@ -159,6 +166,7 @@ dependencies {
     // Unit Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("org.json:json:20231013")
 
     // Debug UI Tools
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -199,6 +207,7 @@ tasks.register("runInProcessTests") {
             "com.ancient.wenyan.ActiveSessionPersistenceTest",
             "com.ancient.wenyan.Phase2Phase3FixesTest",
             "com.ancient.wenyan.RoadmapPhaseExecutionTest",
+            "com.ancient.wenyan.TypeSafeDiagnosisTest",
             "com.ancient.wenyan.e2e.Tier1FeatureCoverageTest",
             "com.ancient.wenyan.e2e.Tier2BoundaryCornerCasesTest"
         )

@@ -115,7 +115,7 @@ object GaoKaoScenarioDataSource {
             articleId = "art_bx1_14",
             articleTitle = "赤壁赋",
             author = "苏轼",
-            prompt = "《赤壁赋》中苏轼用白描手法描摹清风与明月，抒发造物者无尽宝藏、与朋友共享之惬意的句子是：",
+            prompt = "苏轼在《赤壁赋》中描摹江上清风与山间明月，指出它们化为耳中之妙声与眼中之美色、任人尽情领略的句子是：",
             answer = "惟江上之清风，与山间之明月，耳得之而为声，目遇之而成色。",
             keyPoints = listOf("惟 (通‘唯’)", "耳得之而为声", "目遇之而成色"),
             explanation = "体悟苏轼超然旷达之宇宙哲思与审美意趣。"

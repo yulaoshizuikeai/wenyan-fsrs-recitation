@@ -72,23 +72,20 @@ private fun paletteFor(theme: HeatmapColorTheme, isDark: Boolean): HeatmapPalett
         todayBorder = Color(0xFF216E39)
     )
 
-    // ── Monet: Inspired by Monet's water-lily palette ──────────────────────────
-    // Blues, lilacs, sage greens, dusty roses extracted from "Water Lilies" series
-    HeatmapColorTheme.MONET -> if (isDark) HeatmapPalette(
-        empty     = Color(0xFF1A1C2E),
-        level1    = Color(0xFF2D3B5E),
-        level2    = Color(0xFF4A5E8F),
-        level3    = Color(0xFF7B8FBF),
-        level4    = Color(0xFFB5C3E8),
-        todayBorder = Color(0xFFD4B8D0)
-    ) else HeatmapPalette(
-        empty     = Color(0xFFF0EDF5),
-        level1    = Color(0xFFD4B8D0),   // 莫奈玫瑰紫
-        level2    = Color(0xFF9BAFD4),   // 晨雾蓝
-        level3    = Color(0xFF607CB8),   // 睡莲湖蓝
-        level4    = Color(0xFF3A5A9E),   // 深水蓝
-        todayBorder = Color(0xFF8B6FA8)  // 紫鸢尾
-    )
+    // ── Monet: Samples directly from Material 3 dynamic Monet wallpaper palette ──
+    HeatmapColorTheme.MONET -> {
+        val primary = MaterialTheme.colorScheme.primary
+        val primaryContainer = MaterialTheme.colorScheme.primaryContainer
+        val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+        HeatmapPalette(
+            empty       = if (isDark) Color(0xFF1A1C2E) else surfaceVariant.copy(alpha = 0.55f),
+            level1      = primary.copy(alpha = if (isDark) 0.25f else 0.22f),
+            level2      = primary.copy(alpha = if (isDark) 0.50f else 0.48f),
+            level3      = primary.copy(alpha = if (isDark) 0.75f else 0.72f),
+            level4      = primary,
+            todayBorder = if (isDark) primaryContainer else primary
+        )
+    }
 
     // ── Ocean: Deep blue-teal gradient ───────────────────────────────────────
     HeatmapColorTheme.OCEAN -> if (isDark) HeatmapPalette(
@@ -122,7 +119,6 @@ fun RecitationHeatmapCard(
 
     val today = remember { LocalDate.now() }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd") }
-    val monthFormatter = remember { DateTimeFormatter.ofPattern("MMM ''yy") }
     var selectedDateInfo by remember { mutableStateOf<Pair<String, Int>?>(null) }
 
     val isDark = isSystemInDarkTheme()
@@ -187,15 +183,25 @@ fun RecitationHeatmapCard(
         }
     }
 
-    // Month label positions: first col where new month appears
+    // Month label positions: find when month changes across weeks, guaranteeing comfortable separation
     val monthLabels = remember(startDate, totalWeeks) {
         buildList {
             var lastMonth = -1
+            var lastCol = -10
             for (col in 0 until totalWeeks) {
-                val date = daysMatrix[0][col] ?: continue
-                if (date.monthValue != lastMonth) {
-                    lastMonth = date.monthValue
-                    add(col to date.format(monthFormatter))
+                var newMonthDate: LocalDate? = null
+                for (row in 0 until 7) {
+                    val date = daysMatrix[row][col] ?: continue
+                    if (date.monthValue != lastMonth) {
+                        newMonthDate = date
+                        break
+                    }
+                }
+                if (newMonthDate != null && col - lastCol >= 3) {
+                    lastMonth = newMonthDate.monthValue
+                    lastCol = col
+                    val label = if (newMonthDate.monthValue == 1) "${newMonthDate.year}年" else "${newMonthDate.monthValue}月"
+                    add(col to label)
                 }
             }
         }
@@ -265,7 +271,7 @@ fun RecitationHeatmapCard(
                         val isSelected = colorTheme == theme
                         val dotColor = when (theme) {
                             HeatmapColorTheme.ANKI  -> if (isDark) Color(0xFF4A9E4A) else Color(0xFF30A14E)
-                            HeatmapColorTheme.MONET -> if (isDark) Color(0xFF7B8FBF) else Color(0xFF607CB8)
+                            HeatmapColorTheme.MONET -> MaterialTheme.colorScheme.primary
                             HeatmapColorTheme.OCEAN -> if (isDark) Color(0xFF1DA1B0) else Color(0xFF1E8FA3)
                         }
                         Box(
@@ -341,28 +347,25 @@ fun RecitationHeatmapCard(
                     .fillMaxWidth()
                     .horizontalScroll(scrollState)
             ) {
-                // Month labels row (Anki-style: above the grid)
-                Row(
-                    modifier = Modifier.padding(start = labelColWidth + 4.dp)
+                // Month labels row (positioned above grid with absolute column alignment, avoiding text crowding)
+                Box(
+                    modifier = Modifier
+                        .padding(start = labelColWidth + 4.dp)
+                        .height(18.dp)
+                        .width(((cellSize + cellGap) * totalWeeks))
                 ) {
-                    for (col in 0 until totalWeeks) {
-                        val monthEntry = monthLabels.firstOrNull { it.first == col }
-                        Box(
-                            modifier = Modifier.width(cellSize + cellGap),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (monthEntry != null) {
-                                Text(
-                                    text = monthEntry.second,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.SansSerif,
-                                    color = TextTertiary,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                        }
+                    monthLabels.forEach { (col, label) ->
+                        val xOffset = ((cellSize + cellGap) * col)
+                        Text(
+                            text = label,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            color = TextTertiary,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.offset(x = xOffset)
+                        )
                     }
                 }
 

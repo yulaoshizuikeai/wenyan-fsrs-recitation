@@ -50,7 +50,9 @@ import com.ancient.wenyan.ui.screens.*
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 enum class MainTab(
     val title: String,
@@ -173,7 +175,12 @@ internal fun overlayScreenSaver(repository: WenYanRepository): Saver<MutableStat
         restore = { saved -> mutableStateOf(OverlayScreenStateHolder.restore(saved, repository)) }
     )
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var repository: WenYanRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -187,8 +194,6 @@ class MainActivity : ComponentActivity() {
                 window.isNavigationBarContrastEnforced = false
             } catch (_: Throwable) {}
         }
-
-        val repository = WenYanRepository.getInstance(applicationContext)
 
         setContent {
             WenYanTheme {

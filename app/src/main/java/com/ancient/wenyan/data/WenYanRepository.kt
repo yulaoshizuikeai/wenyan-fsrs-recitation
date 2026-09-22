@@ -24,6 +24,7 @@ import com.ancient.wenyan.data.db.DatabaseMigrationHelper
 import com.ancient.wenyan.data.db.entities.CardStateEntity
 import com.ancient.wenyan.data.db.entities.DailyRecordEntity
 import com.ancient.wenyan.data.db.entities.ReviewLogEntity
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,13 +49,14 @@ data class DeckStats(
 
 class WenYanRepository(
     private val context: Context? = null,
-    val fsrsEngine: FSRSEngine = FSRSEngine()
+    val fsrsEngine: FSRSEngine = FSRSEngine(),
+    database: AppDatabase? = null,
+    defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val repositoryScope = CoroutineScope(SupervisorJob() + defaultDispatcher)
 
-    val database: AppDatabase? by lazy {
-        context?.let { AppDatabase.getInstance(it) }
-    }
+    val database: AppDatabase? = database ?: context?.let { AppDatabase.getInstance(it) }
 
     private val cardsStateMap = java.util.concurrent.ConcurrentHashMap<String, CardFsrsState>()
     private val reviewLogs = java.util.concurrent.CopyOnWriteArrayList<ReviewLog>()

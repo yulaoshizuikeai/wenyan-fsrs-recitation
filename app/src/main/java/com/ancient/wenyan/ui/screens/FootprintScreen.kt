@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.notification.ReminderWorker
 import com.ancient.wenyan.ui.components.FeedbackPreferencesDialog
@@ -32,14 +33,22 @@ import com.ancient.wenyan.ui.components.ReminderSettingsDialog
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import com.ancient.wenyan.ui.viewmodel.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FootprintScreen(
-    repository: WenYanRepository,
+    repository: WenYanRepository? = null,
+    viewModel: DashboardViewModel = if (repository != null) {
+        remember(repository) { DashboardViewModel(repository) }
+    } else {
+        hiltViewModel()
+    },
     onOpenSettings: () -> Unit = {}
 ) {
-    val heatmapStats by repository.heatmapStatsFlow.collectAsState()
+    val currentRepo = remember(viewModel) { viewModel.getRepository() }
+    val uiState by viewModel.uiState.collectAsState()
+    val heatmapStats = uiState.heatmapStats
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
@@ -48,13 +57,13 @@ fun FootprintScreen(
     var showReminderDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
-    var reminderTime by remember { mutableStateOf(repository.getReminderTime()) }
-    var isReminderOn by remember { mutableStateOf(repository.isReminderEnabled()) }
+    var reminderTime by remember { mutableStateOf(currentRepo.getReminderTime()) }
+    var isReminderOn by remember { mutableStateOf(currentRepo.isReminderEnabled()) }
 
     LaunchedEffect(showReminderDialog) {
         if (showReminderDialog) {
-            reminderTime = repository.getReminderTime()
-            isReminderOn = repository.isReminderEnabled()
+            reminderTime = currentRepo.getReminderTime()
+            isReminderOn = currentRepo.isReminderEnabled()
         }
     }
 
@@ -62,7 +71,7 @@ fun FootprintScreen(
         OnboardingTutorialDialog(
             onDismiss = { showTutorialDialog = false },
             onComplete = {
-                repository.setOnboardingCompleted(true)
+                currentRepo.setOnboardingCompleted(true)
                 showTutorialDialog = false
             }
         )
@@ -75,8 +84,8 @@ fun FootprintScreen(
             isReminderEnabled = isReminderOn,
             onDismiss = { showReminderDialog = false },
             onConfirm = { hour, minute, enabled ->
-                repository.setReminderTime(hour, minute)
-                repository.setReminderEnabled(enabled)
+                currentRepo.setReminderTime(hour, minute)
+                currentRepo.setReminderEnabled(enabled)
                 reminderTime = Pair(hour, minute)
                 isReminderOn = enabled
                 if (enabled) {

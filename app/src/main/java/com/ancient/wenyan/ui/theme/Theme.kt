@@ -46,7 +46,7 @@ private val DarkSuccessGreen = Color(0xFF34D399)     // 掌握绿 (Emerald 400)
 private val DarkDueRed = Color(0xFFF87171)           // 到期红 (Red 400)
 private val DarkWarningGold = Color(0xFFFBBF24)      // 警示黄 (Amber 400)
 
-// Dynamic Composable Color Tokens (Adapt effortlessly between Light & Dark modes)
+// Dynamic Composable Color Tokens (Seamlessly adapts to Material 3 & Android 12+ Monet Dynamic Colors)
 val BgCanvas: Color @Composable get() = MaterialTheme.colorScheme.background
 val BgSurface: Color @Composable get() = MaterialTheme.colorScheme.surface
 val BgSurfaceMuted: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
@@ -57,12 +57,12 @@ val TextSecondary: Color @Composable get() = MaterialTheme.colorScheme.onSurface
 val TextTertiary: Color @Composable get() = if (isSystemInDarkTheme()) DarkTextTertiary else LightTextTertiary
 
 val StudyNavy: Color @Composable get() = if (isSystemInDarkTheme()) DarkStudyNavy else LightStudyNavy
-val StudyBlueAccent: Color @Composable get() = if (isSystemInDarkTheme()) DarkStudyBlueAccent else LightStudyBlueAccent
-val StudyBlueLight: Color @Composable get() = if (isSystemInDarkTheme()) DarkStudyBlueLight else LightStudyBlueLight
+val StudyBlueAccent: Color @Composable get() = MaterialTheme.colorScheme.primary
+val StudyBlueLight: Color @Composable get() = MaterialTheme.colorScheme.primaryContainer
 
-val StreakFlame: Color @Composable get() = if (isSystemInDarkTheme()) DarkStreakFlame else LightStreakFlame
-val SuccessGreen: Color @Composable get() = if (isSystemInDarkTheme()) DarkSuccessGreen else LightSuccessGreen
-val DueRed: Color @Composable get() = if (isSystemInDarkTheme()) DarkDueRed else LightDueRed
+val StreakFlame: Color @Composable get() = MaterialTheme.colorScheme.secondary
+val SuccessGreen: Color @Composable get() = MaterialTheme.colorScheme.tertiary
+val DueRed: Color @Composable get() = MaterialTheme.colorScheme.error
 val WarningGold: Color @Composable get() = if (isSystemInDarkTheme()) DarkWarningGold else LightWarningGold
 
 // Backward Compatibility Aliases for legacy views mapped to clean modern tokens
@@ -120,12 +120,16 @@ val ModernTypography = Typography(
 )
 
 val ModernColorScheme = lightColorScheme(
-    primary = LightStudyNavy,
+    primary = LightStudyBlueAccent,
     onPrimary = Color.White,
     primaryContainer = LightStudyBlueLight,
-    onPrimaryContainer = LightStudyBlueAccent,
+    onPrimaryContainer = Color(0xFF1D4ED8),
     secondary = LightStreakFlame,
     onSecondary = Color.White,
+    tertiary = LightSuccessGreen,
+    onTertiary = Color.White,
+    error = LightDueRed,
+    onError = Color.White,
     background = LightBgCanvas,
     onBackground = LightTextPrimary,
     surface = LightBgSurface,
@@ -136,12 +140,16 @@ val ModernColorScheme = lightColorScheme(
 )
 
 val ModernDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF93C5FD),
+    primary = DarkStudyBlueAccent,
     onPrimary = Color(0xFF0B0F17),
     primaryContainer = Color(0xFF1E3A8A),
     onPrimaryContainer = Color(0xFFDBEAFE),
     secondary = DarkStreakFlame,
     onSecondary = Color(0xFF431407),
+    tertiary = DarkSuccessGreen,
+    onTertiary = Color(0xFF064E3B),
+    error = DarkDueRed,
+    onError = Color(0xFF450A0A),
     background = DarkBgCanvas,
     onBackground = DarkTextPrimary,
     surface = DarkBgSurface,
@@ -156,9 +164,19 @@ val AncientColorScheme = ModernColorScheme
 @Composable
 fun WenYanTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) ModernDarkColorScheme else ModernColorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val colorScheme = when {
+        dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
+            if (darkTheme) androidx.compose.material3.dynamicDarkColorScheme(context)
+            else androidx.compose.material3.dynamicLightColorScheme(context)
+        }
+        darkTheme -> ModernDarkColorScheme
+        else -> ModernColorScheme
+    }
+
     val view = androidx.compose.ui.platform.LocalView.current
     if (!view.isInEditMode) {
         androidx.compose.runtime.SideEffect {

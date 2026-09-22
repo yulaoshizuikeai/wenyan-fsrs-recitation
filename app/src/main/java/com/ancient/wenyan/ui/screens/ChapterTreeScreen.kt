@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.domain.model.ArticleProgress
@@ -31,11 +32,17 @@ import com.ancient.wenyan.domain.model.Module
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import com.ancient.wenyan.ui.viewmodel.ChapterTreeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChapterTreeScreen(
-    repository: WenYanRepository,
+    repository: WenYanRepository? = null,
+    viewModel: ChapterTreeViewModel = if (repository != null) {
+        remember(repository) { ChapterTreeViewModel(repository) }
+    } else {
+        hiltViewModel()
+    },
     onBack: () -> Unit,
     onStartFlashcards: (Article) -> Unit,
     onStartCloze: (Article) -> Unit,
@@ -45,8 +52,9 @@ fun ChapterTreeScreen(
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
 
-    // Observe statsFlow so that when user completes flashcards/cloze, progress in tree updates reactively
-    val stats by repository.statsFlow.collectAsState()
+    val currentRepo = remember(viewModel) { viewModel.getRepository() }
+    val uiState by viewModel.uiState.collectAsState()
+    val stats = uiState.stats
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var filterGaoKaoOnly by rememberSaveable { mutableStateOf(false) }
@@ -56,12 +64,12 @@ fun ChapterTreeScreen(
 
     var selectedArticleForModal by remember { mutableStateOf<Article?>(null) }
 
-    val modules = remember { repository.getModules() }
+    val modules = uiState.modules
 
     // Precompute filtered modules and their matching articles outside LazyColumn composition
     val filteredModulesWithArticles = remember(modules, searchQuery, filterGaoKaoOnly) {
         modules.mapNotNull { module ->
-            val articles = repository.getArticlesByModule(module.id).filter { article ->
+            val articles = currentRepo.getArticlesByModule(module.id).filter { article ->
                 val matchesSearch = searchQuery.isBlank() ||
                         article.title.contains(searchQuery, ignoreCase = true) ||
                         article.author.contains(searchQuery, ignoreCase = true) ||
@@ -91,7 +99,7 @@ fun ChapterTreeScreen(
         val map = mutableMapOf<String, ArticleProgress>()
         filteredModulesWithArticles.forEach { (_, moduleArticles) ->
             moduleArticles.forEach { article ->
-                map[article.id] = repository.getArticleProgress(article.id)
+                map[article.id] = currentRepo.getArticleProgress(article.id)
             }
         }
         map

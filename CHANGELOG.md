@@ -4,6 +4,35 @@
 
 ---
 
+## [v1.6.0] - 2026-09-22
+
+### 🏗️ Hilt 依赖注入与 MVVM/MVI 单向数据流 (UDF) 架构重构 (Architecture Modernization)
+- **接入 Google Hilt 依赖注入框架 (Hilt DI)**：
+  - 应用入口标注 `@HiltAndroidApp`，MainActivity 标注 `@AndroidEntryPoint`；
+  - 声明 `AppModule` 提供 `AppDatabase`、`WenYanRepository`、`FSRSEngine` 单例生命周期；
+  - 声明 `CoroutineDispatchersModule` 注入协程调度器（`@IoDispatcher`、`@DefaultDispatcher`、`@MainDispatcher`），彻底替换底层硬编码调度器。
+- **ViewModel 层全面抽离与 UDF 单向数据流 (MVVM/MVI UDF)**：
+  - 打造 4 大核心 `@HiltViewModel`：`DashboardViewModel`、`ChapterTreeViewModel`、`SettingsViewModel`、`FlipCardViewModel`；
+  - UI 状态由不可变数据类与 `StateFlow<UiState>` 统一暴露，所有 Composable 屏幕彻底消除 Repository 穿透，实现清晰的 Stateless 架构。
+
+### 💾 设置中心全量数据备份与 WebDAV 云端同步 (Backup & WebDAV Cloud Sync UI)
+- **本地 JSON 全量备份导出与恢复 (SAF Export & Import)**：
+  - 在设置中心“数据与关于”卡片新增“导出学习进度”与“从本地文件恢复进度”入口；
+  - 接入 Android 存储访问框架（SAF `CreateDocument` / `OpenDocument`），一键无缝导出/导入全量卡片学习状态与复习日志。
+- **WebDAV 云端同步配置对话框 (WebDAV Cloud Sync Dialog)**：
+  - 支持坚果云、Nextcloud 等标准 WebDAV 协议；
+  - 包含服务器地址、账号、密码及密码明密文切换，支持一键“上传备份”与“云端恢复”，具备进度指示与震动音效反馈。
+
+### 🎨 Android 12+ 莫奈取色 (Monet Dynamic Color) 与热力图月份排版修复 (Theming & Heatmap Fixes)
+- **全量主题莫奈动态取色联动 (Material You Dynamic Theming)**：
+  - `WenYanTheme` 接入 Android 12+ `dynamicLightColorScheme` 与 `dynamicDarkColorScheme`，随系统壁纸动态取色；
+  - 语义化 Token（`StudyBlueAccent`、`StudyBlueLight`、`DueRed`、`SuccessGreen` 等）全面绑定 `MaterialTheme.colorScheme`，全应用各卡片、按钮、图标自适应莫奈色彩。
+- **打卡热力图月份标签重叠与遮挡修复 (Heatmap Month Labels Fix)**：
+  - 热力图新增“莫奈”配色方案对齐系统动态取色；
+  - 彻底根除月份文字（如“September”或多字符月份）因 13dp 单元格宽度限制产生的严重文字挤压、重叠与显示不全缺陷，改用绝对坐标列对齐排版与优雅的月份展示。
+
+---
+
 ## [v1.5.7] - 2026-09-21
 
 ### 📝 高考理解性默写专项体验全面革新 (GaoKao Scenario Dictation Upgrade)

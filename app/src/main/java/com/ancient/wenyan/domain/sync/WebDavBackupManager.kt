@@ -223,4 +223,37 @@ object WebDavBackupManager {
             SyncResult(false, "WebDAV 连接异常: ${e.localizedMessage ?: e.message}")
         }
     }
+
+    /**
+     * Downloads backup JSON payload from a WebDAV remote endpoint via HTTP GET.
+     */
+    suspend fun downloadFromWebDav(config: WebDavConfig): Pair<SyncResult, String?> = withContext(Dispatchers.IO) {
+        if (config.serverUrl.isBlank()) {
+            return@withContext Pair(SyncResult(false, "WebDAV 服务器地址不能为空"), null)
+        }
+        try {
+            val endpoint = if (config.serverUrl.endsWith("/")) "${config.serverUrl}wenyan_backup.json" else "${config.serverUrl}/wenyan_backup.json"
+            val url = URL(endpoint)
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            conn.connectTimeout = 10000
+            conn.readTimeout = 15000
+
+            if (config.username.isNotBlank()) {
+                val auth = "${config.username}:${config.password}"
+                val encodedAuth = android.util.Base64.encodeToString(auth.toByteArray(StandardCharsets.UTF_8), android.util.Base64.NO_WRAP)
+                conn.setRequestProperty("Authorization", "Basic $encodedAuth")
+            }
+
+            val responseCode = conn.responseCode
+            if (responseCode in 200..299) {
+                val content = conn.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+                Pair(SyncResult(true, "从云端成功拉取备份数据"), content)
+            } else {
+                Pair(SyncResult(false, "云端未找到备份或拉取失败，状态码: $responseCode"), null)
+            }
+        } catch (e: Exception) {
+            Pair(SyncResult(false, "WebDAV 连接异常: ${e.localizedMessage ?: e.message}"), null)
+        }
+    }
 }

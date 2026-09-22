@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.ActiveSession
@@ -42,6 +43,7 @@ import com.ancient.wenyan.ui.components.FeedbackPreferencesDialog
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import com.ancient.wenyan.ui.viewmodel.DashboardViewModel
 import java.time.LocalDate
 
 data class ClassicalQuote(
@@ -86,20 +88,27 @@ val CURATED_QUOTES = listOf(
 
 @Composable
 fun DashboardScreen(
-    repository: WenYanRepository,
+    repository: WenYanRepository? = null,
+    viewModel: DashboardViewModel = if (repository != null) {
+        remember(repository) { DashboardViewModel(repository) }
+    } else {
+        hiltViewModel()
+    },
     onStartTodayReview: () -> Unit,
     onStartGaoKaoReview: () -> Unit,
     onNavigateToPractice: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onResumeActiveSession: (ActiveSession) -> Unit = {}
 ) {
-    val stats by repository.statsFlow.collectAsState()
-    val selectedBookScope by repository.selectedBookScope.collectAsState()
-    val selectedBookName by repository.selectedBookName.collectAsState()
-    val heatmapStats by repository.heatmapStatsFlow.collectAsState()
-    val activeSession by repository.activeSessionFlow.collectAsState()
-    val studyGoals by repository.studyGoalsConfig.collectAsState()
-    val todayProgress by repository.todayStudyProgressFlow.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val stats = uiState.stats
+    val selectedBookScope = uiState.selectedBookScope
+    val selectedBookName = uiState.selectedBookName
+    val heatmapStats = uiState.heatmapStats
+    val activeSession = uiState.activeSession
+    val studyGoals = uiState.studyGoals
+    val todayProgress = uiState.todayProgress
+    val currentRepo = remember(viewModel) { viewModel.getRepository() }
 
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
@@ -133,7 +142,7 @@ fun DashboardScreen(
             currentName = selectedBookName,
             onDismiss = { showBookDialog = false },
             onConfirmSelection = { newScope, newName ->
-                repository.setSelectedBookScope(newScope, newName)
+                viewModel.setSelectedBookScope(newScope, newName)
                 showBookDialog = false
             }
         )
@@ -144,7 +153,7 @@ fun DashboardScreen(
             currentConfig = studyGoals,
             onDismiss = { showDailyGoalDialog = false },
             onConfirm = { newConfig ->
-                repository.setStudyGoalsConfig(newConfig)
+                viewModel.setStudyGoalsConfig(newConfig)
                 showDailyGoalDialog = false
             }
         )
@@ -152,7 +161,7 @@ fun DashboardScreen(
 
     if (showFSRSConfigDialog) {
         FSRSConfigDialog(
-            repository = repository,
+            repository = currentRepo,
             onDismiss = { showFSRSConfigDialog = false }
         )
     }
@@ -296,7 +305,7 @@ fun DashboardScreen(
                                 IconButton(
                                     onClick = {
                                         hapticManager.tapLight()
-                                        repository.clearActiveSession()
+                                        currentRepo.clearActiveSession()
                                     },
                                     modifier = Modifier.size(36.dp)
                                 ) {

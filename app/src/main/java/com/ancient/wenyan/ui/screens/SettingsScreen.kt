@@ -1,5 +1,7 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,24 +23,40 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.ancient.wenyan.BuildConfig
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.RecitationOrderMode
+import com.ancient.wenyan.domain.sync.WebDavConfig
 import com.ancient.wenyan.notification.ReminderWorker
 import com.ancient.wenyan.ui.components.*
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
+import com.ancient.wenyan.ui.viewmodel.SettingsViewModel
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    repository: WenYanRepository,
+    repository: WenYanRepository? = null,
+    viewModel: SettingsViewModel = if (repository != null) {
+        remember(repository) { SettingsViewModel(repository) }
+    } else {
+        hiltViewModel()
+    },
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val currentRepo = remember(viewModel) { viewModel.getRepository() }
+    val uiState by viewModel.uiState.collectAsState()
 
     // Dialog / Sheet Visibility States
     var showDailyGoalDialog by remember { mutableStateOf(false) }
@@ -49,15 +67,69 @@ fun SettingsScreen(
     var showTutorialDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var showOrderModeDialog by remember { mutableStateOf(false) }
+    var showWebDavDialog by remember { mutableStateOf(false) }
 
-    // Observed States
-    val studyGoals by repository.studyGoalsConfig.collectAsState()
-    val recitationOrderMode by repository.recitationOrderMode.collectAsState()
-    val selectedBookName by repository.selectedBookName.collectAsState()
-    val selectedBookScope by repository.selectedBookScope.collectAsState()
+    // Observed States from ViewModel
+    val studyGoals = uiState.studyGoals
+    val recitationOrderMode = uiState.recitationOrderMode
+    val selectedBookName = uiState.selectedBookName
+    val selectedBookScope = uiState.selectedBookScope
+    val reminderTime = uiState.reminderTime
+    val isReminderOn = uiState.isReminderEnabled
 
-    var reminderTime by remember { mutableStateOf(repository.getReminderTime()) }
-    var isReminderOn by remember { mutableStateOf(repository.isReminderEnabled()) }
+    // System File SAF Launchers for Backup Export & Restore
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val json = viewModel.createBackupJson()
+                context.contentResolver.openOutputStream(uri)?.use { os ->
+                    os.write(json.toByteArray(Charsets.UTF_8))
+                }
+                hapticManager.successPulse()
+                soundManager.playCelebration()
+                scope.launch {
+                    snackbarHostState.showSnackbar("备份数据已成功导出至文件")
+                }
+            } catch (e: Exception) {
+                hapticManager.warningThud()
+                scope.launch {
+                    snackbarHostState.showSnackbar("导出失败: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val jsonStr = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use {
+                    it.readText()
+                } ?: ""
+                val count = viewModel.restoreFromJson(jsonStr)
+                if (count > 0) {
+                    hapticManager.successPulse()
+                    soundManager.playCelebration()
+                    scope.launch {
+                        snackbarHostState.showSnackbar("成功恢复 $count 张卡片记忆进度与打卡记录")
+                    }
+                } else {
+                    hapticManager.warningThud()
+                    scope.launch {
+                        snackbarHostState.showSnackbar("备份文件解析失败或无有效进度记录")
+                    }
+                }
+            } catch (e: Exception) {
+                hapticManager.warningThud()
+                scope.launch {
+                    snackbarHostState.showSnackbar("导入异常: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
 
     // Dialogs & Sheets
     if (showDailyGoalDialog) {
@@ -65,7 +137,7 @@ fun SettingsScreen(
             currentConfig = studyGoals,
             onDismiss = { showDailyGoalDialog = false },
             onConfirm = { newConfig ->
-                repository.setStudyGoalsConfig(newConfig)
+                viewModel.setStudyGoalsConfig(newConfig)
                 showDailyGoalDialog = false
             }
         )
@@ -73,7 +145,7 @@ fun SettingsScreen(
 
     if (showFSRSDialog) {
         FSRSConfigDialog(
-            repository = repository,
+            repository = currentRepo,
             onDismiss = { showFSRSDialog = false }
         )
     }
@@ -85,10 +157,8 @@ fun SettingsScreen(
             isReminderEnabled = isReminderOn,
             onDismiss = { showReminderDialog = false },
             onConfirm = { hour, minute, enabled ->
-                repository.setReminderTime(hour, minute)
-                repository.setReminderEnabled(enabled)
-                reminderTime = Pair(hour, minute)
-                isReminderOn = enabled
+                viewModel.setReminderTime(hour, minute)
+                viewModel.setReminderEnabled(enabled)
                 if (enabled) {
                     ReminderWorker.scheduleDailyReminder(context, hour, minute)
                 } else {
@@ -111,7 +181,7 @@ fun SettingsScreen(
             currentName = selectedBookName,
             onDismiss = { showBookDialog = false },
             onConfirmSelection = { newScope, newName ->
-                repository.setSelectedBookScope(newScope, newName)
+                viewModel.setSelectedBookScope(newScope, newName)
                 showBookDialog = false
             }
         )
@@ -121,8 +191,38 @@ fun SettingsScreen(
         OnboardingTutorialDialog(
             onDismiss = { showTutorialDialog = false },
             onComplete = {
-                repository.setOnboardingCompleted(true)
+                viewModel.setOnboardingCompleted(true)
                 showTutorialDialog = false
+            }
+        )
+    }
+
+    if (showWebDavDialog) {
+        WebDavConfigDialog(
+            isSyncing = uiState.isSyncing,
+            onDismiss = { showWebDavDialog = false },
+            onUpload = { config ->
+                viewModel.syncToWebDav(config) { success, msg ->
+                    if (success) {
+                        hapticManager.successPulse()
+                        soundManager.playCelebration()
+                    } else {
+                        hapticManager.warningThud()
+                    }
+                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                }
+            },
+            onDownload = { config ->
+                viewModel.downloadFromWebDav(config) { success, msg ->
+                    if (success) {
+                        hapticManager.successPulse()
+                        soundManager.playCelebration()
+                        showWebDavDialog = false
+                    } else {
+                        hapticManager.warningThud()
+                    }
+                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                }
             }
         )
     }
@@ -149,7 +249,7 @@ fun SettingsScreen(
                                 .clickable {
                                     hapticManager.tapLight()
                                     soundManager.playClick()
-                                    repository.setRecitationOrderMode(mode)
+                                    viewModel.setRecitationOrderMode(mode)
                                     showOrderModeDialog = false
                                 }
                         ) {
@@ -162,7 +262,7 @@ fun SettingsScreen(
                                     onClick = {
                                         hapticManager.tapLight()
                                         soundManager.playClick()
-                                        repository.setRecitationOrderMode(mode)
+                                        viewModel.setRecitationOrderMode(mode)
                                         showOrderModeDialog = false
                                     },
                                     colors = RadioButtonDefaults.colors(selectedColor = StudyBlueAccent)
@@ -224,8 +324,11 @@ fun SettingsScreen(
                     onClick = {
                         hapticManager.warningThud()
                         soundManager.playWrong()
-                        repository.clearPersistedCardStates()
+                        viewModel.clearPersistedCardStates()
                         showResetConfirmDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar("背诵数据已清空恢复初始状态")
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DueRed)
                 ) {
@@ -241,6 +344,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -326,7 +430,7 @@ fun SettingsScreen(
                         SettingsActionItem(
                             icon = Icons.Default.Psychology,
                             title = "FSRS-5 算法参数调优",
-                            subtitle = "保留率 ${(repository.fsrsEngine.requestRetention * 100).toInt()}% · 19项权重参数拟合",
+                            subtitle = "保留率 ${(currentRepo.fsrsEngine.requestRetention * 100).toInt()}% · 19项权重参数拟合",
                             onClick = {
                                 hapticManager.tapLight()
                                 soundManager.playClick()
@@ -412,7 +516,50 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
-                        // 1. 使用指南
+                        // 1. 本地导出
+                        SettingsActionItem(
+                            icon = Icons.Default.FileDownload,
+                            title = "导出学习进度 (JSON 备份)",
+                            subtitle = "导出全量卡片状态与复习日志，方便换机迁移与存档",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                val defaultName = "wenyan_backup_${LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)}.json"
+                                exportLauncher.launch(defaultName)
+                            }
+                        )
+
+                        SettingsItemDivider()
+
+                        // 2. 本地导入
+                        SettingsActionItem(
+                            icon = Icons.Default.FileUpload,
+                            title = "从本地备份恢复数据",
+                            subtitle = "选取 JSON 备份文件覆盖恢复卡片进度与打卡记录",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                            }
+                        )
+
+                        SettingsItemDivider()
+
+                        // 3. WebDAV 云端同步
+                        SettingsActionItem(
+                            icon = Icons.Default.CloudSync,
+                            title = "WebDAV 云端同步与备份",
+                            subtitle = if (uiState.isSyncing) "正在同步中..." else "支持坚果云等标准 WebDAV 一键上传与恢复",
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showWebDavDialog = true
+                            }
+                        )
+
+                        SettingsItemDivider()
+
+                        // 4. 使用指南
                         SettingsActionItem(
                             icon = Icons.AutoMirrored.Filled.HelpOutline,
                             title = "新手使用指南",
@@ -426,7 +573,7 @@ fun SettingsScreen(
 
                         SettingsItemDivider()
 
-                        // 2. 高危操作：重置数据
+                        // 5. 高危操作：重置数据
                         SettingsActionItem(
                             icon = Icons.Default.DeleteOutline,
                             title = "重置所有背诵数据",
@@ -441,7 +588,7 @@ fun SettingsScreen(
 
                         SettingsItemDivider()
 
-                        // 3. 关于文言背诵
+                        // 6. 关于文言背诵
                         SettingsActionItem(
                             icon = Icons.Default.Info,
                             title = "关于 文言背诵",

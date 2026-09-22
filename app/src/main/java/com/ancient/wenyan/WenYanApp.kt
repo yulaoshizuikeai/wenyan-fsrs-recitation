@@ -1,11 +1,13 @@
 package com.ancient.wenyan
 
 import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
 
 /**
  * Classical Chinese Recitation Application Entry.
  * Initializes core resources, offline Room database, and global application state.
  */
+@HiltAndroidApp
 class WenYanApp : Application() {
 
     override fun onCreate() {
