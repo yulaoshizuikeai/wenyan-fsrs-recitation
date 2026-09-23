@@ -131,7 +131,7 @@ class RoadmapPhaseExecutionTest {
     }
 
     @Test
-    fun test07_webDavBackupAndRestoreCycle() {
+    fun test07_webDavBackupAndRestoreCycle() = runBlocking {
         val repo = WenYanRepository(context = null)
         val article = CurriculumDataSource.ARTICLE_MAP["art_bx1_14"]!!
         val cards = CurriculumDataSource.generateFlashcardsForArticle(article)

@@ -108,18 +108,23 @@ class SettingsViewModel @Inject constructor(
         repository.setOnboardingCompleted(completed)
     }
 
-    fun clearPersistedCardStates() {
-        repository.clearPersistedCardStates()
+    fun clearPersistedCardStates(onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            repository.clearAllUserData()
+            onComplete?.invoke()
+        }
     }
 
     fun createBackupJson(): String {
         return WebDavBackupManager.createBackupJson(repository)
     }
 
-    fun restoreFromJson(jsonStr: String): Int {
-        val count = WebDavBackupManager.restoreFromJson(jsonStr, repository)
-        _syncMessage.value = if (count > 0) "成功恢复 $count 张卡片记忆进度" else "备份解析失败或无有效数据"
-        return count
+    fun restoreFromJson(jsonStr: String, onComplete: ((Int) -> Unit)? = null) {
+        viewModelScope.launch {
+            val count = WebDavBackupManager.restoreFromJson(jsonStr, repository)
+            _syncMessage.value = if (count > 0) "成功恢复 $count 张卡片记忆进度" else "备份解析失败或无有效数据"
+            onComplete?.invoke(count)
+        }
     }
 
     fun syncToWebDav(config: WebDavConfig, onComplete: (Boolean, String) -> Unit) {

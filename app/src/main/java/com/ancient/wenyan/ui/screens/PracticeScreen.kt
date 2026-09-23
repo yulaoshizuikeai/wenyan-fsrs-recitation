@@ -253,11 +253,16 @@ fun PracticeScreen(
                                         soundManager.playClick()
                                         val cards = repository.getRandomQueue(
                                             limit = 20,
-                                            moduleIds = null,
+                                            moduleIds = currentRepoScope,
                                             gaoKaoOnly = true,
                                             preservePoemOrder = preservePoemOrder
                                         )
-                                        onStartSession("高考必背 72 篇专项背诵", cards)
+                                        val title = if (currentRepoName != null) {
+                                            "《$currentRepoName》· 高考必背专项背诵"
+                                        } else {
+                                            "高考必背 72 篇专项背诵"
+                                        }
+                                        onStartSession(title, cards)
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()

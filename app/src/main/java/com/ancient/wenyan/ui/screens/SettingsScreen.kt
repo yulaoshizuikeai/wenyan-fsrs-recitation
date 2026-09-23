@@ -109,17 +109,18 @@ fun SettingsScreen(
                 val jsonStr = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use {
                     it.readText()
                 } ?: ""
-                val count = viewModel.restoreFromJson(jsonStr)
-                if (count > 0) {
-                    hapticManager.successPulse()
-                    soundManager.playCelebration()
-                    scope.launch {
-                        snackbarHostState.showSnackbar("成功恢复 $count 张卡片记忆进度与打卡记录")
-                    }
-                } else {
-                    hapticManager.warningThud()
-                    scope.launch {
-                        snackbarHostState.showSnackbar("备份文件解析失败或无有效进度记录")
+                viewModel.restoreFromJson(jsonStr) { count ->
+                    if (count > 0) {
+                        hapticManager.successPulse()
+                        soundManager.playCelebration()
+                        scope.launch {
+                            snackbarHostState.showSnackbar("成功恢复 $count 张卡片记忆进度与打卡记录")
+                        }
+                    } else {
+                        hapticManager.warningThud()
+                        scope.launch {
+                            snackbarHostState.showSnackbar("备份文件解析失败或无有效进度记录")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -327,11 +328,12 @@ fun SettingsScreen(
                     onClick = {
                         hapticManager.warningThud()
                         soundManager.playWrong()
-                        viewModel.clearPersistedCardStates()
-                        showResetConfirmDialog = false
-                        scope.launch {
-                            snackbarHostState.showSnackbar("背诵数据已清空恢复初始状态")
+                        viewModel.clearPersistedCardStates {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("背诵数据已清空恢复初始状态")
+                            }
                         }
+                        showResetConfirmDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = DueRed)
                 ) {

@@ -72,9 +72,9 @@ sealed class OverlayScreen {
     ) : OverlayScreen()
     data class Cloze(val article: Article) : OverlayScreen()
     data object Settings : OverlayScreen()
-    data object GaoKaoScenario : OverlayScreen()
-    data class SnowballRecitation(val articleId: String = "art_chibifu") : OverlayScreen()
-    data class CertificateAndCopybook(val articleId: String = "art_chibifu") : OverlayScreen()
+    data class GaoKaoScenario(val initialArticle: String? = null) : OverlayScreen()
+    data class SnowballRecitation(val articleId: String = "art_bx1_14") : OverlayScreen()
+    data class CertificateAndCopybook(val articleId: String = "art_bx1_14") : OverlayScreen()
 }
 
 // State holder for OverlayScreen to preserve recitation and settings overlay state across configuration changes (Bug 4.2)
@@ -83,7 +83,7 @@ object OverlayScreenStateHolder {
         return when (screen) {
             null -> null
             is OverlayScreen.Settings -> arrayListOf("SETTINGS")
-            is OverlayScreen.GaoKaoScenario -> arrayListOf("GAOKAO_SCENARIO")
+            is OverlayScreen.GaoKaoScenario -> arrayListOf("GAOKAO_SCENARIO", screen.initialArticle ?: "")
             is OverlayScreen.SnowballRecitation -> arrayListOf("SNOWBALL", screen.articleId)
             is OverlayScreen.CertificateAndCopybook -> arrayListOf("CERTIFICATE", screen.articleId)
             is OverlayScreen.Cloze -> arrayListOf("CLOZE", screen.article.id)
@@ -112,13 +112,16 @@ object OverlayScreenStateHolder {
             is List<*> -> {
                 when (saved.getOrNull(0) as? String) {
                     "SETTINGS" -> OverlayScreen.Settings
-                    "GAOKAO_SCENARIO" -> OverlayScreen.GaoKaoScenario
+                    "GAOKAO_SCENARIO" -> {
+                        val art = saved.getOrNull(1) as? String
+                        OverlayScreen.GaoKaoScenario(art?.takeIf { it.isNotBlank() })
+                    }
                     "SNOWBALL" -> {
-                        val articleId = saved.getOrNull(1) as? String ?: "art_chibifu"
+                        val articleId = saved.getOrNull(1) as? String ?: "art_bx1_14"
                         OverlayScreen.SnowballRecitation(articleId)
                     }
                     "CERTIFICATE" -> {
-                        val articleId = saved.getOrNull(1) as? String ?: "art_chibifu"
+                        val articleId = saved.getOrNull(1) as? String ?: "art_bx1_14"
                         OverlayScreen.CertificateAndCopybook(articleId)
                     }
                     "CLOZE" -> {
@@ -260,6 +263,7 @@ class MainActivity : ComponentActivity() {
 
                             is OverlayScreen.GaoKaoScenario -> {
                                 GaoKaoScenarioScreen(
+                                    initialArticleTitle = screen.initialArticle,
                                     onNavigateBack = { overlayScreen = null }
                                 )
                             }
@@ -386,13 +390,19 @@ class MainActivity : ComponentActivity() {
                                                                     return@DashboardScreen
                                                                 }
                                                             }
+                                                            val currentBookName = repository.selectedBookName.value
                                                             val gaoKaoCards = repository.getRandomQueue(
                                                                 limit = 20,
-                                                                moduleIds = null,
+                                                                moduleIds = repository.selectedBookScope.value,
                                                                 gaoKaoOnly = true
                                                             )
+                                                            val title = if (currentBookName != null) {
+                                                                "《$currentBookName》· 高考必背专项背诵"
+                                                            } else {
+                                                                "高考必背 72 篇专项背诵"
+                                                            }
                                                             overlayScreen = OverlayScreen.Flashcards(
-                                                                title = "高考必背 72 篇专项背诵",
+                                                                title = title,
                                                                 cards = gaoKaoCards,
                                                                 initialIndex = 0,
                                                                 initialCompletedCount = 0,
@@ -415,6 +425,9 @@ class MainActivity : ComponentActivity() {
                                                         },
                                                         onNavigateToPractice = {
                                                             selectedTab = MainTab.PRACTICE
+                                                        },
+                                                        onOpenGaoKaoScenario = {
+                                                            overlayScreen = OverlayScreen.GaoKaoScenario()
                                                         },
                                                         onOpenSettings = {
                                                             overlayScreen = OverlayScreen.Settings
@@ -443,6 +456,9 @@ class MainActivity : ComponentActivity() {
                                                         onStartCloze = { article ->
                                                             overlayScreen = OverlayScreen.Cloze(article)
                                                         },
+                                                        onOpenGaoKaoScenario = { articleTitle ->
+                                                            overlayScreen = OverlayScreen.GaoKaoScenario(initialArticle = articleTitle)
+                                                        },
                                                         onOpenSnowball = { articleId ->
                                                             overlayScreen = OverlayScreen.SnowballRecitation(articleId)
                                                         },
@@ -469,7 +485,7 @@ class MainActivity : ComponentActivity() {
                                                             overlayScreen = OverlayScreen.Cloze(article)
                                                         },
                                                         onOpenGaoKaoScenario = {
-                                                            overlayScreen = OverlayScreen.GaoKaoScenario
+                                                            overlayScreen = OverlayScreen.GaoKaoScenario()
                                                         },
                                                         onOpenSnowball = { artId ->
                                                             overlayScreen = OverlayScreen.SnowballRecitation(artId)

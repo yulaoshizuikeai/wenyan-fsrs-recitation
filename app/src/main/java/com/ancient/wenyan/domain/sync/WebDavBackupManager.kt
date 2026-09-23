@@ -93,10 +93,10 @@ object WebDavBackupManager {
     /**
      * Restores learning state from JSON string.
      */
-    fun restoreFromJson(jsonStr: String, repository: WenYanRepository): Int {
+    suspend fun restoreFromJson(jsonStr: String, repository: WenYanRepository): Int {
         val cardsContent = extractArrayContent(jsonStr, "cards") ?: return 0
         val cardBlocks = splitJsonObjects(cardsContent)
-        var restoredCount = 0
+        val restoredStates = mutableListOf<CardFsrsState>()
 
         for (block in cardBlocks) {
             val cardId = extractString(block, "cardId") ?: continue
@@ -126,10 +126,13 @@ object WebDavBackupManager {
                 dueTime = dueTime,
                 isLeech = isLeech
             )
-            repository.setCardStateForTesting(state)
-            restoredCount++
+            restoredStates.add(state)
         }
-        return restoredCount
+
+        if (restoredStates.isNotEmpty()) {
+            repository.persistRestoredCardStates(restoredStates)
+        }
+        return restoredStates.size
     }
 
     private fun extractArrayContent(json: String, key: String): String? {

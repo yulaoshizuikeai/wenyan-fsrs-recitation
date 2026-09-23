@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun GaoKaoScenarioScreen(
+    initialArticleTitle: String? = null,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -49,7 +50,9 @@ fun GaoKaoScenarioScreen(
     val focusManager = LocalFocusManager.current
 
     val availableArticles = remember { GaoKaoScenarioDataSource.getAvailableArticles() }
-    var selectedArticle by remember { mutableStateOf("全部篇目") }
+    var selectedArticle by remember(initialArticleTitle) {
+        mutableStateOf(initialArticleTitle?.takeIf { it in availableArticles } ?: "全部篇目")
+    }
     var showArticlePickerSheet by remember { mutableStateOf(false) }
 
     // Active questions based on selected article, supports shuffling
@@ -258,69 +261,80 @@ fun GaoKaoScenarioScreen(
             return@Scaffold
         }
 
+        val isImeVisible = WindowInsets.isImeVisible
         val scrollState = rememberScrollState()
+
+        LaunchedEffect(isImeVisible) {
+            if (isImeVisible) {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
 
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
+                .imePadding()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 16.dp, vertical = if (isImeVisible) 6.dp else 10.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isImeVisible) 8.dp else 12.dp)
         ) {
             // ==============================================================
-            // 1. 篇目专项选择标签栏 (Article Filter Pills)
+            // 1. 篇目专项选择标签栏 (Article Filter Pills, 键盘弹出时自动隐藏以释放宝贵纵向空间)
             // ==============================================================
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                item {
-                    AssistChip(
-                        onClick = { showArticlePickerSheet = true },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Tune,
-                                contentDescription = null,
-                                tint = StudyBlueAccent,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = if (selectedArticle == "全部篇目") "专项筛选" else "专项: $selectedArticle",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StudyBlueAccent
-                            )
-                        }
-                    )
-                }
-
-                items(availableArticles.take(10)) { article ->
-                    val isSelected = (selectedArticle == article)
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            hapticManager.tapLight()
-                            selectedArticle = article
-                            activeQuestions = GaoKaoScenarioDataSource.getQuestionsByArticle(article)
-                        },
-                        label = {
-                            Text(
-                                text = if (article == "全部篇目") "全部" else article,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = StudyBlueAccent,
-                            selectedLabelColor = Color.White,
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            labelColor = MaterialTheme.colorScheme.onSurface
+            if (!isImeVisible) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        AssistChip(
+                            onClick = { showArticlePickerSheet = true },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = StudyBlueAccent,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = if (selectedArticle == "全部篇目") "专项筛选" else "专项: $selectedArticle",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = StudyBlueAccent
+                                )
+                            }
                         )
-                    )
+                    }
+
+                    items(availableArticles.take(10)) { article ->
+                        val isSelected = (selectedArticle == article)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                hapticManager.tapLight()
+                                selectedArticle = article
+                                activeQuestions = GaoKaoScenarioDataSource.getQuestionsByArticle(article)
+                            },
+                            label = {
+                                Text(
+                                    text = if (article == "全部篇目") "全部" else article,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = StudyBlueAccent,
+                                selectedLabelColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                labelColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
                 }
             }
 
@@ -368,7 +382,7 @@ fun GaoKaoScenarioScreen(
                 progress = { (currentIndex + 1).toFloat() / activeQuestions.size.toFloat() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp),
+                    .height(3.dp),
                 color = StudyBlueAccent,
                 trackColor = BgSurfaceMuted
             )
@@ -378,16 +392,17 @@ fun GaoKaoScenarioScreen(
             // ==============================================================
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.elevatedCardColors(containerColor = BgSurface)
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
@@ -401,14 +416,37 @@ fun GaoKaoScenarioScreen(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
+
+                        if (isImeVisible) {
+                            TextButton(
+                                onClick = {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                },
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "收起键盘",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = "收起键盘",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
                     }
 
                     Text(
                         text = currentQ.prompt,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Medium,
-                        lineHeight = 26.sp,
+                        lineHeight = 23.sp,
                         letterSpacing = 0.3.sp,
                         color = TextPrimary
                     )
@@ -420,12 +458,12 @@ fun GaoKaoScenarioScreen(
             // ==============================================================
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.outlinedCardColors(containerColor = BgSurface)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
                         value = userInput,
@@ -433,11 +471,12 @@ fun GaoKaoScenarioScreen(
                             userInput = it
                             evalResult = null
                         },
-                        label = { Text("键入默写答案 (按键盘回车即评测)") },
+                        label = { Text("键入默写答案 (回车或点击下方智能评测)") },
                         placeholder = { Text("例：不宜妄自菲薄，引喻失义……") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = false,
+                        minLines = if (isImeVisible) 1 else 2,
                         maxLines = 3,
                         keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Done
@@ -471,11 +510,13 @@ fun GaoKaoScenarioScreen(
                     ) {
                         Button(
                             onClick = { doEvaluate() },
-                            enabled = userInput.isNotBlank()
+                            enabled = userInput.isNotBlank(),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                         ) {
                             Icon(Icons.Default.Spellcheck, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("智能评测 (回车)")
+                            Text("智能评测 (回车)", fontSize = 13.sp)
                         }
 
                         TextButton(
@@ -484,7 +525,8 @@ fun GaoKaoScenarioScreen(
                                 focusManager.clearFocus()
                                 hapticManager.tapLight()
                                 isRevealed = !isRevealed
-                            }
+                            },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = if (isRevealed) Icons.Default.VisibilityOff else Icons.Default.Visibility,
@@ -492,7 +534,7 @@ fun GaoKaoScenarioScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isRevealed) "隐藏原句" else "揭晓答案")
+                            Text(if (isRevealed) "隐藏原句" else "揭晓答案", fontSize = 13.sp)
                         }
                     }
                 }

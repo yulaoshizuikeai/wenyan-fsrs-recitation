@@ -4,6 +4,35 @@
 
 ---
 
+## [v1.6.1] - 2026-09-23
+
+### 📖 课本范围全模块联动与生效 (Curriculum Book Scope Enforcement)
+- **章节文库与背诵队列联动**：
+  - `ChapterTreeViewModel` 响应式监听 `selectedBookScope` 与 `selectedBookName`，顶栏实时展示所选课本与模块数，列表严格按课本范围过滤；
+  - 仪表盘与专项练习的高考必背 72 篇抽测及随机练习全链路传入所选课本范围；
+  - 切换课本时自动失效范围外的在途活动任务，并即时刷新当日目标进度。
+
+### ✍️ 默写入口优化与软键盘自适应交互 (Scenario Recitation & IME UX Upgrade)
+- **多入口直达**：
+  - 首页仪表盘核心行动区新增“高考情境默写”专属磁贴；
+  - 章节树点击任一篇目时，底部操作面板新增“高考情境默写挑战”按钮，支持一键锁定目标篇目默写；
+- **全屏自适应与消除憋塞感**：
+  - 接入标准 Edge-to-Edge 与 `.consumeWindowInsets(innerPadding).imePadding()`；
+  - 软键盘呼出时自适应折叠顶栏横向篇目筛选栏，释放超 50dp 纵向空间，收紧卡片内边距；
+  - 增加一键“收起键盘”快速交互与输入焦点自动平滑滚入视野机制，彻底解除遮挡与憋塞感。
+
+### 🧹 数据清空功能彻底修复 (Complete User Data Reset)
+- **事务级数据重置**：
+  - 彻底重构 `clearAllUserData`：同步重构内存全部卡片为 `NEW` 状态，并异步清空 Room 数据库卡片表、复习日志表、每日打卡表；
+  - 彻底清除所有 SharedPreferences 历史统计、打卡与当日计数缓存，并向 UI 推送全新的状态流。
+
+### 🐛 深入审计与稳定性加固 (Deep Audit & Bug Fixes)
+- **修正文章 ID 兜底崩溃**：将 `SnowballRecitationScreen` 与 `CertificateAndCopybookScreen` 的回退 ID 从不存在的 `art_chibifu` 修正为标准 `art_bx1_14`，并加入二次安全兜底；
+- **WebDAV 恢复数据异步入库**：修复恢复卡片仅驻留内存的问题，增加 `persistRestoredCardStates` 全量写入 Room 数据库；
+- **书法字帖题注括号清洗**：字帖生成时过滤 `【` 与 `】`，避免标点符号误占书法临摹字格。
+
+---
+
 ## [v1.6.0] - 2026-09-22
 
 ### 🏗️ Hilt 依赖注入与 MVVM/MVI 单向数据流 (UDF) 架构重构 (Architecture Modernization)

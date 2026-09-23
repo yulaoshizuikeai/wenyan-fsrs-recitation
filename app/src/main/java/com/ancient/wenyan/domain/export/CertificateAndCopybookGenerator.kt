@@ -72,7 +72,15 @@ object CertificateAndCopybookGenerator {
         }
 
         for (sent in sentences) {
-            val chars = sent.map { c: Char ->
+            val cleanSent = sent
+                .replace("【填空正解】", "")
+                .replace("【对句】", "")
+                .replace("【", "")
+                .replace("】", "")
+                .trim()
+            if (cleanSent.isEmpty()) continue
+
+            val chars = cleanSent.map { c: Char ->
                 CopybookCharacter(
                     char = c,
                     isPunctuation = !c.isLetterOrDigit()

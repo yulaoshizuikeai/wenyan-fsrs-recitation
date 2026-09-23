@@ -325,10 +325,27 @@ class WenYanRepository(
             apply()
         }
 
+        // Invalidate active session if it doesn't align with the new book scope
+        val currentSession = _activeSessionFlow.value
+        if (currentSession != null && !moduleIds.isNullOrEmpty()) {
+            val articleMap = CurriculumDataSource.ARTICLE_MAP
+            val hasOutOfScopeCard = currentSession.cardIds.any { cardId ->
+                val fc = CurriculumDataSource.getFlashcard(cardId)
+                val article = fc?.let { articleMap[it.articleId] }
+                article != null && article.moduleId !in moduleIds
+            }
+            if (hasOutOfScopeCard) {
+                clearActiveSession()
+            }
+        }
+
         _statsFlow.value = computeStats()
+        _todayStudyProgressFlow.value = computeTodayProgress()
     }
 
-    fun getModules(): List<Module> = CurriculumDataSource.MODULES
+    fun getModules(moduleIds: Collection<String>? = null): List<Module> =
+        if (moduleIds == null) CurriculumDataSource.MODULES
+        else CurriculumDataSource.MODULES.filter { it.id in moduleIds }
 
     fun getArticlesByModule(moduleId: String): List<Article> =
         CurriculumDataSource.getArticlesByModule(moduleId)
@@ -923,9 +940,96 @@ class WenYanRepository(
         }
     }
 
-    fun clearPersistedCardStates() {
-        prefs?.edit()?.remove(PREF_CARD_STATES_KEY)?.apply()
+    suspend fun clearAllUserData() = withContext(ioDispatcher) {
+        // 1. Clear Room database tables
+        try {
+            database?.cardStateDao()?.clearAll()
+            database?.reviewLogDao()?.clearAll()
+            database?.dailyRecordDao()?.clearAll()
+        } catch (_: Exception) {}
+
+        // 2. Clear SharedPreferences
+        prefs?.let { sp ->
+            val editor = sp.edit()
+            editor.remove(PREF_CARD_STATES_KEY)
+            editor.remove("pref_persisted_card_states_v1")
+            editor.remove("pref_persisted_card_states_v2")
+            editor.remove("pref_persisted_review_logs_v1")
+            editor.remove(PREF_ACTIVE_SESSION_KEY)
+            editor.remove("has_migrated_to_room_v1")
+
+            for (key in sp.all.keys) {
+                if (key.startsWith("review_date_") ||
+                    key.startsWith("pref_daily_new_learned_") ||
+                    key.startsWith("pref_daily_reviewed_")
+                ) {
+                    editor.remove(key)
+                }
+            }
+            editor.apply()
+        }
+
+        // 3. Clear in-memory structures
+        synchronized(reviewLogs) {
+            reviewLogs.clear()
+        }
+        synchronized(dailyReviewMap) {
+            dailyReviewMap.clear()
+        }
+        _activeSessionFlow.value = null
+
+        // 4. Re-initialize cards to clean NEW state
         initializeCards()
+
+        // 5. Re-evaluate and re-emit all StateFlows
+        _statsFlow.value = computeStats()
+        _heatmapStatsFlow.value = computeHeatmapStats()
+        _todayStudyProgressFlow.value = computeTodayProgress()
+
+        context?.let { ctx ->
+            try {
+                com.ancient.wenyan.widget.WenYanTodayWidgetProvider.updateAllWidgets(ctx)
+            } catch (_: Throwable) {}
+        }
+    }
+
+    fun clearPersistedCardStates() {
+        synchronized(cardsStateMap) {
+            cardsStateMap.clear()
+        }
+        synchronized(reviewLogs) {
+            reviewLogs.clear()
+        }
+        synchronized(dailyReviewMap) {
+            dailyReviewMap.clear()
+        }
+        _activeSessionFlow.value = null
+        initializeCards()
+        _statsFlow.value = computeStats()
+        _heatmapStatsFlow.value = computeHeatmapStats()
+        _todayStudyProgressFlow.value = computeTodayProgress()
+
+        repositoryScope.launch {
+            clearAllUserData()
+        }
+    }
+
+    suspend fun persistRestoredCardStates(states: List<CardFsrsState>) = withContext(ioDispatcher) {
+        if (states.isEmpty()) return@withContext
+        for (st in states) {
+            cardsStateMap[st.cardId] = st
+        }
+        try {
+            database?.let { db ->
+                val entities = states.map { CardStateEntity.fromDomain(it) }
+                db.cardStateDao().upsertCardStates(entities)
+            }
+        } catch (_: Exception) {}
+
+        persistCardStates()
+        _statsFlow.value = computeStats()
+        _heatmapStatsFlow.value = computeHeatmapStats()
+        _todayStudyProgressFlow.value = computeTodayProgress()
     }
 
     // ========================================================================

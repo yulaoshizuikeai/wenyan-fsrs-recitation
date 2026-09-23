@@ -31,7 +31,7 @@ import com.ancient.wenyan.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SnowballRecitationScreen(
-    articleId: String? = "art_chibifu",
+    articleId: String? = "art_bx1_14",
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -39,7 +39,9 @@ fun SnowballRecitationScreen(
     val hapticManager = remember { HapticManager.getInstance(context) }
 
     val article: Article = remember(articleId) {
-        CurriculumDataSource.ARTICLE_MAP[articleId] ?: CurriculumDataSource.ALL_ARTICLES.first { it.id == "art_chibifu" }
+        CurriculumDataSource.ARTICLE_MAP[articleId]
+            ?: CurriculumDataSource.ARTICLE_MAP["art_bx1_14"]
+            ?: CurriculumDataSource.ALL_ARTICLES.first()
     }
 
     val stages: List<SnowballStage> = remember(article) {

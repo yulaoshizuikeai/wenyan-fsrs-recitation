@@ -47,6 +47,7 @@ fun ChapterTreeScreen(
     onBack: () -> Unit,
     onStartFlashcards: (Article) -> Unit,
     onStartCloze: (Article) -> Unit,
+    onOpenGaoKaoScenario: (String) -> Unit = {},
     onOpenSnowball: (String) -> Unit = {},
     onOpenCertificate: (String) -> Unit = {},
     modifier: Modifier = Modifier
@@ -194,9 +195,13 @@ fun ChapterTreeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "全高中 11 册教材 · 100 篇文赋",
+                    text = if (uiState.selectedBookScope != null) {
+                        "当前课本：${uiState.selectedBookName} (${modules.size} 单元)"
+                    } else {
+                        "全高中 11 册教材 · 100 篇文赋"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    color = if (uiState.selectedBookScope != null) StudyBlueAccent else TextSecondary
                 )
 
                 FilterChip(
@@ -343,7 +348,38 @@ fun ChapterTreeScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 2. Progressive Cloze Recitation
+                // 2. GaoKao Scenario Recitation
+                OutlinedButton(
+                    onClick = {
+                        hapticManager.tapLight()
+                        soundManager.playClick()
+                        val targetTitle = article.title
+                        selectedArticleIdForModal = null
+                        onOpenGaoKaoScenario(targetTitle)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = StreakFlame
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "高考情境默写挑战",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                        color = StreakFlame
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 3. Progressive Cloze Recitation
                 OutlinedButton(
                     onClick = {
                         hapticManager.tapLight()

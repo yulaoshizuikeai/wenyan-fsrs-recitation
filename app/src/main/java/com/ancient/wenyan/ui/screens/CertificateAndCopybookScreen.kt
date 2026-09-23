@@ -32,7 +32,7 @@ import com.ancient.wenyan.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CertificateAndCopybookScreen(
-    articleId: String? = "art_chibifu",
+    articleId: String? = "art_bx1_14",
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -40,7 +40,9 @@ fun CertificateAndCopybookScreen(
     val hapticManager = remember { HapticManager.getInstance(context) }
 
     val article: Article = remember(articleId) {
-        CurriculumDataSource.ARTICLE_MAP[articleId] ?: CurriculumDataSource.ALL_ARTICLES.first { it.id == "art_chibifu" }
+        CurriculumDataSource.ARTICLE_MAP[articleId]
+            ?: CurriculumDataSource.ARTICLE_MAP["art_bx1_14"]
+            ?: CurriculumDataSource.ALL_ARTICLES.first()
     }
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: 结业文牒, 1: 书法字帖
