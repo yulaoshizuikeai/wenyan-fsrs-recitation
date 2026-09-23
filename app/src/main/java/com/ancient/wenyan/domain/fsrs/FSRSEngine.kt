@@ -78,9 +78,9 @@ class FSRSEngine(
      * Apply standard FSRS discrete fuzzing factor (+-5%) to avoid review clustering/avalanche
      * for cards with scheduled intervals >= 3 days.
      */
-    fun applyFuzz(interval: Int, cardId: String): Int {
+    fun applyFuzz(interval: Int, cardId: String, reps: Int = 0): Int {
         if (interval < 3) return interval
-        val hash = kotlin.math.abs(cardId.hashCode())
+        val hash = kotlin.math.abs((cardId.hashCode() * 31) xor reps)
         val maxFuzz = max(1, (interval * 0.05).roundToInt())
         val delta = (hash % (2 * maxFuzz + 1)) - maxFuzz
         return min(max(interval + delta, 1), maximumInterval)
@@ -333,7 +333,7 @@ class FSRSEngine(
         }
 
         if (nextState == CardState.REVIEW && scheduledDays >= 3) {
-            scheduledDays = applyFuzz(scheduledDays, card.cardId)
+            scheduledDays = applyFuzz(scheduledDays, card.cardId, card.reps + 1)
             dueMillis = nowMillis + scheduledDays * 86_400_000L
         }
 

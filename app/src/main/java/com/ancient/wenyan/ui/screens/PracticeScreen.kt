@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,7 +45,7 @@ fun PracticeScreen(
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: 高考72篇专项, 1: 跨篇自选抽测, 2: 经典长文遮挡
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // 0: 高考72篇专项, 1: 跨篇自选抽测, 2: 经典长文遮挡
 
     val currentRepoScope by repository.selectedBookScope.collectAsState()
     val currentRepoName by repository.selectedBookName.collectAsState()
@@ -59,9 +60,9 @@ fun PracticeScreen(
         )
     }
 
-    var selectedScopeIndex by remember { mutableIntStateOf(0) }
-    var selectedCount by remember { mutableIntStateOf(20) }
-    var preservePoemOrder by remember { mutableStateOf(true) }
+    var selectedScopeIndex by rememberSaveable { mutableIntStateOf(0) }
+    var selectedCount by rememberSaveable { mutableIntStateOf(20) }
+    var preservePoemOrder by rememberSaveable { mutableStateOf(true) }
 
     val longArticles = remember {
         CurriculumDataSource.ALL_ARTICLES.filter {

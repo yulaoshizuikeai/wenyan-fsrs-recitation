@@ -256,7 +256,6 @@ class MainActivity : ComponentActivity() {
 
                             is OverlayScreen.Settings -> {
                                 SettingsScreen(
-                                    repository = repository,
                                     onBack = { overlayScreen = null }
                                 )
                             }
@@ -347,7 +346,6 @@ class MainActivity : ComponentActivity() {
                                             when (tab) {
                                                 MainTab.TODAY -> {
                                                     DashboardScreen(
-                                                        repository = repository,
                                                         onStartTodayReview = {
                                                             val active = repository.getActiveSession()
                                                             if (active != null && active.sessionType == "TODAY_DUE" && !active.isComplete) {
@@ -437,7 +435,6 @@ class MainActivity : ComponentActivity() {
 
                                                 MainTab.LIBRARY -> {
                                                     ChapterTreeScreen(
-                                                        repository = repository,
                                                         onBack = {
                                                             selectedTab = MainTab.TODAY
                                                         },
@@ -498,7 +495,6 @@ class MainActivity : ComponentActivity() {
 
                                                 MainTab.FOOTPRINT -> {
                                                     FootprintScreen(
-                                                        repository = repository,
                                                         onOpenSettings = {
                                                             overlayScreen = OverlayScreen.Settings
                                                         }

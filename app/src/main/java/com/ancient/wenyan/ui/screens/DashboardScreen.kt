@@ -89,12 +89,7 @@ val CURATED_QUOTES = listOf(
 
 @Composable
 fun DashboardScreen(
-    repository: WenYanRepository? = null,
-    viewModel: DashboardViewModel = if (repository != null) {
-        remember(repository) { DashboardViewModel(repository) }
-    } else {
-        hiltViewModel()
-    },
+    viewModel: DashboardViewModel = hiltViewModel(),
     onStartTodayReview: () -> Unit,
     onStartGaoKaoReview: () -> Unit,
     onNavigateToPractice: () -> Unit,

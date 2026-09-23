@@ -29,15 +29,24 @@ object TypeSafeDiagnosisEngine {
 
     private const val API_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
     
-    // Developer provided runtime API key
-    private const val DEFAULT_API_KEY = "apikey_2254aa16e56061fe4f9c868636572350faf5_c76c129f715a90ed4d03581f969094d5670dc723133a40701257ecf9a8844e64"
+    // API Key resolution (customApiKey -> System env TYPESAFE_API_KEY -> blank)
+    var customApiKey: String? = null
+
+    /**
+     * Mock dispatcher for hermetic unit testing and offline diagnostics.
+     */
+    var mockDispatcher: ((scenarioPrompt: String, expectedAnswer: String, userInput: String, keyPoints: List<String>) -> ScenarioDiagnosisResult)? = null
+
+    fun getEffectiveApiKey(): String {
+        return customApiKey ?: System.getenv("TYPESAFE_API_KEY") ?: ""
+    }
 
     suspend fun diagnose(
         scenarioPrompt: String,
         expectedAnswer: String,
         userInput: String,
         keyPoints: List<String>,
-        apiKey: String = DEFAULT_API_KEY
+        apiKey: String = getEffectiveApiKey()
     ): ScenarioDiagnosisResult = withContext(Dispatchers.IO) {
         if (userInput.isBlank()) {
             return@withContext ScenarioDiagnosisResult(
@@ -46,12 +55,21 @@ object TypeSafeDiagnosisEngine {
             )
         }
 
+        mockDispatcher?.let { dispatcher ->
+            return@withContext dispatcher(scenarioPrompt, expectedAnswer, userInput, keyPoints)
+        }
+
+        val effectiveKey = if (apiKey.isNotBlank()) apiKey else getEffectiveApiKey()
+        if (effectiveKey.isBlank()) {
+            return@withContext evaluateLocalRuleBased(scenarioPrompt, expectedAnswer, userInput, keyPoints)
+        }
+
         try {
             val url = URL(API_ENDPOINT)
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Authorization", "Bearer $apiKey")
+                setRequestProperty("Authorization", "Bearer $effectiveKey")
                 connectTimeout = 12000
                 readTimeout = 15000
                 doOutput = true
@@ -120,6 +138,20 @@ object TypeSafeDiagnosisEngine {
             }
 
             val responseText = BufferedReader(InputStreamReader(conn.inputStream, "UTF-8")).use { it.readText() }
+            parseDiagnosisResponse(responseText)
+        } catch (e: Exception) {
+            ScenarioDiagnosisResult(
+                isSuccess = false,
+                rawError = e.localizedMessage ?: e.javaClass.simpleName
+            )
+        }
+    }
+
+    /**
+     * Parses TypeSafe System One JSON response into calibrated ScenarioDiagnosisResult.
+     */
+    fun parseDiagnosisResponse(responseText: String): ScenarioDiagnosisResult {
+        return try {
             val respJson = JSONObject(responseText)
             val answers = respJson.getJSONObject("answers")
 
@@ -155,8 +187,89 @@ object TypeSafeDiagnosisEngine {
         } catch (e: Exception) {
             ScenarioDiagnosisResult(
                 isSuccess = false,
-                rawError = e.localizedMessage ?: e.javaClass.simpleName
+                rawError = "解析诊断响应失败: ${e.localizedMessage ?: e.message}"
             )
         }
     }
+
+    /**
+     * Offline rule-based fallback when no external API key is configured.
+     */
+    fun evaluateLocalRuleBased(
+        scenarioPrompt: String,
+        expectedAnswer: String,
+        userInput: String,
+        keyPoints: List<String>
+    ): ScenarioDiagnosisResult {
+        val cleanInput = userInput.replace(Regex("[，。？！、：；“”‘’\\s]"), "")
+        val cleanExpected = expectedAnswer.replace(Regex("[，。？！、：；“”‘’\\s]"), "")
+
+        if (cleanInput.isEmpty()) {
+            return ScenarioDiagnosisResult(isSuccess = false, rawError = "作答内容为空")
+        }
+
+        val matchedKeyPoints = keyPoints.count { kp ->
+            cleanInput.contains(kp.replace(Regex("[，。？！、：；“”‘’\\s]"), ""))
+        }
+        val keyPointCoverage = if (keyPoints.isNotEmpty()) matchedKeyPoints.toFloat() / keyPoints.size else 1f
+
+        var commonChars = 0
+        val expCharCounts = mutableMapOf<Char, Int>()
+        for (c in cleanExpected) expCharCounts[c] = (expCharCounts[c] ?: 0) + 1
+        for (c in cleanInput) {
+            val count = expCharCounts[c] ?: 0
+            if (count > 0) {
+                commonChars++
+                expCharCounts[c] = count - 1
+            }
+        }
+        val charAccuracy = if (cleanExpected.isNotEmpty()) commonChars.toFloat() / cleanExpected.length else 0f
+
+        val (category, desc, advice, score) = when {
+            cleanInput == cleanExpected -> {
+                Quadruple(
+                    "accurate",
+                    "精准无误 · 形神兼备",
+                    "背诵高度切题，完美契合高考设问意境！",
+                    4.0f
+                )
+            }
+            charAccuracy >= 0.8f || (charAccuracy >= 0.6f && keyPointCoverage >= 0.5f) -> {
+                Quadruple(
+                    "phonetic_or_typo",
+                    "字形通假 · 笔误微瑕",
+                    "核心意象已掌握，特别注意通假字形与采分点易混错字。",
+                    3.0f
+                )
+            }
+            cleanInput.length < cleanExpected.length / 2 -> {
+                Quadruple(
+                    "incomplete_clause",
+                    "句式残缺 · 断篇遗漏",
+                    "注意上下联句式的完整连贯，避免出现漏字或落句。",
+                    2.0f
+                )
+            }
+            else -> {
+                Quadruple(
+                    "context_mismatch",
+                    "审题偏差 · 意象混淆",
+                    "请重新仔细审读情境题眼，切勿将该篇其他写景句混淆代入。",
+                    1.5f
+                )
+            }
+        }
+
+        return ScenarioDiagnosisResult(
+            isSuccess = true,
+            intentRate = (charAccuracy * 0.5f + keyPointCoverage * 0.5f) * 100f,
+            errorCategory = category,
+            categoryDesc = desc,
+            confidence = 0.85f,
+            masteryScore = score,
+            advice = advice
+        )
+    }
+
+    private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 }

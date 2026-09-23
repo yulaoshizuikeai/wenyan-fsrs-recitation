@@ -105,18 +105,19 @@ fun FSRSConfigDialog(
         }
     }
 
-    Dialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier
+            .fillMaxWidth(0.94f)
+            .fillMaxHeight(0.88f)
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.88f)
-                .border(1.dp, BorderSubtle, RoundedCornerShape(24.dp)),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = BgSurface),
-            elevation = CardDefaults.cardElevation(8.dp)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
         ) {
             Column(
                 modifier = Modifier
@@ -422,15 +423,15 @@ fun FSRSConfigDialog(
                                                 )
                                             },
                                             colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = StudyNavy,
-                                                selectedLabelColor = Color.White,
-                                                containerColor = BgSurface,
-                                                labelColor = TextSecondary
+                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                                             ),
                                             border = FilterChipDefaults.filterChipBorder(
                                                 enabled = true,
                                                 selected = isSelected,
-                                                borderColor = if (isSelected) StudyNavy else BorderSubtle
+                                                borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
                                             )
                                         )
                                     }
@@ -466,7 +467,7 @@ fun FSRSConfigDialog(
                                         Text(
                                             text = "智能参数调优",
                                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = StudyNavy
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     Surface(
@@ -785,7 +786,10 @@ fun FSRSConfigDialog(
                             onDismiss()
                         },
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = StudyNavy)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,

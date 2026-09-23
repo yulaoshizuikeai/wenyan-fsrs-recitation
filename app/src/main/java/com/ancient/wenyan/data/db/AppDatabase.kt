@@ -18,7 +18,7 @@ import com.ancient.wenyan.data.db.entities.ReviewLogEntity
         DailyRecordEntity::class
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun cardStateDao(): CardStateDao

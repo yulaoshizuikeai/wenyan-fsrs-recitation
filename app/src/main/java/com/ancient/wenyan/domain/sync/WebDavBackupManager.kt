@@ -2,12 +2,18 @@ package com.ancient.wenyan.domain.sync
 
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.fsrs.CardFsrsState
+import com.ancient.wenyan.domain.fsrs.CardState
+import com.ancient.wenyan.domain.fsrs.Rating
 import com.ancient.wenyan.domain.fsrs.ReviewLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Base64
 
 data class WebDavConfig(
     val serverUrl: String = "",
@@ -84,7 +90,18 @@ object WebDavBackupManager {
             if (index < logs.size - 1) sb.append(",")
             sb.append("\n")
         }
-        sb.append("  ]\n")
+        sb.append("  ],\n")
+
+        // Daily reviews map
+        val dailyMap = repository.getDailyReviewMap()
+        sb.append("  \"dailyReviews\": {\n")
+        val dailyEntries = dailyMap.entries.toList()
+        dailyEntries.forEachIndexed { index, entry ->
+            sb.append("    \"").append(escapeJson(entry.key)).append("\": ").append(entry.value)
+            if (index < dailyEntries.size - 1) sb.append(",")
+            sb.append("\n")
+        }
+        sb.append("  }\n")
         sb.append("}")
 
         return sb.toString()
@@ -94,45 +111,104 @@ object WebDavBackupManager {
      * Restores learning state from JSON string.
      */
     suspend fun restoreFromJson(jsonStr: String, repository: WenYanRepository): Int {
-        val cardsContent = extractArrayContent(jsonStr, "cards") ?: return 0
-        val cardBlocks = splitJsonObjects(cardsContent)
+        val cardsContent = extractArrayContent(jsonStr, "cards")
         val restoredStates = mutableListOf<CardFsrsState>()
 
-        for (block in cardBlocks) {
-            val cardId = extractString(block, "cardId") ?: continue
-            val stateName = extractString(block, "state") ?: "NEW"
-            val stepVal = extractInt(block, "step") ?: -1
-            val stability = extractDouble(block, "stability") ?: 0.0
-            val difficulty = extractDouble(block, "difficulty") ?: 0.0
-            val elapsed = extractInt(block, "elapsedDays") ?: 0
-            val scheduled = extractInt(block, "scheduledDays") ?: 0
-            val reps = extractInt(block, "reps") ?: 0
-            val lapses = extractInt(block, "lapses") ?: 0
-            val lastTimeVal = extractLong(block, "lastReviewTime") ?: -1L
-            val dueTime = extractLong(block, "dueTime") ?: 0L
-            val isLeech = extractBoolean(block, "isLeech") ?: (lapses >= 4)
+        if (cardsContent != null) {
+            val cardBlocks = splitJsonObjects(cardsContent)
+            for (block in cardBlocks) {
+                val cardId = extractString(block, "cardId") ?: continue
+                val stateName = extractString(block, "state") ?: "NEW"
+                val stepVal = extractInt(block, "step") ?: -1
+                val stability = extractDouble(block, "stability") ?: 0.0
+                val difficulty = extractDouble(block, "difficulty") ?: 0.0
+                val elapsed = extractInt(block, "elapsedDays") ?: 0
+                val scheduled = extractInt(block, "scheduledDays") ?: 0
+                val reps = extractInt(block, "reps") ?: 0
+                val lapses = extractInt(block, "lapses") ?: 0
+                val lastTimeVal = extractLong(block, "lastReviewTime") ?: -1L
+                val dueTime = extractLong(block, "dueTime") ?: 0L
+                val isLeech = extractBoolean(block, "isLeech") ?: (lapses >= 4)
 
-            val state = CardFsrsState(
-                cardId = cardId,
-                state = try { com.ancient.wenyan.domain.fsrs.CardState.valueOf(stateName) } catch (_: Exception) { com.ancient.wenyan.domain.fsrs.CardState.NEW },
-                step = if (stepVal >= 0) stepVal else null,
-                stability = stability,
-                difficulty = difficulty,
-                elapsedDays = elapsed,
-                scheduledDays = scheduled,
-                reps = reps,
-                lapses = lapses,
-                lastReviewTime = if (lastTimeVal > 0) lastTimeVal else null,
-                dueTime = dueTime,
-                isLeech = isLeech
-            )
-            restoredStates.add(state)
+                val state = CardFsrsState(
+                    cardId = cardId,
+                    state = try { CardState.valueOf(stateName) } catch (_: Exception) { CardState.NEW },
+                    step = if (stepVal >= 0) stepVal else null,
+                    stability = stability,
+                    difficulty = difficulty,
+                    elapsedDays = elapsed,
+                    scheduledDays = scheduled,
+                    reps = reps,
+                    lapses = lapses,
+                    lastReviewTime = if (lastTimeVal > 0) lastTimeVal else null,
+                    dueTime = dueTime,
+                    isLeech = isLeech
+                )
+                restoredStates.add(state)
+            }
+
+            if (restoredStates.isNotEmpty()) {
+                repository.persistRestoredCardStates(restoredStates)
+            }
         }
 
-        if (restoredStates.isNotEmpty()) {
-            repository.persistRestoredCardStates(restoredStates)
+        // Restore reviewLogs
+        val restoredLogs = mutableListOf<ReviewLog>()
+        val logsContent = extractArrayContent(jsonStr, "reviewLogs")
+        if (logsContent != null) {
+            val logBlocks = splitJsonObjects(logsContent)
+            for (block in logBlocks) {
+                val cardId = extractString(block, "cardId") ?: continue
+                val ratingName = extractString(block, "rating") ?: "GOOD"
+                val prevStateName = extractString(block, "previousState") ?: "NEW"
+                val currStateName = extractString(block, "currentState") ?: "REVIEW"
+                val stability = extractDouble(block, "stability") ?: 0.0
+                val difficulty = extractDouble(block, "difficulty") ?: 0.0
+                val elapsed = extractInt(block, "elapsedDays") ?: 0
+                val scheduled = extractInt(block, "scheduledDays") ?: 0
+                val reviewTime = extractLong(block, "reviewTime") ?: System.currentTimeMillis()
+
+                restoredLogs.add(
+                    ReviewLog(
+                        cardId = cardId,
+                        rating = try { Rating.valueOf(ratingName) } catch (_: Exception) { Rating.GOOD },
+                        previousState = try { CardState.valueOf(prevStateName) } catch (_: Exception) { CardState.NEW },
+                        currentState = try { CardState.valueOf(currStateName) } catch (_: Exception) { CardState.REVIEW },
+                        stability = stability,
+                        difficulty = difficulty,
+                        elapsedDays = elapsed,
+                        scheduledDays = scheduled,
+                        reviewTime = reviewTime
+                    )
+                )
+            }
+            if (restoredLogs.isNotEmpty()) {
+                repository.persistRestoredReviewLogs(restoredLogs)
+            }
         }
-        return restoredStates.size
+
+        // Restore dailyReviews (either from explicit dailyReviews object or synthesized from reviewLogs)
+        val dailyMap = mutableMapOf<String, Int>()
+        val dailyContent = extractObjectContent(jsonStr, "dailyReviews")
+        if (dailyContent != null) {
+            val parsedDaily = parseJsonMap(dailyContent)
+            dailyMap.putAll(parsedDaily)
+        }
+
+        if (dailyMap.isEmpty() && restoredLogs.isNotEmpty()) {
+            val zone = ZoneId.systemDefault()
+            val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            for (log in restoredLogs) {
+                val dateStr = Instant.ofEpochMilli(log.reviewTime).atZone(zone).toLocalDate().format(fmt)
+                dailyMap[dateStr] = (dailyMap[dateStr] ?: 0) + 1
+            }
+        }
+
+        if (dailyMap.isNotEmpty()) {
+            repository.persistRestoredDailyRecords(dailyMap)
+        }
+
+        return if (restoredStates.isNotEmpty()) restoredStates.size else restoredLogs.size
     }
 
     private fun extractArrayContent(json: String, key: String): String? {
@@ -185,6 +261,22 @@ object WebDavBackupManager {
         return match?.groupValues?.get(1)?.toBooleanStrictOrNull()
     }
 
+    private fun extractObjectContent(json: String, key: String): String? {
+        val pattern = Regex("\"$key\"\\s*:\\s*\\{([\\s\\S]*?)\\}\\s*(?:,|\\})")
+        return pattern.find(json)?.groupValues?.get(1)
+    }
+
+    private fun parseJsonMap(objectContent: String): Map<String, Int> {
+        val map = mutableMapOf<String, Int>()
+        val pattern = Regex("\"([^\"]+)\"\\s*:\\s*(\\d+)")
+        for (m in pattern.findAll(objectContent)) {
+            val k = m.groupValues[1]
+            val v = m.groupValues[2].toIntOrNull() ?: 0
+            map[k] = v
+        }
+        return map
+    }
+
     private fun escapeJson(value: String): String {
         return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
     }
@@ -207,7 +299,7 @@ object WebDavBackupManager {
 
             if (config.username.isNotBlank()) {
                 val auth = "${config.username}:${config.password}"
-                val encodedAuth = android.util.Base64.encodeToString(auth.toByteArray(StandardCharsets.UTF_8), android.util.Base64.NO_WRAP)
+                val encodedAuth = Base64.getEncoder().encodeToString(auth.toByteArray(StandardCharsets.UTF_8))
                 conn.setRequestProperty("Authorization", "Basic $encodedAuth")
             }
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -244,7 +336,7 @@ object WebDavBackupManager {
 
             if (config.username.isNotBlank()) {
                 val auth = "${config.username}:${config.password}"
-                val encodedAuth = android.util.Base64.encodeToString(auth.toByteArray(StandardCharsets.UTF_8), android.util.Base64.NO_WRAP)
+                val encodedAuth = Base64.getEncoder().encodeToString(auth.toByteArray(StandardCharsets.UTF_8))
                 conn.setRequestProperty("Authorization", "Basic $encodedAuth")
             }
 

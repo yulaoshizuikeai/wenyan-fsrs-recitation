@@ -26,6 +26,7 @@ import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedbackPreferencesDialog(
     onDismiss: () -> Unit
@@ -37,14 +38,13 @@ fun FeedbackPreferencesDialog(
     var isSoundOn by remember { mutableStateOf(soundManager.isSoundEnabled) }
     var isHapticOn by remember { mutableStateOf(hapticManager.isHapticEnabled) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = BgSurface),
-            elevation = CardDefaults.cardElevation(6.dp)
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
         ) {
             Column(
                 modifier = Modifier

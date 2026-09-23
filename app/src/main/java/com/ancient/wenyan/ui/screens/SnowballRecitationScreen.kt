@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,8 +49,8 @@ fun SnowballRecitationScreen(
         SnowballChainingEngine.buildStages(article)
     }
 
-    var currentStageIndex by remember { mutableIntStateOf(0) }
-    var maskHistory by remember { mutableStateOf(true) }
+    var currentStageIndex by rememberSaveable(articleId) { mutableIntStateOf(0) }
+    var maskHistory by rememberSaveable(articleId) { mutableStateOf(true) }
     var isCelebrationActive by remember { mutableStateOf(false) }
 
     val currentStage = stages.getOrNull(currentStageIndex)

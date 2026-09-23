@@ -110,11 +110,58 @@ object RecitationDiffEngine {
             j--
         }
 
-        val diffSequence = diffListReversed.reversed()
+        val rawDiffList = diffListReversed.reversed()
+        val consolidatedSequence = mutableListOf<DiffItem>()
+        var wrong = 0
+        var finalExtra = 0
+        var finalMissing = 0
+
+        var idx = 0
+        while (idx < rawDiffList.size) {
+            val item = rawDiffList[idx]
+            if (item.type == DiffType.MATCH) {
+                consolidatedSequence.add(item)
+                idx++
+            } else {
+                // Collect contiguous non-MATCH run
+                val extras = mutableListOf<DiffItem>()
+                val missings = mutableListOf<DiffItem>()
+                while (idx < rawDiffList.size && rawDiffList[idx].type != DiffType.MATCH) {
+                    if (rawDiffList[idx].type == DiffType.EXTRA) {
+                        extras.add(rawDiffList[idx])
+                    } else if (rawDiffList[idx].type == DiffType.MISSING) {
+                        missings.add(rawDiffList[idx])
+                    }
+                    idx++
+                }
+
+                // Pair min(extras.size, missings.size) into SUBSTITUTION
+                val substitutions = kotlin.math.min(extras.size, missings.size)
+                for (s in 0 until substitutions) {
+                    consolidatedSequence.add(
+                        DiffItem(
+                            char = extras[s].char,
+                            type = DiffType.SUBSTITUTION,
+                            expectedChar = missings[s].expectedChar
+                        )
+                    )
+                    wrong++
+                }
+                for (e in substitutions until extras.size) {
+                    consolidatedSequence.add(extras[e])
+                    finalExtra++
+                }
+                for (missIdx in substitutions until missings.size) {
+                    consolidatedSequence.add(missings[missIdx])
+                    finalMissing++
+                }
+            }
+        }
+
         val accuracy = ((matched.toFloat() / max(1, n).toFloat()) * 100f).coerceIn(0f, 100f)
         val roundedAcc = (accuracy * 10f).roundToInt() / 10f
 
-        val isPerfect = (matched == n && extra == 0)
+        val isPerfect = (matched == n && finalExtra == 0 && wrong == 0)
         val feedback = when {
             isPerfect -> "绝妙精湛！一字不差，声韵谐畅！"
             roundedAcc >= 90f -> "背诵极为流畅，个别字词稍有细微出入，已达极佳境界。"
@@ -125,11 +172,11 @@ object RecitationDiffEngine {
         return RecitationEvaluationResult(
             accuracy = roundedAcc,
             matchedCount = matched,
-            missingCount = missing,
-            extraCount = extra,
-            wrongCount = 0,
+            missingCount = finalMissing,
+            extraCount = finalExtra,
+            wrongCount = wrong,
             totalExpected = n,
-            diffSequence = diffSequence,
+            diffSequence = consolidatedSequence,
             isPerfect = isPerfect,
             feedbackMessage = feedback
         )

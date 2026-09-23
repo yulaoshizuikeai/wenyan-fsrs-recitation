@@ -4,6 +4,33 @@
 
 ---
 
+## [v1.6.2] - 2026-09-23
+
+### 🛡️ 代码深度审计与全量质量加固 (Deep Code Audit & Quality Hardening)
+- **Gradle 单元测试与非 ASCII 路径兼容**：
+  - 攻克 Windows 下 JDK/AGP TestWorker 在非 ASCII 路径下的类加载缺陷，原生 `testDebugUnitTest` 147 项单测 100% 运行通过；
+  - 彻底废除反射黑魔法 `runInProcessTests`，恢复标准 Gradle 测试与 CI 兼容。
+- **单元测试 Hermetic 离线化与敏感凭据防护**：
+  - 移除 TypeSafe AI 引擎中硬编码的 API Key，支持环境变量与动态注入；
+  - 单测接入 Mock 与离线规则评测引擎，断网环境 100% 离线可测。
+- **Room SQLite 数据一致性与版本化 Schema 导出**：
+  - 打卡记录在评分提交时同步落库 Room SQLite `daily_study_records`，杜绝单依赖 SharedPreferences；
+  - 开启 Room `exportSchema = true`，自动生成版本化 JSON Schema；
+  - WebDAV / 本地备份恢复全量解析 `reviewLogs` 与每日打卡数据，支持旧版备份智能时间戳推导补齐。
+- **核心算法与调度契约修复**：
+  - 常规复习队列严格隔离 `isLeech` 顽固卡，杜绝高遗忘卡片被前置反向刷屏；
+  - 默写 LCS 评测算法支持错字替换识别与 FSRS 离散扰动改进。
+- **MVVM 架构与配置变更持久化**：
+  - 彻底清除 Composable 内部 `remember { ViewModel() }` 伪 ViewModel 反模式，统一采用标准 `hiltViewModel()`；
+  - 滚雪球、填空、情景默写等页面交互状态全面升级为 `rememberSaveable`，横竖屏旋转不丢进度；
+  - 修复 FSRS 设置弹窗深色模式下的白底白字低对比度问题。
+- **桌面微件 (AppWidget) 深色主题适配**：
+  - 新增 `res/values-night/colors.xml`，深色模式下自适应墨色与夜间宣纸底色。
+- **代码库整洁**：
+  - 清理废弃的死代码文件（`RandomReviewScreen.kt`、`StreakBannerCard.kt`、`FlipCardViewModel.kt`）。
+
+---
+
 ## [v1.6.1] - 2026-09-23
 
 ### 📖 课本范围全模块联动与生效 (Curriculum Book Scope Enforcement)

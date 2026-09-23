@@ -23,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.ancient.wenyan.data.CurriculumDataSource
+import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.export.CertificateAndCopybookGenerator
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.ui.sound.HapticManager
@@ -38,6 +40,7 @@ fun CertificateAndCopybookScreen(
 ) {
     val context = LocalContext.current
     val hapticManager = remember { HapticManager.getInstance(context) }
+    val repository = remember { WenYanRepository.getInstance(context) }
 
     val article: Article = remember(articleId) {
         CurriculumDataSource.ARTICLE_MAP[articleId]
@@ -45,9 +48,14 @@ fun CertificateAndCopybookScreen(
             ?: CurriculumDataSource.ALL_ARTICLES.first()
     }
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: 结业文牒, 1: 书法字帖
-    val certificate = remember(article) {
-        CertificateAndCopybookGenerator.generateCertificate(article, 100f)
+    val mastery = remember(article.id) {
+        val progress = repository.getArticleProgress(article.id)
+        if (progress.totalCards > 0) progress.masteryPercentage else 100f
+    }
+
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // 0: 结业文牒, 1: 书法字帖
+    val certificate = remember(article, mastery) {
+        CertificateAndCopybookGenerator.generateCertificate(article, mastery)
     }
     val copybook = remember(article) {
         CertificateAndCopybookGenerator.generateCopybook(article)
@@ -84,14 +92,15 @@ fun CertificateAndCopybookScreen(
                     IconButton(
                         onClick = {
                             hapticManager.tapLight()
-                            val shareText = if (selectedTab == 0) {
-                                """
-                                【文言背诵 · 结业文牒】
-                                恭喜研读《${article.title}》（${article.dynasty} · ${article.author}）圆满达成！
-                                通篇背诵熟练度已达 100%，特赐结业金榜文牒，以兹嘉奖！
-                                
-                                “${certificate.sealText}”
-                                """.trimIndent()
+                                val masteryFormatted = kotlin.math.round(mastery * 10f) / 10f
+                                val shareText = if (selectedTab == 0) {
+                                    """
+                                    【文言背诵 · 结业文牒】
+                                    恭喜研读《${article.title}》（${article.dynasty} · ${article.author}）！
+                                    通篇背诵熟练度已达 ${masteryFormatted}%，特赐结业金榜文牒，以兹嘉奖！
+                                    
+                                    “${certificate.sealText}”
+                                    """.trimIndent()
                             } else {
                                 """
                                 【文言背诵 · 楷书米字格字帖】

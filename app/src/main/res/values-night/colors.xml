@@ -1,0 +1,20 @@
+<resources>
+    <!-- 宣纸深色/夜间系列 (Dark Xuan Paper) -->
+    <color name="xuan_paper_light">#151311</color>
+    <color name="xuan_paper_deep">#1C1917</color>
+    <color name="xuan_paper_card">#24211E</color>
+    <color name="xuan_border">#38332E</color>
+
+    <!-- 水墨夜间倒置系列 (Ink Inverted) -->
+    <color name="ink_charcoal">#EAE5DC</color>
+    <color name="ink_medium">#B5AEA4</color>
+    <color name="ink_faded">#8C847B</color>
+
+    <!-- 东方人文点缀系列 (Dark Accents) -->
+    <color name="bamboo_green">#5B8A70</color>
+    <color name="mountain_teal">#688E8B</color>
+    <color name="cinnabar_red">#D65B5C</color>
+    <color name="vermilion_accent">#E74C3C</color>
+    <color name="muted_gold">#D4AF37</color>
+    <color name="lacquer_dark">#12100E</color>
+</resources>

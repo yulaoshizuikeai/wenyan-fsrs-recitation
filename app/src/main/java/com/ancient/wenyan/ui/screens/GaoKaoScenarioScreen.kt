@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,7 +51,7 @@ fun GaoKaoScenarioScreen(
     val focusManager = LocalFocusManager.current
 
     val availableArticles = remember { GaoKaoScenarioDataSource.getAvailableArticles() }
-    var selectedArticle by remember(initialArticleTitle) {
+    var selectedArticle by rememberSaveable(initialArticleTitle) {
         mutableStateOf(initialArticleTitle?.takeIf { it in availableArticles } ?: "全部篇目")
     }
     var showArticlePickerSheet by remember { mutableStateOf(false) }
@@ -61,14 +62,20 @@ fun GaoKaoScenarioScreen(
     }
 
     val coroutineScope = rememberCoroutineScope()
-    var currentIndex by remember(activeQuestions) { mutableIntStateOf(0) }
-    var isRevealed by remember(currentIndex, activeQuestions) { mutableStateOf(false) }
-    var userInput by remember(currentIndex, activeQuestions) { mutableStateOf("") }
+    var currentIndex by rememberSaveable(selectedArticle) { mutableIntStateOf(0) }
+    var isRevealed by rememberSaveable(selectedArticle, currentIndex) { mutableStateOf(false) }
+    var userInput by rememberSaveable(selectedArticle, currentIndex) { mutableStateOf("") }
     var evalResult by remember(currentIndex, activeQuestions) { mutableStateOf<RecitationEvaluationResult?>(null) }
     var aiDiagnosis by remember(currentIndex, activeQuestions) { mutableStateOf<ScenarioDiagnosisResult?>(null) }
     var isAiLoading by remember(currentIndex, activeQuestions) { mutableStateOf(false) }
 
     val currentQ = activeQuestions.getOrNull(currentIndex)
+
+    LaunchedEffect(isRevealed, currentIndex, activeQuestions) {
+        if (isRevealed && evalResult == null && userInput.isNotBlank() && currentQ != null) {
+            evalResult = RecitationDiffEngine.evaluate(userInput, currentQ.answer)
+        }
+    }
 
     // Helper to evaluate and dismiss keyboard
     val doEvaluate = {

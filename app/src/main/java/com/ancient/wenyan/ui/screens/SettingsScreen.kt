@@ -41,12 +41,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    repository: WenYanRepository? = null,
-    viewModel: SettingsViewModel = if (repository != null) {
-        remember(repository) { SettingsViewModel(repository) }
-    } else {
-        hiltViewModel()
-    },
+    viewModel: SettingsViewModel = hiltViewModel(),
     onBack: () -> Unit
 ) {
     val context = LocalContext.current

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,7 +55,13 @@ fun ClozeRecitationScreen(
 
     var selectedLevel by rememberSaveable { mutableIntStateOf(1) }
     var revealOriginal by rememberSaveable { mutableStateOf(false) }
-    var revealedTokenIds by remember(selectedLevel, article.id) { mutableStateOf(setOf<Int>()) }
+    var revealedTokenIds by rememberSaveable(
+        selectedLevel, article.id,
+        stateSaver = Saver<Set<Int>, ArrayList<Int>>(
+            save = { ArrayList(it) },
+            restore = { it.toSet() }
+        )
+    ) { mutableStateOf(setOf<Int>()) }
 
     val fullText = article.fullContent
     val clozeKeywords = remember(article) {

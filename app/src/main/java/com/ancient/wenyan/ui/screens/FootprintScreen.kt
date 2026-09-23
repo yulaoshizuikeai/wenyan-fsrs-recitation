@@ -38,12 +38,7 @@ import com.ancient.wenyan.ui.viewmodel.DashboardViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FootprintScreen(
-    repository: WenYanRepository? = null,
-    viewModel: DashboardViewModel = if (repository != null) {
-        remember(repository) { DashboardViewModel(repository) }
-    } else {
-        hiltViewModel()
-    },
+    viewModel: DashboardViewModel = hiltViewModel(),
     onOpenSettings: () -> Unit = {}
 ) {
     val currentRepo = remember(viewModel) { viewModel.getRepository() }

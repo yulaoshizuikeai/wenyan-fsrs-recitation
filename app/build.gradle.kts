@@ -16,8 +16,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "1.6.1"
+        versionCode = 20
+        versionName = "1.6.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -123,6 +123,11 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+
 dependencies {
     // AndroidX Core & Lifecycle
     implementation("androidx.core:core-ktx:1.13.1")
@@ -176,68 +181,33 @@ dependencies {
 
 afterEvaluate {
     tasks.named<Test>("testDebugUnitTest").configure {
-        val buildDir = layout.buildDirectory.asFile.get()
-        testClassesDirs += files("$buildDir/tmp/kotlin-classes/debugUnitTest")
-        classpath += files(
-            "$buildDir/tmp/kotlin-classes/debugUnitTest",
-            "$buildDir/tmp/kotlin-classes/debug"
-        )
-    }
-}
-
-tasks.register("runInProcessTests") {
-    dependsOn("compileDebugUnitTestKotlin", "compileDebugKotlin")
-    doLast {
-        val buildDir = layout.buildDirectory.asFile.get()
-        val classDirs = listOf(
-            file("$buildDir/tmp/kotlin-classes/debug"),
-            file("$buildDir/tmp/kotlin-classes/debugUnitTest")
-        )
-        val allUrls = (classDirs + configurations.getByName("debugUnitTestRuntimeClasspath").files)
-            .map { it.toURI().toURL() }
-            .toTypedArray()
-
-        val classLoader = URLClassLoader(allUrls, ClassLoader.getPlatformClassLoader())
-        val junitCoreClass = classLoader.loadClass("org.junit.runner.JUnitCore")
-        val testClassNames = listOf(
-            "com.ancient.wenyan.DailyGoalsAndQueueTest",
-            "com.ancient.wenyan.FSRSOptimizerTest",
-            "com.ancient.wenyan.MultiClozeVariantAndIntensifiedFsrsTest",
-            "com.ancient.wenyan.BookSelectionAndHeatmapTest",
-            "com.ancient.wenyan.SequentialRecitationOrderTest",
-            "com.ancient.wenyan.ActiveSessionPersistenceTest",
-            "com.ancient.wenyan.Phase2Phase3FixesTest",
-            "com.ancient.wenyan.RoadmapPhaseExecutionTest",
-            "com.ancient.wenyan.TypeSafeDiagnosisTest",
-            "com.ancient.wenyan.e2e.Tier1FeatureCoverageTest",
-            "com.ancient.wenyan.e2e.Tier2BoundaryCornerCasesTest"
-        )
-        val testClasses = testClassNames.map { classLoader.loadClass(it) }.toTypedArray()
-
-        val junitCore = junitCoreClass.getDeclaredConstructor().newInstance()
-        val classArrayType = Class.forName("[Ljava.lang.Class;")
-        val runMethod = junitCoreClass.getMethod("run", classArrayType)
-        val result = runMethod.invoke(junitCore, testClasses)
-
-        val wasSuccessful = result.javaClass.getMethod("wasSuccessful").invoke(result) as Boolean
-        val runCount = result.javaClass.getMethod("getRunCount").invoke(result) as Int
-        val failureCount = result.javaClass.getMethod("getFailureCount").invoke(result) as Int
-        val failures = result.javaClass.getMethod("getFailures").invoke(result) as List<*>
-
-        println("==================================================")
-        println("TEST SUMMARY: Ran $runCount tests, Failures: $failureCount")
-        println("==================================================")
-        if (!wasSuccessful) {
-            for (f in failures) {
-                println("FAILURE: $f")
-                val getException = f?.javaClass?.getMethod("getException")
-                val ex = getException?.invoke(f) as? Throwable
-                ex?.printStackTrace()
+        doFirst {
+            val rootPath = rootDir.canonicalPath
+            val hasNonAscii = rootPath.any { it.code > 127 }
+            if (hasNonAscii) {
+                val linkDir = File(System.getProperty("java.io.tmpdir"), "wenyan_test_root")
+                if (!linkDir.exists()) {
+                    try {
+                        ProcessBuilder("cmd.exe", "/c", "mklink", "/J", linkDir.absolutePath, rootPath).start().waitFor()
+                    } catch (_: Exception) {}
+                }
+                if (linkDir.exists()) {
+                    val asciiBase = linkDir.canonicalPath
+                    testClassesDirs = files(testClassesDirs.files.map { f ->
+                        val p = f.canonicalPath
+                        if (p.startsWith(rootPath)) File(asciiBase + p.substring(rootPath.length)) else f
+                    })
+                    classpath = files(classpath.files.map { f ->
+                        val p = f.canonicalPath
+                        if (p.startsWith(rootPath)) File(asciiBase + p.substring(rootPath.length)) else f
+                    })
+                }
             }
-            throw GradleException("Tests failed! ($failureCount failures)")
         }
     }
 }
+
+
 
 
 

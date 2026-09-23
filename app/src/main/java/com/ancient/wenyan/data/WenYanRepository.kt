@@ -407,15 +407,18 @@ class WenYanRepository(
         saveDailyReviewToPrefs(todayStr, currentDayCount)
 
         // Record daily new/review count for Anki-style progress tracking
+        var todayNewCount = if (wasNew) 1 else 0
         prefs?.let { sp ->
             if (wasNew) {
-                val newCount = sp.getInt("pref_daily_new_learned_$todayStr", 0) + 1
-                sp.edit().putInt("pref_daily_new_learned_$todayStr", newCount).apply()
+                todayNewCount = sp.getInt("pref_daily_new_learned_$todayStr", 0) + 1
+                sp.edit().putInt("pref_daily_new_learned_$todayStr", todayNewCount).apply()
             } else {
+                todayNewCount = sp.getInt("pref_daily_new_learned_$todayStr", 0)
                 val revCount = sp.getInt("pref_daily_reviewed_$todayStr", 0) + 1
                 sp.edit().putInt("pref_daily_reviewed_$todayStr", revCount).apply()
             }
         }
+        persistDailyRecord(todayStr, currentDayCount, todayNewCount)
         _todayStudyProgressFlow.value = computeTodayProgress()
 
         _heatmapStatsFlow.value = computeHeatmapStats()
@@ -433,7 +436,8 @@ class WenYanRepository(
     fun computeTodayProgress(): TodayStudyProgress {
         val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         val newCount = prefs?.getInt("pref_daily_new_learned_$todayStr", 0) ?: 0
-        val revCount = prefs?.getInt("pref_daily_reviewed_$todayStr", 0) ?: 0
+        val savedRevCount = prefs?.getInt("pref_daily_reviewed_$todayStr", 0) ?: 0
+        val revCount = if (savedRevCount > 0) savedRevCount else (dailyReviewMap[todayStr] ?: 0)
         val config = _studyGoalsConfig.value
         return TodayStudyProgress(
             todayNewLearned = newCount,
@@ -471,15 +475,15 @@ class WenYanRepository(
         val endOfTodayMillis = nowDate.atTime(23, 59, 59).atZone(zone).toInstant().toEpochMilli()
 
         val relearningQueue = cardsStateMap.values
-            .filter { it.state == CardState.RELEARNING && it.dueTime <= nowMillis && it.cardId in allFlashcards }
+            .filter { !it.isLeech && it.state == CardState.RELEARNING && it.dueTime <= nowMillis && it.cardId in allFlashcards }
             .sortedBy { it.dueTime }
 
         val learningQueue = cardsStateMap.values
-            .filter { it.state == CardState.LEARNING && it.dueTime <= nowMillis && it.cardId in allFlashcards }
+            .filter { !it.isLeech && it.state == CardState.LEARNING && it.dueTime <= nowMillis && it.cardId in allFlashcards }
             .sortedBy { it.dueTime }
 
         val reviewQueue = cardsStateMap.values
-            .filter { it.state == CardState.REVIEW && it.dueTime <= endOfTodayMillis && it.cardId in allFlashcards }
+            .filter { !it.isLeech && it.state == CardState.REVIEW && it.dueTime <= endOfTodayMillis && it.cardId in allFlashcards }
             .sortedWith(compareByDescending<CardFsrsState> { it.lapses }.thenBy { it.dueTime })
 
         // Apply dailyReviewLimit ONLY to graduated review cards (CardState.REVIEW)
@@ -700,18 +704,18 @@ class WenYanRepository(
                 CardState.NEW -> newCount++
                 CardState.LEARNING -> {
                     learningCount++
-                    if (card.dueTime <= nowMillis) dueCount++
+                    if (!card.isLeech && card.dueTime <= nowMillis) dueCount++
                 }
                 CardState.RELEARNING -> {
                     learningCount++
-                    if (card.dueTime <= nowMillis) dueCount++
+                    if (!card.isLeech && card.dueTime <= nowMillis) dueCount++
                 }
                 CardState.REVIEW -> {
                     reviewCount++
                     val zone = java.time.ZoneId.systemDefault()
                     val nowDate = java.time.Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
                     val endOfTodayMillis = nowDate.atTime(23, 59, 59).atZone(zone).toInstant().toEpochMilli()
-                    if (card.dueTime <= endOfTodayMillis) dueCount++
+                    if (!card.isLeech && card.dueTime <= endOfTodayMillis) dueCount++
                 }
             }
         }
@@ -843,14 +847,16 @@ class WenYanRepository(
             }
         }
 
-        // Secondary backup to SharedPreferences (keeping up to 2000 for fallback)
-        prefs?.let { sp ->
-            val recentLogs = reviewLogs.takeLast(2000)
-            val sb = StringBuilder()
-            for (log in recentLogs) {
-                sb.append("${log.cardId}|${log.rating.name}|${log.previousState.name}|${log.currentState.name}|${log.stability}|${log.difficulty}|${log.elapsedDays}|${log.scheduledDays}|${log.reviewTime}\n")
+        // Secondary fallback to SharedPreferences only when database is null
+        if (database == null) {
+            prefs?.let { sp ->
+                val recentLogs = reviewLogs.takeLast(2000)
+                val sb = StringBuilder()
+                for (log in recentLogs) {
+                    sb.append("${log.cardId}|${log.rating.name}|${log.previousState.name}|${log.currentState.name}|${log.stability}|${log.difficulty}|${log.elapsedDays}|${log.scheduledDays}|${log.reviewTime}\n")
+                }
+                sp.edit().putString("pref_persisted_review_logs_v1", sb.toString()).apply()
             }
-            sp.edit().putString("pref_persisted_review_logs_v1", sb.toString()).apply()
         }
     }
 
@@ -870,22 +876,49 @@ class WenYanRepository(
             }
         }
 
-        prefs?.let { sp ->
-            val nonNewCards = synchronized(cardsStateMap) {
-                cardsStateMap.values.filter {
-                    it.state != CardState.NEW || it.reps > 0 || it.lapses > 0 || it.lastReviewTime != null
+        if (database == null) {
+            prefs?.let { sp ->
+                val nonNewCards = synchronized(cardsStateMap) {
+                    cardsStateMap.values.filter {
+                        it.state != CardState.NEW || it.reps > 0 || it.lapses > 0 || it.lastReviewTime != null
+                    }
                 }
+                val sb = StringBuilder()
+                for (c in nonNewCards) {
+                    sb.append("${c.cardId}|${c.state.name}|${c.step ?: ""}|${c.stability}|${c.difficulty}|${c.elapsedDays}|${c.scheduledDays}|${c.reps}|${c.lapses}|${c.lastReviewTime ?: ""}|${c.dueTime}\n")
+                }
+                sp.edit().putString(PREF_CARD_STATES_KEY, sb.toString()).apply()
             }
-            val sb = StringBuilder()
-            for (c in nonNewCards) {
-                sb.append("${c.cardId}|${c.state.name}|${c.step ?: ""}|${c.stability}|${c.difficulty}|${c.elapsedDays}|${c.scheduledDays}|${c.reps}|${c.lapses}|${c.lastReviewTime ?: ""}|${c.dueTime}\n")
-            }
-            sp.edit().putString(PREF_CARD_STATES_KEY, sb.toString()).apply()
         }
     }
 
-    fun getLeechCards(): List<Pair<Flashcard, CardFsrsState>> {
-        val leechStates = cardsStateMap.values.filter { it.isLeech }
+    private fun persistDailyRecord(date: String, reviewCount: Int, newLearnedCount: Int) {
+        database?.let { db ->
+            repositoryScope.launch {
+                try {
+                    db.dailyRecordDao().upsertRecord(
+                        DailyRecordEntity(
+                            date = date,
+                            reviewCount = reviewCount,
+                            newLearnedCount = newLearnedCount
+                        )
+                    )
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    fun getLeechCards(scope: Set<String>? = _selectedBookScope.value): List<Pair<Flashcard, CardFsrsState>> {
+        val targetArticles = if (scope.isNullOrEmpty()) {
+            CurriculumDataSource.ALL_ARTICLES
+        } else {
+            CurriculumDataSource.ALL_ARTICLES.filter { it.moduleId in scope }
+        }
+        val targetCardIds = targetArticles.flatMap {
+            CurriculumDataSource.generateFlashcardsForArticle(it)
+        }.map { it.id }.toSet()
+
+        val leechStates = cardsStateMap.values.filter { it.isLeech && it.cardId in targetCardIds }
         return leechStates.mapNotNull { state ->
             val fc = CurriculumDataSource.getFlashcard(state.cardId)
             if (fc != null) Pair(fc, state) else null
@@ -1028,6 +1061,45 @@ class WenYanRepository(
 
         persistCardStates()
         _statsFlow.value = computeStats()
+        _heatmapStatsFlow.value = computeHeatmapStats()
+        _todayStudyProgressFlow.value = computeTodayProgress()
+    }
+
+    fun getDailyReviewMap(): Map<String, Int> = synchronized(dailyReviewMap) { dailyReviewMap.toMap() }
+
+    suspend fun persistRestoredReviewLogs(logs: List<ReviewLog>) = withContext(ioDispatcher) {
+        if (logs.isEmpty()) return@withContext
+        synchronized(reviewLogs) {
+            val existingKeys = reviewLogs.map { "${it.cardId}_${it.reviewTime}" }.toSet()
+            val newUnique = logs.filter { "${it.cardId}_${it.reviewTime}" !in existingKeys }
+            reviewLogs.addAll(newUnique)
+        }
+        try {
+            database?.let { db ->
+                val entities = logs.map { ReviewLogEntity.fromDomain(it) }
+                db.reviewLogDao().insertLogs(entities)
+            }
+        } catch (_: Exception) {}
+
+        persistReviewLogs()
+        _statsFlow.value = computeStats()
+    }
+
+    suspend fun persistRestoredDailyRecords(dailyMap: Map<String, Int>) = withContext(ioDispatcher) {
+        if (dailyMap.isEmpty()) return@withContext
+        synchronized(dailyReviewMap) {
+            dailyReviewMap.putAll(dailyMap)
+        }
+        dailyMap.forEach { (date, count) ->
+            saveDailyReviewToPrefs(date, count)
+        }
+        try {
+            database?.let { db ->
+                val entities = dailyMap.map { DailyRecordEntity(date = it.key, reviewCount = it.value) }
+                db.dailyRecordDao().upsertRecords(entities)
+            }
+        } catch (_: Exception) {}
+
         _heatmapStatsFlow.value = computeHeatmapStats()
         _todayStudyProgressFlow.value = computeTodayProgress()
     }

@@ -41,6 +41,7 @@ data class TutorialStep(
     val bulletPoints: List<String>
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingTutorialDialog(
     onDismiss: () -> Unit,
@@ -103,14 +104,13 @@ fun OnboardingTutorialDialog(
         )
     )
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, BorderSubtle, RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = BgSurface),
-            elevation = CardDefaults.cardElevation(8.dp)
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle)
         ) {
             Column(
                 modifier = Modifier

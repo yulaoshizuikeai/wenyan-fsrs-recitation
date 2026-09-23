@@ -38,12 +38,7 @@ import com.ancient.wenyan.ui.viewmodel.ChapterTreeViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChapterTreeScreen(
-    repository: WenYanRepository? = null,
-    viewModel: ChapterTreeViewModel = if (repository != null) {
-        remember(repository) { ChapterTreeViewModel(repository) }
-    } else {
-        hiltViewModel()
-    },
+    viewModel: ChapterTreeViewModel = hiltViewModel(),
     onBack: () -> Unit,
     onStartFlashcards: (Article) -> Unit,
     onStartCloze: (Article) -> Unit,
