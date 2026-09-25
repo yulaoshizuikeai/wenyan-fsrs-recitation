@@ -12,6 +12,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.data.WenYanRepository
 import com.ancient.wenyan.domain.model.ActiveSession
+import com.ancient.wenyan.ui.components.ChainedArticleSelectionDialog
 import com.ancient.wenyan.ui.components.DailyGoalSettingsDialog
 import com.ancient.wenyan.ui.components.BookSelectionDialog
 import com.ancient.wenyan.ui.components.FSRSConfigDialog
@@ -94,6 +97,7 @@ fun DashboardScreen(
     onStartGaoKaoReview: () -> Unit,
     onNavigateToPractice: () -> Unit,
     onOpenGaoKaoScenario: () -> Unit = {},
+    onOpenSnowball: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onResumeActiveSession: (ActiveSession) -> Unit = {}
 ) {
@@ -115,6 +119,7 @@ fun DashboardScreen(
     var showBookDialog by remember { mutableStateOf(false) }
     var showFSRSConfigDialog by remember { mutableStateOf(false) }
     var showDailyGoalDialog by remember { mutableStateOf(false) }
+    var showChainedSelectionDialog by remember { mutableStateOf(false) }
 
     // Rotating daily quote based on day-of-year, tap to cycle
     val dayOfYear = remember { LocalDate.now().dayOfYear }
@@ -160,6 +165,17 @@ fun DashboardScreen(
         FSRSConfigDialog(
             repository = currentRepo,
             onDismiss = { showFSRSConfigDialog = false }
+        )
+    }
+
+    if (showChainedSelectionDialog) {
+        ChainedArticleSelectionDialog(
+            currentScope = selectedBookScope,
+            currentScopeName = selectedBookName,
+            onDismiss = { showChainedSelectionDialog = false },
+            onSelectArticle = { articleId ->
+                onOpenSnowball(articleId)
+            }
         )
     }
 
@@ -774,6 +790,166 @@ fun DashboardScreen(
                                 text = "➔",
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // 2.5 Long-Article Chained Snowball Recitation (长文串联 · 滚雪球背诵专区)
+            // ----------------------------------------------------------------
+            item(key = "snowball_chained_featured_card") {
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.5.dp,
+                        StudyBlueAccent.copy(alpha = 0.35f)
+                    ),
+                    elevation = CardDefaults.outlinedCardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        // Title row with icon and highlight pill
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(StudyBlueLight, RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Snowboarding,
+                                        contentDescription = null,
+                                        tint = StudyBlueAccent,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "长文串联 · 滚雪球背诵",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "语脉贯通 · 告别单句孤岛",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = StudyBlueAccent
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f)
+                            ) {
+                                Text(
+                                    text = "FSRS 批量结算",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "从第1句起步，以“1句 ➔ 1+2句 ➔ 1+2+3句”滚雪球式层层叠进，全篇连贯一气呵成！中途支持标记转折卡壳，通关后智能批量推演 FSRS 稳定性与复习间隔。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // High frequency classic quick jump row
+                        Text(
+                            text = "高频必背名篇速练：",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val classicArticles = listOf(
+                                "劝学" to "art_bx1_12",
+                                "师说" to "art_bx1_13",
+                                "赤壁赋" to "art_bx1_14",
+                                "阿房宫赋" to "art_bx2_12",
+                                "琵琶行" to "art_bx1_08",
+                                "短歌行" to "art_bx1_04"
+                            )
+                            classicArticles.forEach { (name, artId) ->
+                                SuggestionChip(
+                                    onClick = {
+                                        hapticManager.tapLight()
+                                        soundManager.playClick()
+                                        onOpenSnowball(artId)
+                                    },
+                                    label = { Text(text = name, fontSize = 12.sp, fontWeight = FontWeight.Medium) },
+                                    colors = SuggestionChipDefaults.suggestionChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    ),
+                                    border = null
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Primary Action Button
+                        Button(
+                            onClick = {
+                                hapticManager.tapLight()
+                                soundManager.playClick()
+                                showChainedSelectionDialog = true
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = StudyBlueAccent,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Snowboarding,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "挑选文言篇目 · 开启长文串诵",
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily.SansSerif,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "➔",
+                                fontSize = 14.sp
                             )
                         }
                     }

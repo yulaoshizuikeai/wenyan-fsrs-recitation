@@ -16,8 +16,8 @@ android {
         applicationId = "com.ancient.wenyan"
         minSdk = 26
         targetSdk = 34
-        versionCode = 21
-        versionName = "1.7.0"
+        versionCode = 22
+        versionName = "1.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

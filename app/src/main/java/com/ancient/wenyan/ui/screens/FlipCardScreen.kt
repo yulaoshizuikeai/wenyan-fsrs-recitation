@@ -562,7 +562,7 @@ fun FlipCardScreen(
                                             color = StudyBlueAccent
                                         )
                                         Text(
-                                            text = currentCard.precedingClauseHint!!,
+                                            text = currentCard.precedingClauseHint,
                                             fontSize = 14.sp,
                                             fontFamily = FontFamily.Serif,
                                             color = TextPrimary

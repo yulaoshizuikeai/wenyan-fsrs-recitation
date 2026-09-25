@@ -431,6 +431,9 @@ class MainActivity : ComponentActivity() {
                                                         onOpenGaoKaoScenario = {
                                                             overlayScreen = OverlayScreen.GaoKaoScenario()
                                                         },
+                                                        onOpenSnowball = { articleId ->
+                                                            overlayScreen = OverlayScreen.SnowballRecitation(articleId)
+                                                        },
                                                         onOpenSettings = {
                                                             overlayScreen = OverlayScreen.Settings
                                                         }
