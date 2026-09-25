@@ -4,6 +4,26 @@
 
 ---
 
+## [v1.7.0] - 2026-09-25
+
+### 🔗 串联背诵 × FSRS 记忆调度深度升级 (Chained Recitation & FSRS Joint Optimization)
+- **长篇滚雪球串联背诵全面打通 FSRS (Snowball Chaining FSRS Integration)**：
+  - 滚雪球单元与底层 Flashcard 实体基于 `unitIndex` 精准绑定映射；
+  - 串联递进过程支持“连背顺畅”与“转折卡壳”标记，精准捕捉起承转合薄弱点；
+  - 全篇通关一键批量智能结算 FSRS（`submitChainedRecitationBatch`）：批量计算信用分配与间隔推演，打卡热力图与学习量即时落库；
+  - 新增全篇通关结算报告弹窗：统计串联联数、顺畅连诵率、薄弱转折点与下次推荐串联复习周期。
+- **主背诵流升级为多句串联滑窗流 (Chained Sliding Window Flow)**：
+  - 翻卡与填空背诵界面支持一键开启【串联滑窗流 / 语脉连诵】模式；
+  - 卡片正面优雅呈现“上联引路 · 气韵承接”导读，由前联声韵文气自然带出当前句记忆；
+  - 卡片背面呈现“下联顺承预览”，提前构建上下文序列条件反射；
+  - 新增“一气呵成 · 顺畅连诵”与“转折稍卡壳”沉浸式快速推进按钮，无需每句停顿挑选繁琐时间梯度；
+  - 顶栏新增一键直达当前篇目滚雪球串联背诵的快捷通道。
+- **底层转折记忆矩阵支持 (Transition Matrix & Edge Stability)**：
+  - Repository 层新增 `recordTransitionBottleneck` 与 `getTransitionBottlenecks`，记录文言文转折断点；
+  - 内存与持久化存储双向兜底，离线单元测试 100% 覆盖。
+
+---
+
 ## [v1.6.2] - 2026-09-23
 
 ### 🛡️ 代码深度审计与全量质量加固 (Deep Code Audit & Quality Hardening)

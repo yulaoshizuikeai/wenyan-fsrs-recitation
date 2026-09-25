@@ -48,6 +48,16 @@ data class DeckStats(
     val retentionPercentage: Float
 )
 
+data class ChainedRecitationSummary(
+    val totalUnits: Int,
+    val smoothUnitsCount: Int,
+    val bottleneckUnitsCount: Int,
+    val newCardsCount: Int,
+    val reviewCardsCount: Int,
+    val averageNextIntervalDays: Double,
+    val updatedCards: List<CardFsrsState>
+)
+
 class WenYanRepository(
     private val context: Context? = null,
     val fsrsEngine: FSRSEngine = FSRSEngine(),
@@ -62,6 +72,8 @@ class WenYanRepository(
     private val cardsStateMap = java.util.concurrent.ConcurrentHashMap<String, CardFsrsState>()
     private val reviewLogs = java.util.concurrent.CopyOnWriteArrayList<ReviewLog>()
     private val dailyReviewMap = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val inMemoryBottlenecks = java.util.concurrent.ConcurrentHashMap<String, MutableSet<String>>()
+    private var inMemoryTodayNewLearned = 0
 
     private val prefs: SharedPreferences? by lazy {
         context?.getSharedPreferences("wenyan_study_prefs", Context.MODE_PRIVATE)
@@ -433,9 +445,145 @@ class WenYanRepository(
         return result.updatedCard
     }
 
+    /**
+     * Submit chained recitation batch ratings for a connected series of units/cards.
+     * Evaluates FSRS spacing for each card in the chain, registers learning/review logs,
+     * updates daily heatmap records, and returns an aggregate summary.
+     */
+    fun submitChainedRecitationBatch(
+        ratings: Map<String, Rating>,
+        nowMillis: Long = System.currentTimeMillis()
+    ): ChainedRecitationSummary {
+        if (ratings.isEmpty()) {
+            return ChainedRecitationSummary(0, 0, 0, 0, 0, 0.0, emptyList())
+        }
+
+        var newCardsLearned = 0
+        var reviewCardsReviewed = 0
+        val updatedList = mutableListOf<CardFsrsState>()
+        val logsToAdd = mutableListOf<ReviewLog>()
+
+        for ((cardId, rating) in ratings) {
+            val currentState = getCardState(cardId)
+            val wasNew = currentState.state == CardState.NEW
+            val result = fsrsEngine.evaluateReview(currentState, rating, nowMillis)
+
+            synchronized(cardsStateMap) {
+                cardsStateMap[cardId] = result.updatedCard
+            }
+            logsToAdd.add(result.reviewLog)
+            persistCardStates(result.updatedCard)
+
+            if (wasNew) {
+                newCardsLearned++
+            } else {
+                reviewCardsReviewed++
+            }
+            updatedList.add(result.updatedCard)
+        }
+
+        synchronized(reviewLogs) {
+            reviewLogs.addAll(logsToAdd)
+        }
+        for (log in logsToAdd) {
+            persistReviewLogs(log)
+        }
+
+        // Auto-tune if threshold reached
+        val logCount = synchronized(reviewLogs) { reviewLogs.size }
+        if (isAutoTuneEnabled() && logCount >= 10 && logCount % 20 < logsToAdd.size) {
+            repositoryScope.launch {
+                optimizeFSRSParameters()
+            }
+        }
+
+        // Record daily review in heatmap
+        val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        val currentDayCount = synchronized(dailyReviewMap) {
+            val count = (dailyReviewMap[todayStr] ?: 0) + ratings.size
+            dailyReviewMap[todayStr] = count
+            count
+        }
+        saveDailyReviewToPrefs(todayStr, currentDayCount)
+
+        inMemoryTodayNewLearned += newCardsLearned
+        var todayNewCount = inMemoryTodayNewLearned
+        prefs?.let { sp ->
+            val prevNew = sp.getInt("pref_daily_new_learned_$todayStr", 0)
+            val prevRev = sp.getInt("pref_daily_reviewed_$todayStr", 0)
+            todayNewCount = prevNew + newCardsLearned
+            val newRev = prevRev + reviewCardsReviewed
+            sp.edit().putInt("pref_daily_new_learned_$todayStr", todayNewCount)
+                .putInt("pref_daily_reviewed_$todayStr", newRev)
+                .apply()
+        }
+        persistDailyRecord(todayStr, currentDayCount, todayNewCount)
+        _todayStudyProgressFlow.value = computeTodayProgress()
+
+        _heatmapStatsFlow.value = computeHeatmapStats()
+        _statsFlow.value = computeStats(nowMillis)
+
+        context?.let { ctx ->
+            try {
+                com.ancient.wenyan.widget.WenYanTodayWidgetProvider.updateAllWidgets(ctx)
+            } catch (_: Throwable) {}
+        }
+
+        val smoothCount = ratings.values.count { it == Rating.GOOD || it == Rating.EASY }
+        val bottleneckCount = ratings.values.count { it == Rating.AGAIN || it == Rating.HARD }
+        val avgInterval = if (updatedList.isNotEmpty()) {
+            updatedList.map {
+                if (it.scheduledDays > 0) it.scheduledDays.toDouble()
+                else fsrsEngine.nextInterval(it.stability).toDouble()
+            }.average()
+        } else 0.0
+
+        return ChainedRecitationSummary(
+            totalUnits = ratings.size,
+            smoothUnitsCount = smoothCount,
+            bottleneckUnitsCount = bottleneckCount,
+            newCardsCount = newCardsLearned,
+            reviewCardsCount = reviewCardsReviewed,
+            averageNextIntervalDays = avgInterval,
+            updatedCards = updatedList
+        )
+    }
+
+    /**
+     * Record a transition bottleneck where the student paused or stumbled moving between units.
+     */
+    fun recordTransitionBottleneck(articleId: String, fromUnitIndex: Int, toUnitIndex: Int) {
+        val entry = "$fromUnitIndex->$toUnitIndex"
+        inMemoryBottlenecks.computeIfAbsent(articleId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }.add(entry)
+        prefs?.let { sp ->
+            val key = "pref_bottlenecks_$articleId"
+            val existing = sp.getStringSet(key, emptySet())?.toMutableSet() ?: mutableSetOf()
+            existing.add(entry)
+            sp.edit().putStringSet(key, existing).apply()
+        }
+    }
+
+    /**
+     * Get recorded transition bottlenecks for an article.
+     */
+    fun getTransitionBottlenecks(articleId: String): Set<Pair<Int, Int>> {
+        val rawPrefs = prefs?.getStringSet("pref_bottlenecks_$articleId", emptySet()) ?: emptySet()
+        val rawMem = inMemoryBottlenecks[articleId] ?: emptySet()
+        val combined = rawPrefs + rawMem
+        return combined.mapNotNull {
+            val parts = it.split("->")
+            if (parts.size == 2) {
+                val from = parts[0].toIntOrNull()
+                val to = parts[1].toIntOrNull()
+                if (from != null && to != null) Pair(from, to) else null
+            } else null
+        }.toSet()
+    }
+
     fun computeTodayProgress(): TodayStudyProgress {
         val todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        val newCount = prefs?.getInt("pref_daily_new_learned_$todayStr", 0) ?: 0
+        val savedNewCount = prefs?.getInt("pref_daily_new_learned_$todayStr", 0) ?: 0
+        val newCount = if (savedNewCount > 0) savedNewCount else inMemoryTodayNewLearned
         val savedRevCount = prefs?.getInt("pref_daily_reviewed_$todayStr", 0) ?: 0
         val revCount = if (savedRevCount > 0) savedRevCount else (dailyReviewMap[todayStr] ?: 0)
         val config = _studyGoalsConfig.value

@@ -2,6 +2,8 @@ package com.ancient.wenyan.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,23 +24,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancient.wenyan.data.CurriculumDataSource
+import com.ancient.wenyan.data.WenYanRepository
+import com.ancient.wenyan.data.ChainedRecitationSummary
 import com.ancient.wenyan.domain.cloze.SnowballChainingEngine
 import com.ancient.wenyan.domain.cloze.SnowballStage
 import com.ancient.wenyan.domain.cloze.SnowballUnit
+import com.ancient.wenyan.domain.fsrs.Rating
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.ui.components.DuolingoStyleCelebration
 import com.ancient.wenyan.ui.sound.HapticManager
+import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SnowballRecitationScreen(
     articleId: String? = "art_bx1_14",
+    repository: WenYanRepository? = null,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val hapticManager = remember { HapticManager.getInstance(context) }
+    val soundManager = remember { SoundEffectManager.getInstance(context) }
+    val activeRepo = remember(context, repository) {
+        repository ?: WenYanRepository.getInstance(context)
+    }
 
     val article: Article = remember(articleId) {
         CurriculumDataSource.ARTICLE_MAP[articleId]
@@ -53,6 +65,19 @@ fun SnowballRecitationScreen(
     var maskHistory by rememberSaveable(articleId) { mutableStateOf(true) }
     var isCelebrationActive by remember { mutableStateOf(false) }
 
+    // Track unit indices where user stumbled / had transition difficulty
+    var bottleneckIndices by rememberSaveable(
+        articleId,
+        stateSaver = Saver<Set<Int>, ArrayList<Int>>(
+            save = { ArrayList(it) },
+            restore = { it.toSet() }
+        )
+    ) { mutableStateOf(setOf<Int>()) }
+
+    var isSettled by rememberSaveable(articleId) { mutableStateOf(false) }
+    var summaryResult by remember { mutableStateOf<ChainedRecitationSummary?>(null) }
+    var showSettlementDialog by remember { mutableStateOf(false) }
+
     val currentStage = stages.getOrNull(currentStageIndex)
     val isCompleted = currentStageIndex >= stages.size - 1
 
@@ -61,12 +86,27 @@ fun SnowballRecitationScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "长篇滚雪球串联背诵",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "长篇滚雪球串联背诵",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = StudyBlueLight
+                            ) {
+                                Text(
+                                    text = "FSRS 联动",
+                                    fontSize = 10.sp,
+                                    color = StudyBlueAccent,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                         Text(
                             text = "《${article.title}》· 逐段递进通篇贯通",
                             fontSize = 12.sp,
@@ -169,9 +209,81 @@ fun SnowballRecitationScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "滚雪球法则：先温习前文上下文，再连背最新句联，直至一气呵成！",
+                            text = "滚雪球法则：先温习前文，再连贯朗诵最新句联！背完可直接一键批量结算 FSRS 记忆库。",
                             fontSize = 12.sp,
                             color = TextSecondary
+                        )
+                    }
+                }
+
+                // Current newly added unit spotlight card with transition feedback
+                val currentNewUnit = currentStage.newlyAddedUnit
+                val isCurrentBottleneck = currentStageIndex in bottleneckIndices
+
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = if (isCurrentBottleneck) StreakFlame.copy(alpha = 0.08f) else StudyBlueLight.copy(alpha = 0.25f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.5.dp,
+                        color = if (isCurrentBottleneck) StreakFlame else StudyBlueAccent
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "★ 本阶段攻坚目标（第 ${currentStageIndex + 1} 联）",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isCurrentBottleneck) StreakFlame else StudyBlueAccent
+                            )
+
+                            // Bottleneck toggle button
+                            FilterChip(
+                                selected = isCurrentBottleneck,
+                                onClick = {
+                                    hapticManager.tapLight()
+                                    if (isCurrentBottleneck) {
+                                        bottleneckIndices = bottleneckIndices - currentStageIndex
+                                    } else {
+                                        bottleneckIndices = bottleneckIndices + currentStageIndex
+                                        if (currentStageIndex > 0) {
+                                            activeRepo.recordTransitionBottleneck(article.id, currentStageIndex - 1, currentStageIndex)
+                                        }
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        if (isCurrentBottleneck) "已记为转折卡壳" else "此处转折卡壳？",
+                                        fontSize = 11.sp
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (isCurrentBottleneck) Icons.Default.WarningAmber else Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            )
+                        }
+
+                        Text(
+                            text = currentNewUnit.text,
+                            fontSize = 19.sp,
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 28.sp,
+                            color = TextPrimary
                         )
                     }
                 }
@@ -187,16 +299,25 @@ fun SnowballRecitationScreen(
                 currentStage.chainUnits.forEachIndexed { index: Int, unit: SnowballUnit ->
                     val isNewlyAdded = (index == currentStage.chainUnits.size - 1)
                     val isMasked = maskHistory && !isNewlyAdded
+                    val isUnitBottleneck = index in bottleneckIndices
 
                     OutlinedCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.outlinedCardColors(
-                            containerColor = if (isNewlyAdded) StudyBlueLight.copy(alpha = 0.35f) else BgSurface
+                            containerColor = when {
+                                isNewlyAdded -> StudyBlueLight.copy(alpha = 0.25f)
+                                isUnitBottleneck -> StreakFlame.copy(alpha = 0.05f)
+                                else -> BgSurface
+                            }
                         ),
                         border = androidx.compose.foundation.BorderStroke(
                             width = if (isNewlyAdded) 1.5.dp else 1.dp,
-                            color = if (isNewlyAdded) StudyBlueAccent else BorderSubtle
+                            color = when {
+                                isNewlyAdded -> StudyBlueAccent
+                                isUnitBottleneck -> StreakFlame.copy(alpha = 0.6f)
+                                else -> BorderSubtle
+                            }
                         )
                     ) {
                         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -207,13 +328,21 @@ fun SnowballRecitationScreen(
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = if (isNewlyAdded) StudyBlueAccent else BgSurfaceMuted
+                                    color = when {
+                                        isNewlyAdded -> StudyBlueAccent
+                                        isUnitBottleneck -> StreakFlame
+                                        else -> BgSurfaceMuted
+                                    }
                                 ) {
                                     Text(
-                                        text = if (isNewlyAdded) "★ 本次新加" else "第 ${index + 1} 联",
+                                        text = when {
+                                            isNewlyAdded -> "★ 本次新加"
+                                            isUnitBottleneck -> "第 ${index + 1} 联 · 易卡壳"
+                                            else -> "第 ${index + 1} 联"
+                                        },
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = if (isNewlyAdded) Color.White else TextSecondary,
+                                        color = if (isNewlyAdded || isUnitBottleneck) Color.White else TextSecondary,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -272,9 +401,26 @@ fun SnowballRecitationScreen(
 
                     Button(
                         onClick = {
+                            soundManager.playCelebration()
                             hapticManager.successPulse()
                             if (isCompleted) {
+                                // Execute batch settlement into FSRS
+                                val ratingsMap = mutableMapOf<String, Rating>()
+                                for (stg in stages) {
+                                    val rating = if (stg.stageIndex in bottleneckIndices) {
+                                        Rating.HARD
+                                    } else {
+                                        Rating.GOOD
+                                    }
+                                    for (cid in stg.newlyAddedUnit.cardIds) {
+                                        ratingsMap[cid] = rating
+                                    }
+                                }
+                                val summary = activeRepo.submitChainedRecitationBatch(ratingsMap)
+                                summaryResult = summary
+                                isSettled = true
                                 isCelebrationActive = true
+                                showSettlementDialog = true
                             } else {
                                 currentStageIndex++
                             }
@@ -286,7 +432,7 @@ fun SnowballRecitationScreen(
                             contentDescription = null
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isCompleted) "已通篇贯通 · 结业！" else "背熟了 · 滚雪球下一段")
+                        Text(if (isCompleted) "通篇贯通 · 智能同步 FSRS" else "背熟了 · 滚雪球下一段")
                     }
                 }
             }
@@ -298,4 +444,103 @@ fun SnowballRecitationScreen(
             }
         }
     }
+
+    // FSRS Chained Recitation Settlement Modal Dialog
+    if (showSettlementDialog && summaryResult != null) {
+        val summary = summaryResult!!
+        AlertDialog(
+            onDismissRequest = { showSettlementDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = null,
+                        tint = WarningGold,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("《${article.title}》通篇串联结业！", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "恭喜你完成了全篇滚雪球串联背诵！系统已自动对全篇卡片完成 FSRS 间隔重复计算与信用分配。",
+                        fontSize = 13.sp,
+                        color = TextSecondary,
+                        lineHeight = 18.sp
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = BgSurfaceMuted,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("串联总联数", fontSize = 13.sp, color = TextSecondary)
+                                Text("${stages.size} 联（共 ${summary.totalUnits} 张卡片）", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("顺畅连诵率", fontSize = 13.sp, color = TextSecondary)
+                                val pct = if (stages.isNotEmpty()) {
+                                    (((stages.size - bottleneckIndices.size).toFloat() / stages.size.toFloat()) * 100).toInt()
+                                } else 100
+                                Text("$pct%", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SuccessGreen)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("顺畅 vs 突破", fontSize = 13.sp, color = TextSecondary)
+                                Text("${stages.size - bottleneckIndices.size} 联顺畅 · ${bottleneckIndices.size} 联卡壳", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("预计下次串联复习", fontSize = 13.sp, color = TextSecondary)
+                                Text("约 ${"%.1f".format(summary.averageNextIntervalDays)} 天后", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = StudyBlueAccent)
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "✓ 记忆库稳定性已提升\n✓ 今日学习目标与打卡热力图已自动累加\n✓ 锁定了文言转折起承转合弱项",
+                        fontSize = 12.sp,
+                        color = TextTertiary,
+                        lineHeight = 18.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSettlementDialog = false
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("完成并返回")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showSettlementDialog = false
+                        currentStageIndex = 0
+                        bottleneckIndices = emptySet()
+                    }
+                ) {
+                    Text("再滚雪球巩固一遍")
+                }
+            }
+        )
+    }
 }
+

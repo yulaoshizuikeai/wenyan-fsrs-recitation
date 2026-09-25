@@ -5,7 +5,8 @@ import com.ancient.wenyan.domain.model.Article
 
 data class SnowballUnit(
     val index: Int,
-    val text: String
+    val text: String,
+    val cardIds: List<String> = emptyList()
 )
 
 data class SnowballStage(
@@ -26,9 +27,18 @@ object SnowballChainingEngine {
     fun buildStages(article: Article): List<SnowballStage> {
         val flashcards = CurriculumDataSource.generateFlashcardsForArticle(article)
         val units = if (flashcards.isNotEmpty()) {
-            flashcards.distinctBy { it.unitIndex }
-                .sortedBy { it.unitIndex }
-                .mapIndexed { idx, fc -> SnowballUnit(idx, fc.fullVerseContext ?: fc.backAnswer) }
+            flashcards.groupBy { it.unitIndex }
+                .entries
+                .sortedBy { it.key }
+                .mapIndexed { idx, entry ->
+                    val cardsForUnit = entry.value
+                    val firstCard = cardsForUnit.first()
+                    SnowballUnit(
+                        index = idx,
+                        text = firstCard.fullVerseContext ?: firstCard.backAnswer,
+                        cardIds = cardsForUnit.map { it.id }
+                    )
+                }
         } else {
             article.paragraphs.mapIndexed { idx, p -> SnowballUnit(idx, p) }
         }

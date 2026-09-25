@@ -18,12 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Flip
-import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -60,12 +56,14 @@ fun FlipCardScreen(
     initialCompletedCount: Int = 0,
     sessionId: String = "session_default",
     sessionType: String = "GENERAL",
-    onProgressUpdate: ((currentIndex: Int, completedCount: Int) -> Unit)? = null
+    onProgressUpdate: ((currentIndex: Int, completedCount: Int) -> Unit)? = null,
+    onOpenSnowball: ((articleId: String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val soundManager = remember { SoundEffectManager.getInstance(context) }
     val hapticManager = remember { HapticManager.getInstance(context) }
     var isSoundEnabled by remember { mutableStateOf(soundManager.isSoundEnabled) }
+    var isChainedFlowEnabled by rememberSaveable { mutableStateOf(true) }
 
     if (cards.isEmpty()) {
         Box(
@@ -338,6 +336,33 @@ fun FlipCardScreen(
                         }
                     },
                     actions = {
+                        // Snowball chaining direct shortcut
+                        if (onOpenSnowball != null) {
+                            IconButton(onClick = {
+                                hapticManager.tapLight()
+                                onOpenSnowball(currentCard.articleId)
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Snowboarding,
+                                    contentDescription = "开启长篇滚雪球串联背诵",
+                                    tint = StudyBlueAccent
+                                )
+                            }
+                        }
+
+                        // Chained sliding flow toggle
+                        IconButton(onClick = {
+                            val next = !isChainedFlowEnabled
+                            isChainedFlowEnabled = next
+                            hapticManager.tapLight()
+                        }) {
+                            Icon(
+                                imageVector = if (isChainedFlowEnabled) Icons.Default.Link else Icons.Default.LinkOff,
+                                contentDescription = if (isChainedFlowEnabled) "串联滑窗流：已开启" else "串联滑窗流：已关闭",
+                                tint = if (isChainedFlowEnabled) StudyBlueAccent else MaterialTheme.colorScheme.outline
+                            )
+                        }
+
                         // Sound Effect Toggle Button
                         IconButton(onClick = {
                             val next = !isSoundEnabled
@@ -508,7 +533,47 @@ fun FlipCardScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(28.dp))
+                        // Preceding clause guide in Chained Flow mode
+                        if (isChainedFlowEnabled && !currentCard.precedingClauseHint.isNullOrBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = StudyBlueLight.copy(alpha = 0.45f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, StudyBlueAccent.copy(alpha = 0.25f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Link,
+                                        contentDescription = null,
+                                        tint = StudyBlueAccent,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "上联引路 · 气韵承接",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = StudyBlueAccent
+                                        )
+                                        Text(
+                                            text = currentCard.precedingClauseHint!!,
+                                            fontSize = 14.sp,
+                                            fontFamily = FontFamily.Serif,
+                                            color = TextPrimary
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(18.dp))
+                        } else {
+                            Spacer(modifier = Modifier.height(28.dp))
+                        }
 
                         // Front Prompt Text (Full Context with Cloze Mask)
                         Text(
@@ -616,6 +681,51 @@ fun FlipCardScreen(
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
+
+                            val nextCardPair = sessionQueue.getOrNull(currentIndex + 1)
+                            val isSameArticleNext = nextCardPair != null && nextCardPair.first.articleId == currentCard.articleId
+                            val succeedingClauseText = if (isSameArticleNext) {
+                                nextCardPair?.first?.fullVerseContext ?: nextCardPair?.first?.backAnswer?.removePrefix("【填空正解】")
+                            } else null
+
+                            if (isChainedFlowEnabled && !succeedingClauseText.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = BgSurfaceMuted,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderSubtle),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SubdirectoryArrowRight,
+                                            contentDescription = null,
+                                            tint = StudyBlueAccent,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "下联顺承预览 · 串联连诵",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = StudyBlueAccent
+                                            )
+                                            Text(
+                                                text = succeedingClauseText,
+                                                fontSize = 13.sp,
+                                                fontFamily = FontFamily.Serif,
+                                                color = TextPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -658,11 +768,91 @@ fun FlipCardScreen(
                         .height(52.dp)
                 )
             } else {
-                // 4 FSRS Rating Buttons with rich spring physics, unique sounds & haptic signatures
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    if (isChainedFlowEnabled) {
+                        // Chained Flow Fast Actions: 顺畅连诵 vs 转折卡壳
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    if (isTransitioning) return@OutlinedButton
+                                    isTransitioning = true
+                                    soundManager.playHard()
+                                    hapticManager.warningThud()
+                                    if (currentCard.unitIndex > 0) {
+                                        repository.recordTransitionBottleneck(
+                                            currentCard.articleId,
+                                            currentCard.unitIndex - 1,
+                                            currentCard.unitIndex
+                                        )
+                                    }
+                                    repository.submitRating(currentCard.id, Rating.HARD)
+                                    val nextCount = completedCount + 1
+                                    completedCount = nextCount
+                                    isFlipped = false
+                                    val nextIdx = currentIndex + 1
+                                    currentIndex = nextIdx
+                                    if (nextIdx >= sessionQueue.size) {
+                                        repository.clearActiveSession()
+                                    } else {
+                                        persistCurrentSession(nextIdx, nextCount)
+                                    }
+                                    onProgressUpdate?.invoke(nextIdx, nextCount)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, WarningGold),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = WarningGold)
+                            ) {
+                                Icon(Icons.Default.WarningAmber, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("转折稍卡壳 (${intervalPreviews[Rating.HARD] ?: "15分"})", fontSize = 12.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (isTransitioning) return@Button
+                                    isTransitioning = true
+                                    soundManager.playCorrect()
+                                    hapticManager.successPulse()
+                                    repository.submitRating(currentCard.id, Rating.GOOD)
+                                    val nextCount = completedCount + 1
+                                    completedCount = nextCount
+                                    isFlipped = false
+                                    val nextIdx = currentIndex + 1
+                                    currentIndex = nextIdx
+                                    if (nextIdx >= sessionQueue.size) {
+                                        repository.clearActiveSession()
+                                    } else {
+                                        persistCurrentSession(nextIdx, nextCount)
+                                    }
+                                    onProgressUpdate?.invoke(nextIdx, nextCount)
+                                },
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = StudyBlueAccent)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("一气呵成·顺畅连诵 (${intervalPreviews[Rating.GOOD] ?: "1天"})", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    // 4 FSRS Rating Buttons with rich spring physics, unique sounds & haptic signatures
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                     BouncyFsrsRatingButton(
                         label = "重来",
                         badge = intervalPreviews[Rating.AGAIN] ?: "10分",
@@ -766,10 +956,11 @@ fun FlipCardScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
     }
+}
 }
 
 /**

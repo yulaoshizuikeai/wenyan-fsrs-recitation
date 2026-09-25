@@ -243,6 +243,9 @@ class MainActivity : ComponentActivity() {
                                             initialIndex = idx,
                                             initialCompletedCount = count
                                         )
+                                    },
+                                    onOpenSnowball = { articleId ->
+                                        overlayScreen = OverlayScreen.SnowballRecitation(articleId)
                                     }
                                 )
                             }
@@ -270,6 +273,7 @@ class MainActivity : ComponentActivity() {
                             is OverlayScreen.SnowballRecitation -> {
                                 SnowballRecitationScreen(
                                     articleId = screen.articleId,
+                                    repository = repository,
                                     onNavigateBack = { overlayScreen = null }
                                 )
                             }
