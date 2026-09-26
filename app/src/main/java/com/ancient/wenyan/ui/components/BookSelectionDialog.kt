@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.ancient.wenyan.domain.model.BookGroup
 import com.ancient.wenyan.domain.model.BookPresets
 import com.ancient.wenyan.ui.sound.HapticManager
@@ -46,8 +47,10 @@ fun BookSelectionDialog(
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth(0.92f)
+            .widthIn(max = 560.dp)
             .fillMaxHeight(0.85f)
     ) {
         Surface(

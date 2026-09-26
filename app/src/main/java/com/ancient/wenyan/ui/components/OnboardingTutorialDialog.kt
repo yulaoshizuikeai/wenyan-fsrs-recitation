@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
 import com.ancient.wenyan.ui.theme.*
@@ -104,7 +105,13 @@ fun OnboardingTutorialDialog(
         )
     )
 
-    BasicAlertDialog(onDismissRequest = onDismiss) {
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier
+            .fillMaxWidth(0.92f)
+            .widthIn(max = 480.dp)
+    ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,

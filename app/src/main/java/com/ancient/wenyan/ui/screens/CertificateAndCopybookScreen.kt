@@ -31,7 +31,7 @@ import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CertificateAndCopybookScreen(
     articleId: String? = "art_bx1_14",
@@ -161,7 +161,8 @@ fun CertificateAndCopybookScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .navigationBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -289,11 +290,12 @@ fun CertificateAndCopybookScreen(
                                 color = TextPrimary
                             )
 
-                            copybook.lines.take(8).forEach { line ->
+                            copybook.lines.forEachIndexed { lineIdx, line ->
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Row(
+                                    FlowRow(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         line.characters.forEach { copyChar ->
                                             Box(
@@ -312,6 +314,9 @@ fun CertificateAndCopybookScreen(
                                                 )
                                             }
                                         }
+                                    }
+                                    if (lineIdx < copybook.lines.size - 1) {
+                                        Spacer(modifier = Modifier.height(4.dp))
                                     }
                                 }
                             }

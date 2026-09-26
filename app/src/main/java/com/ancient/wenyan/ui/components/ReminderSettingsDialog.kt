@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import com.ancient.wenyan.ui.sound.HapticManager
 import com.ancient.wenyan.ui.sound.SoundEffectManager
@@ -69,7 +70,13 @@ fun ReminderSettingsDialog(
         is24Hour = true
     )
 
-    BasicAlertDialog(onDismissRequest = onDismiss) {
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier
+            .fillMaxWidth(0.92f)
+            .widthIn(max = 480.dp)
+    ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.extraLarge,

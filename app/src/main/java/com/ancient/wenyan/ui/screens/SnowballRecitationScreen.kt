@@ -155,6 +155,10 @@ fun SnowballRecitationScreen(
 
         val scrollState = rememberScrollState()
 
+        LaunchedEffect(currentStageIndex) {
+            scrollState.animateScrollTo(0)
+        }
+
         Box(modifier = modifier.fillMaxSize().padding(innerPadding)) {
             Column(
                 modifier = Modifier
@@ -535,6 +539,8 @@ fun SnowballRecitationScreen(
                         showSettlementDialog = false
                         currentStageIndex = 0
                         bottleneckIndices = emptySet()
+                        isSettled = false
+                        isCelebrationActive = false
                     }
                 ) {
                     Text("再滚雪球巩固一遍")

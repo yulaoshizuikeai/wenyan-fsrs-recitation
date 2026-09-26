@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import com.ancient.wenyan.data.CurriculumDataSource
 import com.ancient.wenyan.domain.model.Article
 import com.ancient.wenyan.ui.sound.HapticManager
@@ -90,9 +91,10 @@ fun ChainedArticleSelectionDialog(
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight(0.88f)
+            .fillMaxWidth(0.92f)
+            .fillMaxHeight(0.85f)
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),

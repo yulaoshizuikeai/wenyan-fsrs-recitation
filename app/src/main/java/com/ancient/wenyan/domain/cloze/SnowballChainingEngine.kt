@@ -33,9 +33,17 @@ object SnowballChainingEngine {
                 .mapIndexed { idx, entry ->
                     val cardsForUnit = entry.value
                     val firstCard = cardsForUnit.first()
+                    val rawText = firstCard.fullVerseContext ?: firstCard.backAnswer
+                    val cleanText = rawText
+                        .replace("【", "")
+                        .replace("】", "")
+                        .replace("⟦ ________ ⟧", "")
+                        .replace("【填空正解】", "")
+                        .replace("【对句】", "")
+                        .trim()
                     SnowballUnit(
                         index = idx,
-                        text = firstCard.fullVerseContext ?: firstCard.backAnswer,
+                        text = cleanText,
                         cardIds = cardsForUnit.map { it.id }
                     )
                 }

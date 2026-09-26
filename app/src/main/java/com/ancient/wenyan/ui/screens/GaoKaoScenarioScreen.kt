@@ -1,5 +1,6 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -56,6 +57,13 @@ fun GaoKaoScenarioScreen(
     }
     var showArticlePickerSheet by remember { mutableStateOf(false) }
 
+    val missingArticleNotice = remember(initialArticleTitle, availableArticles) {
+        initialArticleTitle?.takeIf { it !in availableArticles }
+    }
+    var showMissingArticleNotice by rememberSaveable(initialArticleTitle) {
+        mutableStateOf(missingArticleNotice != null)
+    }
+
     // Active questions based on selected article, supports shuffling
     var activeQuestions by remember(selectedArticle) {
         mutableStateOf(GaoKaoScenarioDataSource.getQuestionsByArticle(selectedArticle))
@@ -63,18 +71,31 @@ fun GaoKaoScenarioScreen(
 
     val coroutineScope = rememberCoroutineScope()
     var currentIndex by rememberSaveable(selectedArticle) { mutableIntStateOf(0) }
-    var isRevealed by rememberSaveable(selectedArticle, currentIndex) { mutableStateOf(false) }
-    var userInput by rememberSaveable(selectedArticle, currentIndex) { mutableStateOf("") }
-    var evalResult by remember(currentIndex, activeQuestions) { mutableStateOf<RecitationEvaluationResult?>(null) }
-    var aiDiagnosis by remember(currentIndex, activeQuestions) { mutableStateOf<ScenarioDiagnosisResult?>(null) }
-    var isAiLoading by remember(currentIndex, activeQuestions) { mutableStateOf(false) }
+
+    // State mapped by question id to prevent answer bleed between questions and when shuffling
+    val userAnswers = rememberSaveable { mutableStateMapOf<String, String>() }
+    val revealedQuestions = rememberSaveable { mutableStateMapOf<String, Boolean>() }
+    val evalResults = remember { mutableStateMapOf<String, RecitationEvaluationResult>() }
+    val aiDiagnoses = remember { mutableStateMapOf<String, ScenarioDiagnosisResult>() }
+    val aiLoadingStates = remember { mutableStateMapOf<String, Boolean>() }
 
     val currentQ = activeQuestions.getOrNull(currentIndex)
+    val userInput = currentQ?.let { userAnswers[it.id] } ?: ""
+    val isRevealed = currentQ?.let { revealedQuestions[it.id] } == true
+    val evalResult = currentQ?.let { evalResults[it.id] }
+    val aiDiagnosis = currentQ?.let { aiDiagnoses[it.id] }
+    val isAiLoading = currentQ?.let { aiLoadingStates[it.id] } == true
 
-    LaunchedEffect(isRevealed, currentIndex, activeQuestions) {
+    LaunchedEffect(isRevealed, currentQ?.id) {
         if (isRevealed && evalResult == null && userInput.isNotBlank() && currentQ != null) {
-            evalResult = RecitationDiffEngine.evaluate(userInput, currentQ.answer)
+            evalResults[currentQ.id] = RecitationDiffEngine.evaluate(userInput, currentQ.answer)
         }
+    }
+
+    BackHandler {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onNavigateBack()
     }
 
     // Helper to evaluate and dismiss keyboard
@@ -83,17 +104,19 @@ fun GaoKaoScenarioScreen(
         focusManager.clearFocus()
         if (userInput.isNotBlank() && currentQ != null) {
             hapticManager.tapLight()
-            evalResult = RecitationDiffEngine.evaluate(userInput, currentQ.answer)
-            isRevealed = true
-            isAiLoading = true
+            val result = RecitationDiffEngine.evaluate(userInput, currentQ.answer)
+            evalResults[currentQ.id] = result
+            revealedQuestions[currentQ.id] = true
+            aiLoadingStates[currentQ.id] = true
             coroutineScope.launch {
-                aiDiagnosis = TypeSafeDiagnosisEngine.diagnose(
+                val diag = TypeSafeDiagnosisEngine.diagnose(
                     scenarioPrompt = currentQ.prompt,
                     expectedAnswer = currentQ.answer,
                     userInput = userInput,
                     keyPoints = currentQ.keyPoints
                 )
-                isAiLoading = false
+                aiDiagnoses[currentQ.id] = diag
+                aiLoadingStates[currentQ.id] = false
             }
         }
     }
@@ -212,7 +235,11 @@ fun GaoKaoScenarioScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        onNavigateBack()
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
@@ -225,7 +252,10 @@ fun GaoKaoScenarioScreen(
                     IconButton(
                         onClick = {
                             hapticManager.tapLight()
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
                             activeQuestions = activeQuestions.shuffled()
+                            currentIndex = 0
                         }
                     ) {
                         Icon(
@@ -271,12 +301,6 @@ fun GaoKaoScenarioScreen(
         val isImeVisible = WindowInsets.isImeVisible
         val scrollState = rememberScrollState()
 
-        LaunchedEffect(isImeVisible) {
-            if (isImeVisible) {
-                scrollState.animateScrollTo(scrollState.maxValue)
-            }
-        }
-
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -287,6 +311,45 @@ fun GaoKaoScenarioScreen(
                 .padding(horizontal = 16.dp, vertical = if (isImeVisible) 6.dp else 10.dp),
             verticalArrangement = Arrangement.spacedBy(if (isImeVisible) 8.dp else 12.dp)
         ) {
+            // Missing article notice
+            if (showMissingArticleNotice && missingArticleNotice != null) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = StudyBlueLight,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, StudyBlueAccent.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = StudyBlueAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "提示：《$missingArticleNotice》暂未收录情境默写题，已自动切换至全部篇目练习",
+                                fontSize = 11.sp,
+                                color = StudyBlueAccent
+                            )
+                        }
+                        IconButton(
+                            onClick = { showMissingArticleNotice = false },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "关闭提示", tint = StudyBlueAccent, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+            }
             // ==============================================================
             // 1. 篇目专项选择标签栏 (Article Filter Pills, 键盘弹出时自动隐藏以释放宝贵纵向空间)
             // ==============================================================
@@ -475,8 +538,10 @@ fun GaoKaoScenarioScreen(
                     OutlinedTextField(
                         value = userInput,
                         onValueChange = {
-                            userInput = it
-                            evalResult = null
+                            if (currentQ != null) {
+                                userAnswers[currentQ.id] = it
+                                evalResults.remove(currentQ.id)
+                            }
                         },
                         label = { Text("键入默写答案 (回车或点击下方智能评测)") },
                         placeholder = { Text("例：不宜妄自菲薄，引喻失义……") },
@@ -495,8 +560,10 @@ fun GaoKaoScenarioScreen(
                             if (userInput.isNotEmpty()) {
                                 IconButton(
                                     onClick = {
-                                        userInput = ""
-                                        evalResult = null
+                                        if (currentQ != null) {
+                                            userAnswers[currentQ.id] = ""
+                                            evalResults.remove(currentQ.id)
+                                        }
                                     }
                                 ) {
                                     Icon(
@@ -531,7 +598,9 @@ fun GaoKaoScenarioScreen(
                                 keyboardController?.hide()
                                 focusManager.clearFocus()
                                 hapticManager.tapLight()
-                                isRevealed = !isRevealed
+                                if (currentQ != null) {
+                                    revealedQuestions[currentQ.id] = !isRevealed
+                                }
                             },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
@@ -598,7 +667,7 @@ fun GaoKaoScenarioScreen(
             // 5.5 TypeSafe AI 智能学情诊断卡片
             // ==============================================================
             AnimatedVisibility(
-                visible = isRevealed && (isAiLoading || (aiDiagnosis != null && aiDiagnosis!!.isSuccess)),
+                visible = isRevealed && (isAiLoading || aiDiagnosis?.isSuccess == true),
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -648,8 +717,8 @@ fun GaoKaoScenarioScreen(
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )
-                        } else if (aiDiagnosis != null && aiDiagnosis!!.isSuccess) {
-                            val diag = aiDiagnosis!!
+                        } else if (aiDiagnosis != null && aiDiagnosis.isSuccess) {
+                            val diag = aiDiagnosis
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),

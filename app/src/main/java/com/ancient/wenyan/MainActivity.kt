@@ -15,7 +15,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -27,7 +26,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -290,36 +288,7 @@ class MainActivity : ComponentActivity() {
                                 val isWideScreen = configuration.screenWidthDp >= 600
 
                                 val mainTabContent: @Composable (Modifier) -> Unit = { contentModifier ->
-                                    var totalDragX by remember { mutableFloatStateOf(0f) }
-                                    Box(
-                                        modifier = contentModifier
-                                            .pointerInput(selectedTab) {
-                                                detectHorizontalDragGestures(
-                                                    onDragStart = { totalDragX = 0f },
-                                                    onHorizontalDrag = { _, dragAmount ->
-                                                        totalDragX += dragAmount
-                                                    },
-                                                    onDragEnd = {
-                                                        val threshold = 72.dp.toPx()
-                                                        if (totalDragX < -threshold) {
-                                                            val nextOrdinal = (selectedTab.ordinal + 1).coerceAtMost(MainTab.entries.size - 1)
-                                                            if (nextOrdinal != selectedTab.ordinal) {
-                                                                hapticManager.tapLight()
-                                                                soundManager.playClick()
-                                                                selectedTab = MainTab.entries[nextOrdinal]
-                                                            }
-                                                        } else if (totalDragX > threshold) {
-                                                            val prevOrdinal = (selectedTab.ordinal - 1).coerceAtLeast(0)
-                                                            if (prevOrdinal != selectedTab.ordinal) {
-                                                                hapticManager.tapLight()
-                                                                soundManager.playClick()
-                                                                selectedTab = MainTab.entries[prevOrdinal]
-                                                            }
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                    ) {
+                                    Box(modifier = contentModifier) {
                                         AnimatedContent(
                                             targetState = selectedTab,
                                             transitionSpec = {
@@ -398,7 +367,7 @@ class MainActivity : ComponentActivity() {
                                                                 moduleIds = repository.selectedBookScope.value,
                                                                 gaoKaoOnly = true
                                                             )
-                                                            val title = if (currentBookName != null) {
+                                                            val title = if (currentBookName.isNotBlank() && currentBookName != "全部教材") {
                                                                 "《$currentBookName》· 高考必背专项背诵"
                                                             } else {
                                                                 "高考必背 72 篇专项背诵"

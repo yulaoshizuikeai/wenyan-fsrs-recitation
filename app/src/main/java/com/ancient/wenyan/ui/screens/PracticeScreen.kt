@@ -258,7 +258,7 @@ fun PracticeScreen(
                                             gaoKaoOnly = true,
                                             preservePoemOrder = preservePoemOrder
                                         )
-                                        val title = if (currentRepoName != null) {
+                                        val title = if (currentRepoName.isNotBlank() && currentRepoName != "全部教材") {
                                             "《$currentRepoName》· 高考必背专项背诵"
                                         } else {
                                             "高考必背 72 篇专项背诵"

@@ -1,5 +1,6 @@
 package com.ancient.wenyan.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -399,6 +400,11 @@ fun FlipCardScreen(
     ) { innerPadding ->
         var isFlipped by rememberSaveable(currentIndex, currentCard.id) { mutableStateOf(false) }
 
+        BackHandler(enabled = isFlipped && !isSessionComplete) {
+            isFlipped = false
+            hapticManager.tapLight()
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -770,81 +776,28 @@ fun FlipCardScreen(
             } else {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (isChainedFlowEnabled) {
-                        // Chained Flow Fast Actions: 顺畅连诵 vs 转折卡壳
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 2.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
-                                onClick = {
-                                    if (isTransitioning) return@OutlinedButton
-                                    isTransitioning = true
-                                    soundManager.playHard()
-                                    hapticManager.warningThud()
-                                    if (currentCard.unitIndex > 0) {
-                                        repository.recordTransitionBottleneck(
-                                            currentCard.articleId,
-                                            currentCard.unitIndex - 1,
-                                            currentCard.unitIndex
-                                        )
-                                    }
-                                    repository.submitRating(currentCard.id, Rating.HARD)
-                                    val nextCount = completedCount + 1
-                                    completedCount = nextCount
-                                    isFlipped = false
-                                    val nextIdx = currentIndex + 1
-                                    currentIndex = nextIdx
-                                    if (nextIdx >= sessionQueue.size) {
-                                        repository.clearActiveSession()
-                                    } else {
-                                        persistCurrentSession(nextIdx, nextCount)
-                                    }
-                                    onProgressUpdate?.invoke(nextIdx, nextCount)
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, WarningGold),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = WarningGold)
-                            ) {
-                                Icon(Icons.Default.WarningAmber, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("转折稍卡壳 (${intervalPreviews[Rating.HARD] ?: "15分"})", fontSize = 12.sp)
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (isTransitioning) return@Button
-                                    isTransitioning = true
-                                    soundManager.playCorrect()
-                                    hapticManager.successPulse()
-                                    repository.submitRating(currentCard.id, Rating.GOOD)
-                                    val nextCount = completedCount + 1
-                                    completedCount = nextCount
-                                    isFlipped = false
-                                    val nextIdx = currentIndex + 1
-                                    currentIndex = nextIdx
-                                    if (nextIdx >= sessionQueue.size) {
-                                        repository.clearActiveSession()
-                                    } else {
-                                        persistCurrentSession(nextIdx, nextCount)
-                                    }
-                                    onProgressUpdate?.invoke(nextIdx, nextCount)
-                                },
-                                modifier = Modifier
-                                    .weight(1.3f)
-                                    .height(48.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = StudyBlueAccent)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("一气呵成·顺畅连诵 (${intervalPreviews[Rating.GOOD] ?: "1天"})", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Link,
+                                contentDescription = null,
+                                tint = StudyBlueAccent,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "串联滑窗模式：转折卡壳选困难，顺畅连诵选良好",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = StudyBlueAccent
+                            )
                         }
                     }
 
@@ -853,109 +806,116 @@ fun FlipCardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                    BouncyFsrsRatingButton(
-                        label = "重来",
-                        badge = intervalPreviews[Rating.AGAIN] ?: "10分",
-                        color = DueRed,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isTransitioning) return@BouncyFsrsRatingButton
-                        isTransitioning = true
-                        soundManager.playWrong()
-                        hapticManager.warningThud()
-                        repository.submitRating(currentCard.id, Rating.AGAIN)
-                        val updatedState = repository.getCardState(currentCard.id)
-                        // 顺承原序：将重来卡片就近插入当前篇目末尾，并至少间隔3张卡避免瞬时记忆作弊
-                        var lastIndexInArticle = currentIndex
-                        for (i in (currentIndex + 1) until sessionQueue.size) {
-                            if (sessionQueue[i].first.articleId == currentCard.articleId) {
-                                lastIndexInArticle = i
+                        BouncyFsrsRatingButton(
+                            label = "重来",
+                            badge = intervalPreviews[Rating.AGAIN] ?: "10分",
+                            color = DueRed,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isTransitioning) return@BouncyFsrsRatingButton
+                            isTransitioning = true
+                            soundManager.playWrong()
+                            hapticManager.warningThud()
+                            repository.submitRating(currentCard.id, Rating.AGAIN)
+                            val updatedState = repository.getCardState(currentCard.id)
+                            // 顺承原序：将重来卡片就近插入当前篇目末尾，并至少间隔3张卡避免瞬时记忆作弊
+                            var lastIndexInArticle = currentIndex
+                            for (i in (currentIndex + 1) until sessionQueue.size) {
+                                if (sessionQueue[i].first.articleId == currentCard.articleId) {
+                                    lastIndexInArticle = i
+                                }
                             }
+                            val idealPos = maxOf(currentIndex + 3, lastIndexInArticle + 1)
+                            val insertPos = idealPos.coerceAtMost(sessionQueue.size)
+                            sessionQueue.add(insertPos, Pair(currentCard, updatedState))
+                            // 重来不算作完成，不递增 completedCount
+                            isFlipped = false
+                            val nextIdx = currentIndex + 1
+                            currentIndex = nextIdx
+                            persistCurrentSession(nextIdx, completedCount)
+                            onProgressUpdate?.invoke(nextIdx, completedCount)
                         }
-                        val idealPos = maxOf(currentIndex + 3, lastIndexInArticle + 1)
-                        val insertPos = idealPos.coerceAtMost(sessionQueue.size)
-                        sessionQueue.add(insertPos, Pair(currentCard, updatedState))
-                        // 重来不算作完成，不递增 completedCount
-                        isFlipped = false
-                        val nextIdx = currentIndex + 1
-                        currentIndex = nextIdx
-                        persistCurrentSession(nextIdx, completedCount)
-                        onProgressUpdate?.invoke(nextIdx, completedCount)
-                    }
 
-                    BouncyFsrsRatingButton(
-                        label = "困难",
-                        badge = intervalPreviews[Rating.HARD] ?: "15分",
-                        color = WarningGold,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isTransitioning) return@BouncyFsrsRatingButton
-                        isTransitioning = true
-                        soundManager.playHard()
-                        hapticManager.warningThud()
-                        repository.submitRating(currentCard.id, Rating.HARD)
-                        val nextCount = completedCount + 1
-                        completedCount = nextCount
-                        isFlipped = false
-                        val nextIdx = currentIndex + 1
-                        currentIndex = nextIdx
-                        if (nextIdx >= sessionQueue.size) {
-                            repository.clearActiveSession()
-                        } else {
-                            persistCurrentSession(nextIdx, nextCount)
+                        BouncyFsrsRatingButton(
+                            label = if (isChainedFlowEnabled) "卡壳" else "困难",
+                            badge = intervalPreviews[Rating.HARD] ?: "15分",
+                            color = WarningGold,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isTransitioning) return@BouncyFsrsRatingButton
+                            isTransitioning = true
+                            soundManager.playHard()
+                            hapticManager.warningThud()
+                            if (isChainedFlowEnabled && currentCard.unitIndex > 0) {
+                                repository.recordTransitionBottleneck(
+                                    currentCard.articleId,
+                                    currentCard.unitIndex - 1,
+                                    currentCard.unitIndex
+                                )
+                            }
+                            repository.submitRating(currentCard.id, Rating.HARD)
+                            val nextCount = completedCount + 1
+                            completedCount = nextCount
+                            isFlipped = false
+                            val nextIdx = currentIndex + 1
+                            currentIndex = nextIdx
+                            if (nextIdx >= sessionQueue.size) {
+                                repository.clearActiveSession()
+                            } else {
+                                persistCurrentSession(nextIdx, nextCount)
+                            }
+                            onProgressUpdate?.invoke(nextIdx, nextCount)
                         }
-                        onProgressUpdate?.invoke(nextIdx, nextCount)
-                    }
 
-                    BouncyFsrsRatingButton(
-                        label = "良好",
-                        badge = intervalPreviews[Rating.GOOD] ?: "1天",
-                        color = SuccessGreen,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isTransitioning) return@BouncyFsrsRatingButton
-                        isTransitioning = true
-                        soundManager.playCorrect()
-                        hapticManager.successPulse()
-                        repository.submitRating(currentCard.id, Rating.GOOD)
-                        val nextCount = completedCount + 1
-                        completedCount = nextCount
-                        isFlipped = false
-                        val nextIdx = currentIndex + 1
-                        currentIndex = nextIdx
-                        if (nextIdx >= sessionQueue.size) {
-                            repository.clearActiveSession()
-                        } else {
-                            persistCurrentSession(nextIdx, nextCount)
+                        BouncyFsrsRatingButton(
+                            label = if (isChainedFlowEnabled) "顺畅" else "良好",
+                            badge = intervalPreviews[Rating.GOOD] ?: "1天",
+                            color = SuccessGreen,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isTransitioning) return@BouncyFsrsRatingButton
+                            isTransitioning = true
+                            soundManager.playCorrect()
+                            hapticManager.successPulse()
+                            repository.submitRating(currentCard.id, Rating.GOOD)
+                            val nextCount = completedCount + 1
+                            completedCount = nextCount
+                            isFlipped = false
+                            val nextIdx = currentIndex + 1
+                            currentIndex = nextIdx
+                            if (nextIdx >= sessionQueue.size) {
+                                repository.clearActiveSession()
+                            } else {
+                                persistCurrentSession(nextIdx, nextCount)
+                            }
+                            onProgressUpdate?.invoke(nextIdx, nextCount)
                         }
-                        onProgressUpdate?.invoke(nextIdx, nextCount)
-                    }
 
-                    BouncyFsrsRatingButton(
-                        label = "简单",
-                        badge = intervalPreviews[Rating.EASY] ?: "3天",
-                        color = StudyBlueAccent,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (isTransitioning) return@BouncyFsrsRatingButton
-                        isTransitioning = true
-                        soundManager.playEasy()
-                        hapticManager.successPulse()
-                        repository.submitRating(currentCard.id, Rating.EASY)
-                        val nextCount = completedCount + 1
-                        completedCount = nextCount
-                        isFlipped = false
-                        val nextIdx = currentIndex + 1
-                        currentIndex = nextIdx
-                        if (nextIdx >= sessionQueue.size) {
-                            repository.clearActiveSession()
-                        } else {
-                            persistCurrentSession(nextIdx, nextCount)
+                        BouncyFsrsRatingButton(
+                            label = if (isChainedFlowEnabled) "纯熟" else "简单",
+                            badge = intervalPreviews[Rating.EASY] ?: "3天",
+                            color = StudyBlueAccent,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isTransitioning) return@BouncyFsrsRatingButton
+                            isTransitioning = true
+                            soundManager.playEasy()
+                            hapticManager.successPulse()
+                            repository.submitRating(currentCard.id, Rating.EASY)
+                            val nextCount = completedCount + 1
+                            completedCount = nextCount
+                            isFlipped = false
+                            val nextIdx = currentIndex + 1
+                            currentIndex = nextIdx
+                            if (nextIdx >= sessionQueue.size) {
+                                repository.clearActiveSession()
+                            } else {
+                                persistCurrentSession(nextIdx, nextCount)
+                            }
+                            onProgressUpdate?.invoke(nextIdx, nextCount)
                         }
-                        onProgressUpdate?.invoke(nextIdx, nextCount)
                     }
                 }
-            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
